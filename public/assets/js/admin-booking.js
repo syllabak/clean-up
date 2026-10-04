@@ -5,7 +5,7 @@
   var date = document.getElementById('r_date'), sel = document.getElementById('r_start');
   date.addEventListener('change', function () {
     sel.innerHTML = '<option value="">Chargement…</option>';
-    fetch('/admin/api/creneaux', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': f.dataset.csrf, Accept: 'application/json' }, body: JSON.stringify({ booking_id: +f.dataset.booking, date: date.value }) })
+    fetch(((document.querySelector('meta[name="base-path"]') || {}).content || '') + '/admin/api/creneaux', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': f.dataset.csrf, Accept: 'application/json' }, body: JSON.stringify({ booking_id: +f.dataset.booking, date: date.value }) })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         sel.innerHTML = '';

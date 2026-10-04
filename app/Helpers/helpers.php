@@ -5,6 +5,26 @@ use App\Core\{Csrf, Database, Env, Session};
 
 function e(mixed $v): string { return htmlspecialchars((string) $v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 function now(): string { return gmdate('Y-m-d H:i:s'); }          // stockage en UTC
+/** Préfixe d'installation sans slash final ("" à la racine, "/cleanup" en sous-dossier). APP_BASE_PATH l'emporte, sinon détection via SCRIPT_NAME. */
+function base_path(): string
+{
+    static $base = null;
+    if ($base === null) {
+        $b = Env::get('APP_BASE_PATH');
+        if ($b === null || $b === '') {
+            $dir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/'));
+            $b = preg_replace('#/public$#', '', $dir) ?? '';
+        }
+        $b = trim($b, '/');
+        $base = ($b === '' || $b === '.') ? '' : '/' . $b;
+    }
+    return $base;
+}
+/** Préfixe un chemin interne (« /services ») avec le sous-dossier d'installation. */
+function with_base(string $path): string
+{
+    return ($path !== '' && $path[0] === '/' && !str_starts_with($path, '//')) ? base_path() . $path : $path;
+}
 function url(string $path = ''): string { return rtrim(Env::get('APP_URL', ''), '/') . '/' . ltrim($path, '/'); }
 function asset(string $path): string
 {
@@ -68,7 +88,7 @@ function slugify(string $s): string
 
 function redirect(string $to, int $code = 302): never
 {
-    header('Location: ' . $to, true, $code);
+    header('Location: ' . with_base($to), true, $code);
     exit;
 }
 function json_response(mixed $data, int $code = 200): never

@@ -14,7 +14,8 @@ $nav = [
 $u = Auth::user();
 ?><!doctype html>
 <html lang="fr"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<meta charset="utf-8">
+<meta name="base-path" content="<?= e(base_path()) ?>"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow">
 <title><?= e($title ?? 'Administration') ?> — <?= e(setting('company_name')) ?></title>
 <link rel="icon" type="image/png" href="/assets/icons/icon-192.png">
 <link rel="stylesheet" href="<?= asset('vendor/bootstrap.min.css') ?>"><link rel="stylesheet" href="<?= asset('css/app.css') ?>">

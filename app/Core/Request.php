@@ -12,6 +12,8 @@ final class Request
     {
         $p = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         $p = '/' . trim($p, '/');
+        $base = base_path();
+        if ($base !== '' && ($p === $base || str_starts_with($p, $base . '/'))) $p = '/' . ltrim(substr($p, strlen($base)), '/');
         return $p;
     }
 

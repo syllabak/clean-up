@@ -1,4 +1,6 @@
 # Si le serveur pointe sur la racine du projet : tout passe par public/
 RewriteEngine On
-RewriteRule ^$ public/ [L]
-RewriteRule (.*) public/$1 [L]
+RewriteCond %{REQUEST_URI} !/public/
+RewriteRule ^(?:cleanup/)?$ public/ [L]
+RewriteCond %{REQUEST_URI} !/public/
+RewriteRule ^(?:cleanup/)?(.*)$ public/$1 [L]

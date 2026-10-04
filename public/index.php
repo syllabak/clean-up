@@ -1,10 +1,19 @@
 <?php
 declare(strict_types=1);
 
-// Serveur PHP intégré (dev) : laisse passer les fichiers statiques existants.
+// Serveur PHP intégré (dev) : sert les fichiers statiques existants (en sous-dossier, il faut les envoyer soi-même).
 if (PHP_SAPI === 'cli-server') {
-    $f = __DIR__ . parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    if (is_file($f) && !str_ends_with($f, '.php')) return false;
+    $base = rtrim(getenv('APP_BASE_PATH') ?: '', '/');
+    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    if ($base !== '' && str_starts_with($uri, $base . '/')) $uri = substr($uri, strlen($base));
+    $f = __DIR__ . $uri;
+    if (is_file($f) && !str_ends_with($f, '.php')) {
+        if ($base === '') return false;
+        $types = ['css' => 'text/css', 'js' => 'text/javascript', 'png' => 'image/png', 'svg' => 'image/svg+xml', 'webmanifest' => 'application/manifest+json', 'jpg' => 'image/jpeg', 'webp' => 'image/webp'];
+        header('Content-Type: ' . ($types[pathinfo($f, PATHINFO_EXTENSION)] ?? 'application/octet-stream'));
+        readfile($f);
+        return true;
+    }
 }
 
 require dirname(__DIR__) . '/bootstrap.php';

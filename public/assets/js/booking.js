@@ -4,6 +4,7 @@
   'use strict';
   var root = document.getElementById('wizard');
   if (!root) return;
+  var BASE = (document.querySelector('meta[name="base-path"]') || {}).content || '';
   var CSRF = root.dataset.csrf, CUR = root.dataset.currency || 'FCFA';
   var SERVICES = JSON.parse(document.getElementById('services-data').textContent);
   var S = { step: 0, svc: null, def: null, formula: null, fields: {}, options: [], hood: null, date: null, slot: null, quote: null, days: null };
@@ -23,7 +24,7 @@
   function api(url, body) {
     var opt = body === undefined ? { headers: { Accept: 'application/json' } }
       : { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': CSRF }, body: JSON.stringify(body) };
-    return fetch(url, opt).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, status: r.status, data: d }; }); });
+    return fetch(BASE + url, opt).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, status: r.status, data: d }; }); });
   }
   function showError(msg) { var m = $('msg'); m.textContent = msg; m.classList.toggle('d-none', !msg); if (msg) m.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
   function errText(d) { if (d && d.errors) return Object.keys(d.errors).map(function (k) { return d.errors[k]; }).join(' '); return (d && d.error) || 'Une erreur est survenue. Réessayez.'; }

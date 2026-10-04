@@ -24,6 +24,8 @@ abstract class Controller
         $host = parse_url($ref, PHP_URL_HOST);
         $self = $_SERVER['HTTP_HOST'] ?? '';
         $path = ($host && explode(':', $self)[0] === $host) ? (parse_url($ref, PHP_URL_PATH) . (parse_url($ref, PHP_URL_QUERY) ? '?' . parse_url($ref, PHP_URL_QUERY) : '')) : $fallback;
+        $base = base_path();
+        if ($path && $base !== '' && str_starts_with($path, $base . '/')) $path = substr($path, strlen($base));
         redirect($path ?: $fallback);
     }
 

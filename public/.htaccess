@@ -6,7 +6,7 @@ RewriteRule ^ index.php [L]
 
 # Aucun script exécutable dans les téléversements
 <FilesMatch "\.(php|phtml|phar|pl|py|cgi)$">
-  <If "%{REQUEST_URI} =~ m#^/uploads/#">
+  <If "%{REQUEST_URI} =~ m#/uploads/#">
     Require all denied
   </If>
 </FilesMatch>
