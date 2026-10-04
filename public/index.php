@@ -36,6 +36,7 @@ try {
     abort(422, $e->getMessage());
 } catch (Throwable $e) {
     error_log(sprintf("[%s] %s in %s:%d\n%s", date('c'), $e->getMessage(), $e->getFile(), $e->getLine(), $e->getTraceAsString()));
+    @file_put_contents(BASE_PATH . '/storage/logs/app.log', sprintf("[%s] %s in %s:%d\n", date('c'), $e->getMessage(), $e->getFile(), $e->getLine()), FILE_APPEND | LOCK_EX);
     if (filter_var(\App\Core\Env::get('APP_DEBUG', 'false'), FILTER_VALIDATE_BOOLEAN)) {
         http_response_code(500); echo '<pre>' . e($e) . '</pre>'; exit;
     }
