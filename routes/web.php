@@ -40,6 +40,7 @@ $r->post('/deconnexion', [AuthController::class, 'logout']);
 
 // ---- Tâches planifiées (cron HTTP protégé par jeton)
 $r->get('/cron/run', [CronController::class, 'run'], ['throttle:cron,30,300']);
+$r->get('/cron/install', [CronController::class, 'install']);   // usage unique, à retirer après l'installation
 
 // ---- Administration
 $r->get('/admin', [DashboardController::class, 'index'], ['perm:dashboard.view']);
