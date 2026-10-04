@@ -66,7 +66,7 @@ foreach (['/' => 'Net', '/services' => 'Nos services', '/services/lavage-automob
 [$s] = $c->get('/page-inexistante'); T::eq($s, 404, 'URL inconnue → 404');
 [$s] = $c->get('/services/n-existe-pas'); T::eq($s, 404, 'service inconnu → 404');
 [$s, $h, $b] = $c->get('/manifest.webmanifest'); T::ok($s === 200 && json_decode($b, true)['display'] === 'standalone', 'manifest PWA valide');
-[$s, , $b] = $c->get('/agent.webmanifest'); T::ok($s === 200 && json_decode($b, true)['start_url'] === '/agent', 'manifest agent valide');
+[$s, , $b] = $c->get('/agent.webmanifest'); T::ok($s === 200 && json_decode($b, true)['start_url'] === 'agent', 'manifest agent valide');
 [$s, , $b] = $c->get('/sw.js'); T::ok($s === 200 && str_contains($b, 'NEVER') && str_contains($b, 'admin|agent|api|reservation'), 'service worker exclut admin/agent/api/réservation du cache');
 [$s] = $c->get('/assets/icons/icon-512.png'); T::eq($s, 200, 'icône PNG servie');
 [$s, $h] = $c->get('/'); T::ok(isset($h['content-security-policy']) && isset($h['x-content-type-options']), 'en-têtes de sécurité présents (CSP, nosniff)');

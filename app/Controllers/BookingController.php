@@ -89,7 +89,7 @@ final class BookingController extends Controller
         }
         Session::set('last_booking', $b['reference']);
         Session::set('track_ok', array_merge(Session::get('track_ok', []), [$b['reference'] => true]));
-        json_response(['reference' => $b['reference'], 'redirect' => '/reservation/confirmation/' . $b['reference']], 201);
+        json_response(['reference' => $b['reference'], 'redirect' => with_base('/reservation/confirmation/' . $b['reference'])], 201);
     }
 
     public function confirmation(string $ref): void

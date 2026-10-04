@@ -1,6 +1,7 @@
 <?php use App\Core\Auth; ?><!doctype html>
 <html lang="fr"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow">
+<meta charset="utf-8">
+<meta name="base-path" content="<?= e(base_path()) ?>"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow">
 <title><?= e($title ?? 'Missions') ?> — <?= e(setting('company_name')) ?></title>
 <meta name="theme-color" content="#0B2545">
 <link rel="manifest" href="/agent.webmanifest">
