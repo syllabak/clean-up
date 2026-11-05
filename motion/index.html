@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Net'Express — promo 16 s</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+<div id="stage">
+
+  <!-- Scène 1 : accroche (sale → propre) -->
+  <section id="s1" class="layer">
+    <div id="dirty" class="layer">
+      <div class="blot" style="left:-120px;top:240px;width:700px;height:620px"></div>
+      <div class="blot" style="left:520px;top:1010px;width:760px;height:700px"></div>
+      <div class="blot" style="left:300px;top:1500px;width:520px;height:420px"></div>
+      <div id="dirtyInner" class="layer">
+        <p class="dl">Taches.</p>
+        <p class="dl">Poussière.</p>
+        <p class="dl">Pas le temps ?</p>
+      </div>
+    </div>
+    <div id="clean" class="layer">
+      <div id="cleanInner" class="layer">
+        <p id="cl1">Propre.</p>
+        <p id="cl2">Chez vous.</p>
+      </div>
+    </div>
+    <svg id="squeegee" class="layer" viewBox="0 0 1080 1920" width="1080" height="1920">
+      <line id="sqLine" x1="0" y1="0" x2="0" y2="1920" stroke="#2EC4F1" stroke-width="10" stroke-linecap="round"/>
+    </svg>
+  </section>
+
+  <!-- Scène 2 : logo -->
+  <div id="s2bg" class="layer"></div>
+  <div id="bubbles" class="layer"></div>
+  <section id="s2" class="layer">
+    <div id="logo">
+      <div id="mark">
+        <svg viewBox="0 0 120 120" width="220" height="220">
+          <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#46D2FA"/><stop offset="1" stop-color="#1486B5"/></linearGradient></defs>
+          <rect width="120" height="120" rx="34" fill="url(#g)"/>
+          <circle cx="54" cy="68" r="26" fill="none" stroke="#fff" stroke-width="7"/>
+          <circle cx="86" cy="40" r="9" fill="#fff"/>
+          <path d="M40 58 q6 -10 16 -12" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".85"/>
+        </svg>
+      </div>
+      <div id="word"></div>
+      <div id="tag">Nettoyage à domicile · Dakar &amp; Thiès</div>
+    </div>
+  </section>
+
+  <!-- Scène 3 : services -->
+  <section id="s3" class="layer">
+    <h2 id="s3t">Trois univers.<br>Une seule équipe.</h2>
+    <div id="cards"></div>
+  </section>
+
+  <!-- Scène 4 : réservation -->
+  <section id="s4" class="layer">
+    <h2 id="s4t">Réservez en 2&nbsp;minutes</h2>
+    <div id="phone">
+      <div id="phoneHead"><span>Net'Express</span><div id="prog"><i></i><i></i><i></i></div></div>
+      <div id="steps"></div>
+      <div id="success">
+        <svg viewBox="0 0 120 120" width="220" height="220">
+          <circle id="okC" cx="60" cy="60" r="52" fill="#8EE3C8"/>
+          <path id="okP" d="M34 62 L53 80 L88 42" fill="none" stroke="#0B2545" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
+        </svg>
+        <p id="okT">Réservation confirmée</p>
+        <p id="okS">Équipe assignée · confirmation par SMS</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Scène 5 : appel à l'action -->
+  <section id="s5" class="layer">
+    <div id="s5bg" class="layer"></div>
+    <div id="s5c">
+      <div id="s5mark"></div>
+      <h2 class="s5l">Prêt pour<br>le propre ?</h2>
+      <p class="s5l" id="s5sub">Réservez votre nettoyage en ligne,<br>on s'occupe du reste.</p>
+      <div class="s5l" id="btn">Réserver maintenant</div>
+    </div>
+  </section>
+
+</div>
+<script src="src/tokens.js"></script>
+<script src="src/easing.js"></script>
+<script src="src/scenes.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
