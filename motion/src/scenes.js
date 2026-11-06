@@ -30,10 +30,10 @@ function buildScenes() {
     S.bubbles.push({ el, r, x0: rnd() * W, speed: 55 + rnd() * 90, off: rnd() * 2400, ph: rnd() * 6.28, f: 0.5 + rnd() * 0.8 });
   }
   // Lettres du logotype
-  [...'Net\'Express'].forEach((ch) => {
+  [...BRAND].forEach((ch, i) => {
     const s = document.createElement('span');
     s.textContent = ch;
-    if (ch === "'") s.style.color = COLOR.cyan;
+    if (i >= BRAND.length - 2) s.style.color = COLOR.cyan; // « Up » en cyan
     $('word').appendChild(s); S.letters.push(s);
   });
   // Cartes services

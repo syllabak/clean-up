@@ -20,7 +20,7 @@ const STILL_TIMES = [0.9, 1.7, 3.6, 4.4, 6.4, 8.6, 10.5, 11.9, 12.7, 14.6, 15.9]
 
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-i', '-',
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '16', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
-    path.join(OUT, 'netexpress-promo.mp4')], { stdio: ['pipe', 'inherit', 'inherit'] });
+    path.join(OUT, 'cleanup-promo.mp4')], { stdio: ['pipe', 'inherit', 'inherit'] });
   const done = new Promise((res, rej) => { ff.on('close', (c) => (c === 0 ? res() : rej(new Error('ffmpeg exit ' + c)))); });
 
   for (let f = 0; f < frames; f++) {
@@ -39,5 +39,5 @@ const STILL_TIMES = [0.9, 1.7, 3.6, 4.4, 6.4, 8.6, 10.5, 11.9, 12.7, 14.6, 15.9]
     }
   }
   await browser.close();
-  console.log(`OK: ${frames} images @ ${fps} fps -> motion/out/netexpress-promo.mp4`);
+  console.log(`OK: ${frames} images @ ${fps} fps -> motion/out/cleanup-promo.mp4`);
 })().catch((e) => { console.error(e); process.exit(1); });

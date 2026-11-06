@@ -1,7 +1,7 @@
-# Net'Express — vidéo promo (motion design)
+# CleanUp — vidéo promo (motion design)
 
 Vidéo verticale **1080×1920, 30 fps, 16 s** (Reels / TikTok / WhatsApp Status), en français.
-Rendu final : `motion/out/netexpress-promo.mp4` (H.264, ~1,7 Mo, sans piste audio).
+Rendus : `motion/out/cleanup-promo.mp4` (muet) et `motion/out/cleanup-promo-fx.mp4` (avec effets sonores synthétisés + nappe légère, sans voix).
 
 ## Concept
 « Du sale au propre » : un balayage de raclette révèle le message, puis le service se présente
@@ -30,11 +30,17 @@ Aperçu : ouvrir `motion/index.html` dans un navigateur (`?t=6.4` fige une image
 ```bash
 NODE_PATH=$(npm root -g) node motion/render.cjs --stills
 ```
+Effets sonores :
+```bash
+python3 motion/make_fx.py   # -> motion/out/cleanup-fx.wav (numpy requis)
+ffmpeg -y -i motion/out/cleanup-promo.mp4 -i motion/out/cleanup-fx.wav -c:v copy -c:a aac -b:a 192k -shortest motion/out/cleanup-promo-fx.mp4
+```
 Prérequis : Node 18+, `playwright` (Chromium) et `ffmpeg`. `--stills` exporte des images de contrôle dans `motion/out/stills/` (ignorées par git).
 
 ## QA
 - [x] 480 images, 1080×1920, 30 fps, 16,0 s (ffprobe)
 - [x] Contrôle visuel de 11 images clés
 - [ ] Zones de sécurité Reels/TikTok : contenu clé entre y≈200 et y≈1500
-- [ ] Piste audio : non incluse (suggestions ci-dessus)
+- [x] Effets sonores et nappe : pic à −1 dB, durée 16,0 s
+- [ ] Voix off : texte dans `voiceover.md`, enregistrement non inclus
 - [ ] Les textes de démo (quartiers, créneaux) sont illustratifs

@@ -1,6 +1,7 @@
 // Design tokens + timing constants (single source of truth).
 const FPS = 30;
 const DURATION = 16; // seconds
+const BRAND = 'CleanUp';
 const W = 1080;
 const H = 1920;
 

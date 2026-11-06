@@ -1,4 +1,4 @@
-# Voix off — Net'Express (16 s)
+# Voix off — CleanUp (16 s)
 
 Ton : chaleureux, confiant, rythme posé (~2,5 mots/s). Une prise par ligne, à caler sur les temps indiqués.
 
@@ -6,7 +6,7 @@ Ton : chaleureux, confiant, rythme posé (~2,5 mots/s). Une prise par ligne, à 
 |---|---|---|---|
 | 1 | 0,2 → 1,9 s | « Des taches, de la poussière… pas le temps ? » | cascade sale |
 | 2 | 2,2 → 2,9 s | « Pas de panique. » | raclette → « Propre. » |
-| 3 | 3,2 → 4,8 s | « Net'Express nettoie chez vous. » | logo |
+| 3 | 3,2 → 4,8 s | « CleanUp nettoie chez vous. » | logo |
 | 4 | 5,0 → 8,6 s | « Voiture, canapés, matelas, bureaux : une seule équipe. » | 3 cartes |
 | 5 | 9,9 → 12,2 s | « Choisissez votre service, votre quartier, votre créneau. » | téléphone |
 | 6 | 12,4 → 13,4 s | « Et c'est confirmé. » | coche |
