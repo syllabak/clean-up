@@ -41,7 +41,11 @@ Rappels clients et nouvelles tentatives d'envoi (toutes les 5 minutes) :
 */5 * * * * php /chemin/du/projet/bin/queue.php
 ```
 
-Sans accès à cron : un service externe appelle `https://domaine/cron/run?token=VOTRE_CRON_TOKEN`.
+Sans accès à cron : un service externe appelle `https://domaine/cron/run` avec l'en-tête `X-Cron-Token: VOTRE_CRON_TOKEN` (ou `Authorization: Bearer …`). Le paramètre `?token=` reste accepté mais apparaît dans les journaux du serveur.
+
+**Derrière un proxy ou un CDN** : renseignez `TRUSTED_PROXIES` dans `.env` (IP ou plages CIDR). Sans cela, tous les visiteurs ont la même IP et la limitation de débit les bloque ensemble ; avec, `X-Forwarded-For` et `X-Forwarded-Proto` ne sont lus que s'ils viennent de ces proxys.
+
+**Connexion** : après 10 échecs en 15 minutes, l'identifiant est bloqué quelle que soit l'IP. Les permissions d'un rôle sont relues à chaque requête.
 
 ## Tests
 

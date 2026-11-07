@@ -23,6 +23,13 @@ final class RateLimiter
         });
     }
 
+    /** Lecture seule : la clé a-t-elle déjà atteint son plafond dans la fenêtre ? */
+    public static function blocked(string $key, int $max, int $windowSeconds): bool
+    {
+        $row = Database::one('SELECT hits, window_start FROM rate_limits WHERE rkey = ?', [substr(hash('sha256', $key), 0, 40)]);
+        return $row && time() - (int) $row['window_start'] < $windowSeconds && (int) $row['hits'] >= $max;
+    }
+
     public static function clear(string $key): void
     {
         Database::exec('DELETE FROM rate_limits WHERE rkey = ?', [substr(hash('sha256', $key), 0, 40)]);

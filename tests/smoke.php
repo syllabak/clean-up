@@ -287,11 +287,22 @@ T::ok($s === 302 && $cust, 'prospect converti en client');
 [$s, , $b] = $admin->get('/admin/gestion?from=%3Cscript%3E&to=x'); T::ok($s === 200 && !str_contains($b, '<script>alert'), 'gestion : dates invalides sans effet');
 [$s, , $b] = $admin->get('/admin'); T::ok($s === 200 && str_contains($b, 'prospects à relancer'), 'tableau de bord : indicateurs prospects');
 
+// Permissions relues à chaque requête
+\App\Core\Database::reset();
+$mgr = (int) \App\Core\Database::val("SELECT id FROM roles WHERE name = 'manager'"); $pcrm = (int) \App\Core\Database::val("SELECT id FROM permissions WHERE name = 'crm.manage'");
+\App\Core\Database::exec('DELETE FROM role_permissions WHERE role_id = ? AND permission_id = ?', [$mgr, $pcrm]);
+[$s] = $m->get('/admin/crm'); T::eq($s, 403, 'permission retirée au rôle : effective tout de suite, sans reconnexion');
+\App\Core\Database::insert('role_permissions', ['role_id' => $mgr, 'permission_id' => $pcrm]);
+[$s] = $m->get('/admin/crm'); T::eq($s, 200, 'permission rendue : effective tout de suite');
+
 // ------------------------------------------------------------------ Cron
 T::group('Tâches planifiées HTTP');
 [$s] = $cl->get('/cron/run'); T::eq($s, 403, 'cron sans jeton → 403');
 [$s] = $cl->get('/cron/run?token=mauvais'); T::eq($s, 403, 'cron avec mauvais jeton → 403');
 [$s, , $b] = $cl->get('/cron/run?token=jeton-de-test-123'); T::ok($s === 200 && isset(json_decode($b, true)['reminders']), 'cron avec bon jeton → 200');
+[$s, , $b] = $cl->req('GET', '/cron/run', null, ['X-Cron-Token: jeton-de-test-123']); T::ok($s === 200 && isset(json_decode($b, true)['reminders']), 'cron : jeton accepté en en-tête X-Cron-Token');
+[$s, , $b] = $cl->req('GET', '/cron/run', null, ['Authorization: Bearer jeton-de-test-123']); T::eq($s, 200, 'cron : jeton accepté en Authorization: Bearer');
+[$s] = $cl->req('GET', '/cron/run', null, ['X-Cron-Token: faux']); T::eq($s, 403, 'cron : mauvais jeton en en-tête refusé');
 [$s] = $admin->post('/deconnexion', ['_csrf' => $admin->token('/admin')]); [$s2] = $admin->get('/admin'); T::eq($s2, 302, 'déconnexion : /admin de nouveau protégé');
 
 exit(T::summary());

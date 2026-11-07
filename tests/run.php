@@ -252,6 +252,20 @@ T::throws(fn() => Upload::image(['error' => 0, 'tmp_name' => $fake, 'size' => fi
 $png = sys_get_temp_dir() . '/ok.png'; file_put_contents($png, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
 $name = Upload::image(['error' => 0, 'tmp_name' => $png, 'size' => filesize($png), 'name' => '../../evil.php'], sys_get_temp_dir() . '/up');
 T::ok(preg_match('/^[a-f0-9]{24}\.png$/', (string) $name) === 1, "vraie image acceptée, nom aléatoire, extension imposée ($name)");
+// IP derrière un proxy, verrouillage par compte
+use App\Core\Request;
+putenv('TRUSTED_PROXIES='); $_SERVER['REMOTE_ADDR'] = '203.0.113.9'; $_SERVER['HTTP_X_FORWARDED_FOR'] = '198.51.100.7'; $_SERVER['HTTP_X_FORWARDED_PROTO'] = 'https';
+T::ok(Request::ip() === '203.0.113.9' && !Request::isHttps(), 'sans proxy de confiance : X-Forwarded-For et X-Forwarded-Proto ignorés (falsifiables)');
+putenv('TRUSTED_PROXIES=203.0.113.0/24, 10.0.0.1');
+T::ok(Request::ip() === '198.51.100.7' && Request::isHttps(), 'proxy de confiance : vraie IP du visiteur et HTTPS lus');
+$_SERVER['HTTP_X_FORWARDED_FOR'] = '6.6.6.6, 198.51.100.7, 203.0.113.50';
+T::eq(Request::ip(), '198.51.100.7', 'chaîne de proxys : IP falsifiée à gauche ignorée');
+$_SERVER['REMOTE_ADDR'] = '192.0.2.1';
+T::ok(Request::ip() === '192.0.2.1' && !Request::isHttps(), 'requête directe (hors plage de confiance) : en-têtes ignorés');
+T::ok(Request::ipInList('2001:db8::5', ['2001:db8::/32']) && !Request::ipInList('2001:db9::5', ['2001:db8::/32']), 'plages IPv6 reconnues');
+putenv('TRUSTED_PROXIES='); unset($_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_X_FORWARDED_FOR'], $_SERVER['HTTP_X_FORWARDED_PROTO']);
+for ($i = 0; $i < 10; $i++) RateLimiter::hit('login_acct|victime@x.sn', 10, 900);
+T::ok(RateLimiter::blocked('login_acct|victime@x.sn', 10, 900) && !RateLimiter::blocked('login_acct|autre@x.sn', 10, 900), 'verrouillage par compte : bloqué après 10 échecs, autres comptes intacts');
 $esc = e('<script>alert(1)</script>"\'');
 T::ok(!str_contains($esc, '<script>') && str_contains($esc, '&lt;script&gt;'), 'échappement XSS (e())');
 
