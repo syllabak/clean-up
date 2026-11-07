@@ -9,6 +9,15 @@
     <?php foreach ($items as $it): foreach (json_decode((string) $it['details'], true) ?: [] as [$k, $v]): ?><p class="mb-0 small text-muted"><?= e($k) ?> : <?= e($v) ?></p><?php endforeach; endforeach ?>
     <hr><p class="mb-0 fs-5">Total estimé : <strong><?= money((int) $b['total']) ?></strong> <span class="small text-muted">(à régler à l'équipe)</span></p>
   </div>
-  <p>Votre réservation est <strong>en attente de confirmation</strong>. Nous vous contactons très vite au <?= e(phone_fmt($b['customer_phone'])) ?>.</p>
-  <p><a class="btn btn-primary" href="/suivi/<?= e($b['reference']) ?>">Suivre ma réservation</a> <a class="btn btn-outline-secondary" href="/">Retour à l'accueil</a></p>
+  <h2 class="h5 mt-4">Et maintenant ?</h2>
+  <ol class="steps mb-4">
+    <li><strong>Nous confirmons</strong><br>Nous vous contactons très vite au <?= e(phone_fmt($b['customer_phone'])) ?> pour confirmer votre créneau.</li>
+    <li><strong>Nous vous prévenons</strong><br>Vous recevez l'équipe affectée, puis un rappel avant l'intervention.</li>
+    <li><strong>Nous venons chez vous</strong><br>Merci de prévoir l'accès<?= $b['instructions'] ? ' (' . e(mb_strimwidth((string) $b['instructions'], 0, 60, '…')) . ')' : '' ?>. Vous réglez directement à l'équipe.</li>
+  </ol>
+  <?php $wa = preg_replace('/\D/', '', (string) setting('company_whatsapp', '')); ?>
+  <p class="d-flex flex-wrap gap-2"><a class="btn btn-primary" href="/suivi/<?= e($b['reference']) ?>">Suivre ma réservation</a>
+    <a class="btn btn-outline-primary" href="/suivi/<?= e($b['reference']) ?>/calendrier">Ajouter à mon agenda</a>
+    <?php if ($wa): ?><a class="btn btn-outline-secondary" target="_blank" rel="noopener" href="https://wa.me/<?= e($wa) ?>?text=<?= rawurlencode('Bonjour, ma réservation ' . $b['reference']) ?>">Écrire sur WhatsApp</a><?php endif ?>
+    <a class="btn btn-outline-secondary" href="/">Retour à l'accueil</a></p>
 </div>

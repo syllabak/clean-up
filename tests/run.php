@@ -317,6 +317,29 @@ T::eq(count($rep->monthly(6)), 6, 'résultat sur 6 mois');
 $cu = $rep->customers($from, $to);
 T::ok($cu['total'] >= 2 && $cu['buyers'] >= 1, 'statistiques clients');
 
+// ------------------------------------------------------------------ Catalogue : duplication, contrôle de publication, aperçu
+T::group('Catalogue : duplication, contrôle « prêt à réserver », simulateur');
+use App\Services\CatalogService;
+$cat = new CatalogService(); $auto = svc('lavage-automobile');
+$copy = $cat->duplicate($auto);
+$cp = DB::one('SELECT * FROM services WHERE id = ?', [$copy]);
+T::ok($cp['active'] == 0 && str_ends_with($cp['name'], '(copie)') && $cp['slug'] === 'lavage-automobile-copie', 'copie créée inactive, nom et adresse distincts');
+T::eq((int) DB::val('SELECT COUNT(*) FROM service_prices WHERE service_id = ?', [$copy]), (int) DB::val('SELECT COUNT(*) FROM service_prices WHERE service_id = ?', [$auto]), 'formules copiées');
+T::eq((int) DB::val('SELECT COUNT(*) FROM service_field_choices c JOIN service_fields f ON f.id = c.field_id WHERE f.service_id = ?', [$copy]), (int) DB::val('SELECT COUNT(*) FROM service_field_choices c JOIN service_fields f ON f.id = c.field_id WHERE f.service_id = ?', [$auto]), 'champs et choix copiés');
+T::ok(DB::val('SELECT includes FROM service_prices WHERE service_id = ? AND popular = 1', [$copy]) !== null, 'contenu inclus et formule « populaire » copiés');
+T::eq((int) DB::val('SELECT id FROM services WHERE id = ?', [$cat->duplicate($auto)]) > $copy, true, 'seconde copie : adresse unique (-copie-2)');
+T::throws(fn() => (new PricingService())->quote($copy, ['formula_id' => formula($copy, 'Simple'), 'fields' => ['vehicle' => choice($copy, 'vehicle', 'Citadine'), 'count' => 1]]), ValidationException::class, 'copie inactive : invisible pour le public');
+$pv = (new PricingService())->quote($copy, ['formula_id' => formula($copy, 'Simple'), 'fields' => ['vehicle' => choice($copy, 'vehicle', 'Citadine'), 'count' => 1]], null, true);
+T::eq($pv['total'], 3000, 'aperçu admin : la copie inactive se simule quand même');
+$bad = array_column(array_filter($cat->readiness($auto), fn($c) => $c[0] === 'bad'), 1);
+T::eq($bad, [], 'service de démo : aucun blocage');
+$nt = DB::insert('services', ['company_id' => 1, 'name' => 'Vide', 'slug' => 'vide', 'base_price' => 0, 'created_at' => now()]);
+$msgs = implode(' | ', array_column(array_filter($cat->readiness($nt), fn($c) => $c[0] === 'bad'), 1));
+T::ok(str_contains($msgs, 'Aucun prix') && str_contains($msgs, "Aucune équipe"), 'service vide : blocages « aucun prix » et « aucune équipe »');
+$fld = DB::insert('service_fields', ['service_id' => $nt, 'field_key' => 'x', 'label' => 'Taille', 'type' => 'select', 'role' => 'none', 'required' => 1]);
+T::ok(str_contains(implode('|', array_column($cat->readiness($nt), 1)), 'Taille'), 'liste sans choix détectée');
+T::throws(fn() => $cat->duplicate(999999), RuntimeException::class, 'duplication d\'un service inconnu refusée');
+
 DB::reset();
 foreach (['', '-wal', '-shm'] as $s) @unlink($dbFile . $s);
 exit(T::summary());

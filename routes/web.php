@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 use App\Core\Router;
 use App\Controllers\{HomeController, ServiceController, BookingController, AuthController, AgentController, CronController};
-use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController};
+use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController};
 
 $r = new Router();
 
@@ -31,6 +31,7 @@ $r->get('/reservation/confirmation/{ref}', [BookingController::class, 'confirmat
 $r->get('/suivi', [BookingController::class, 'trackForm']);
 $r->post('/suivi', [BookingController::class, 'track'], ['throttle:track,10,600']);
 $r->get('/suivi/{ref}', [BookingController::class, 'trackShow']);
+$r->get('/suivi/{ref}/calendrier', [BookingController::class, 'calendar']);
 $r->post('/suivi/{ref}/annuler', [BookingController::class, 'trackCancel']);
 
 // ---- Authentification
@@ -58,6 +59,10 @@ $r->get('/admin/notifications', [NotificationAdminController::class, 'index'], [
 $r->post('/admin/notifications/{id}/relancer', [NotificationAdminController::class, 'retry'], ['perm:notifications.manage']);
 $r->post('/admin/notifications/relancer-tout', [NotificationAdminController::class, 'retryAll'], ['perm:notifications.manage']);
 $r->get('/admin/audit', [AuditController::class, 'index'], ['perm:users.manage']);
+// Fiche service (tarifs, simulateur, duplication)
+$r->get('/admin/services/{id}', [ServiceAdminController::class, 'show'], ['perm:catalog.manage']);
+$r->post('/admin/services/{id}/dupliquer', [ServiceAdminController::class, 'duplicate'], ['perm:catalog.manage']);
+$r->post('/admin/services/{id}/simuler', [ServiceAdminController::class, 'simulate'], ['perm:catalog.manage']);
 // CRM et gestion
 $r->get('/admin/crm', [CrmController::class, 'pipeline'], ['perm:crm.manage']);
 $r->get('/admin/crm/prospects/{id}', [CrmController::class, 'lead'], ['perm:crm.manage']);

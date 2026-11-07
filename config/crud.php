@@ -17,7 +17,7 @@ return [
     'services' => [
         'title' => 'Services', 'table' => 'services', 'permission' => 'catalog.manage', 'company' => true, 'soft_delete' => true, 'order' => 'sort, name', 'search' => ['name'],
         'list' => ['name' => 'Nom', 'category_id' => ['Catégorie', 'ref', 'service_categories', 'name'], 'base_price' => ['Prix de base', 'money'], 'availability_status' => ['Statut', 'text'], 'active' => ['Actif', 'bool']],
-        'links' => [['Formules', '/admin/crud/service_prices?service_id={id}'], ['Options', '/admin/crud/service_options?service_id={id}'], ['Champs', '/admin/crud/service_fields?service_id={id}']],
+        'links' => [['Fiche', '/admin/services/{id}'], ['Formules', '/admin/crud/service_prices?service_id={id}'], ['Options', '/admin/crud/service_options?service_id={id}'], ['Champs', '/admin/crud/service_fields?service_id={id}']],
         'fields' => [
             'name' => ['label' => 'Nom', 'type' => 'text', 'required' => true], 'slug' => ['label' => 'Adresse (slug)', 'type' => 'text', 'auto_slug' => 'name', 'help' => 'Générée à partir du nom si vide.'],
             'category_id' => ['label' => 'Catégorie', 'type' => 'select', 'ref' => ['service_categories', 'name', 'deleted_at IS NULL'], 'nullable' => true],
@@ -37,15 +37,18 @@ return [
     ],
     'service_prices' => [
         'title' => 'Formules et tarifs', 'table' => 'service_prices', 'permission' => 'catalog.manage', 'soft_delete' => true, 'order' => 'sort, id', 'filters' => ['service_id'], 'back' => 'services',
-        'list' => ['name' => 'Formule', 'amount' => ['Prix', 'money'], 'duration_minutes' => ['Durée (min)', 'text'], 'active' => ['Actif', 'bool']],
+        'return_to' => '/admin/services/{service_id}',
+        'list' => ['name' => 'Formule', 'amount' => ['Prix', 'money'], 'duration_minutes' => ['Durée (min)', 'text'], 'popular' => ['La plus choisie', 'bool'], 'active' => ['Actif', 'bool']],
         'fields' => [
             'service_id' => ['label' => 'Service', 'type' => 'select', 'ref' => ['services', 'name', 'deleted_at IS NULL'], 'required' => true],
             'name' => ['label' => 'Nom de la formule', 'type' => 'text', 'required' => true], 'description' => ['label' => 'Description', 'type' => 'text'],
-            'amount' => ['label' => 'Prix (par unité pour les services au m² ou à l\'unité)', 'type' => 'number', 'required' => true], 'duration_minutes' => ['label' => 'Durée ajoutée (min)', 'type' => 'number', 'default' => 0], 'sort' => $sort, 'active' => $active,
+            'amount' => ['label' => 'Prix (par unité pour les services au m² ou à l\'unité)', 'type' => 'number', 'required' => true, 'min' => 0, 'max' => 100000000], 'duration_minutes' => ['label' => 'Durée ajoutée (min)', 'type' => 'number', 'default' => 0, 'min' => 0, 'max' => 1440],
+            'includes' => ['label' => 'Ce qui est inclus', 'type' => 'textarea', 'help' => 'Un élément par ligne ; affiché au client sous la formule (ex. « Lavage extérieur »).'],
+            'popular' => ['label' => 'Mettre en avant (« la plus choisie »)', 'type' => 'bool'], 'sort' => $sort, 'active' => $active,
         ],
     ],
     'service_options' => [
-        'title' => 'Options supplémentaires', 'table' => 'service_options', 'permission' => 'catalog.manage', 'soft_delete' => true, 'order' => 'sort, id', 'filters' => ['service_id'], 'back' => 'services',
+        'title' => 'Options supplémentaires', 'table' => 'service_options', 'permission' => 'catalog.manage', 'return_to' => '/admin/services/{service_id}', 'soft_delete' => true, 'order' => 'sort, id', 'filters' => ['service_id'], 'back' => 'services',
         'list' => ['name' => 'Option', 'price' => ['Prix', 'money'], 'duration_minutes' => ['Durée (min)', 'text'], 'active' => ['Actif', 'bool']],
         'fields' => [
             'service_id' => ['label' => 'Service', 'type' => 'select', 'ref' => ['services', 'name', 'deleted_at IS NULL'], 'required' => true],
@@ -54,7 +57,7 @@ return [
         ],
     ],
     'service_fields' => [
-        'title' => 'Champs du formulaire de réservation', 'table' => 'service_fields', 'permission' => 'catalog.manage', 'soft_delete' => true, 'order' => 'sort, id', 'filters' => ['service_id'], 'back' => 'services',
+        'title' => 'Champs du formulaire de réservation', 'table' => 'service_fields', 'permission' => 'catalog.manage', 'return_to' => '/admin/services/{service_id}', 'soft_delete' => true, 'order' => 'sort, id', 'filters' => ['service_id'], 'back' => 'services',
         'list' => ['label' => 'Libellé', 'type' => ['Type', 'text'], 'role' => ['Rôle', 'text'], 'required' => ['Obligatoire', 'bool'], 'active' => ['Actif', 'bool']],
         'links' => [['Choix', '/admin/crud/service_field_choices?field_id={id}']],
         'fields' => [
@@ -75,6 +78,12 @@ return [
             'label' => ['label' => 'Libellé', 'type' => 'text', 'required' => true], 'price_delta' => ['label' => 'Supplément de prix', 'type' => 'number', 'default' => 0],
             'multiplier' => ['label' => 'Coefficient multiplicateur', 'type' => 'decimal', 'default' => '1', 'help' => 'Ex. 1,4 pour +40 %.'], 'duration_delta' => ['label' => 'Durée ajoutée (min)', 'type' => 'number', 'default' => 0], 'sort' => $sort, 'active' => $active,
         ],
+    ],
+    'service_images' => [
+        'title' => 'Photos du service', 'table' => 'service_images', 'permission' => 'catalog.manage', 'order' => 'sort, id', 'filters' => ['service_id'], 'back' => 'services', 'return_to' => '/admin/services/{service_id}',
+        'list' => ['path' => 'Photo', 'sort' => 'Ordre'],
+        'fields' => ['service_id' => ['label' => 'Service', 'type' => 'select', 'ref' => ['services', 'name', 'deleted_at IS NULL'], 'required' => true],
+            'path' => ['label' => 'Photo', 'type' => 'image', 'dir' => 'services', 'required' => true], 'sort' => $sort],
     ],
     'skills' => [
         'title' => 'Compétences', 'table' => 'skills', 'permission' => 'staff.manage', 'company' => true, 'soft_delete' => true, 'order' => 'name', 'list' => ['name' => 'Compétence'],

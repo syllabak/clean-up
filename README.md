@@ -65,6 +65,15 @@ php tests/smoke.php   # parcours HTTP complet sur un serveur temporaire (CSRF, d
 - **Administration** : un CRUD générique piloté par `config/crud.php` couvre ~25 ressources ; ajoutez une ressource en ajoutant un bloc de configuration.
 - **PWA** : `sw.js` ne met en cache que les fichiers statiques publics, jamais `/admin`, `/agent`, `/api`, `/reservation`, `/suivi`, ni les photos.
 
+## Services et tarifs (tout se gère dans l'administration)
+
+- **Fiche service** (`/admin/services/{id}`, depuis Services → Fiche) : tout le tarif d'un service sur une page : formules, options, questions posées au client (listes avec supplément ou coefficient, quantité, surface), photos, durées.
+- **Contrôle « prêt à être réservé »** : signale ce qui empêcherait de réserver (aucun prix, aucune équipe ni compétence, aucun quartier ou horaire, liste sans choix) et ce qui est conseillé (résumé, description, photo, formule mise en avant).
+- **Simulateur de prix** : même calcul que le site public, utilisable sur un service encore inactif. **Duplication** d'un service (copie inactive, à relire avant d'activer).
+- **Formules** : prix, durée ajoutée, liste de ce qui est inclus (une ligne par élément) et badge « La plus choisie ».
+- **Parcours client** : page service avec formules comparées et bouton « Choisir cette formule » (formule présélectionnée dans la réservation), total toujours visible sur mobile, page de confirmation avec les prochaines étapes, ajout à l'agenda (.ics), suivi avec barre de progression, contact WhatsApp.
+- Après mise à jour : `php bin/migrate.php` (migration 010).
+
 ## CRM, acquisition et gestion
 
 - **Canaux d'acquisition** (`/admin/crud/acquisition_channels`) : site web, WhatsApp, Facebook, Instagram, parrainage, flyers… modifiables. Le client peut indiquer « Comment nous avez-vous connus ? » à la réservation ; sans réponse, la réservation est rattachée au canal « Site web ».

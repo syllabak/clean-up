@@ -58,7 +58,7 @@ $PNG = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42m
 // ------------------------------------------------------------------ Pages publiques
 T::group('Pages publiques et PWA');
 $c = new Client($port);
-foreach (['/' => 'Net', '/services' => 'Nos services', '/services/lavage-automobile' => 'Formules', '/reserver' => 'Réserver', '/faq' => 'Questions', '/contact' => 'Contact', '/a-propos' => 'À propos',
+foreach (['/' => 'Net', '/services' => 'Nos services', '/services/lavage-automobile' => 'Choisissez votre formule', '/reserver' => 'Réserver', '/faq' => 'Questions', '/contact' => 'Contact', '/a-propos' => 'À propos',
           '/conditions-generales' => 'Conditions', '/confidentialite' => 'confidentialité', '/suivi' => 'Suivre', '/connexion' => 'Espace équipe', '/hors-ligne' => 'hors connexion'] as $path => $needle) {
     [$s, , $b] = $c->get($path);
     T::ok($s === 200 && stripos($b, $needle) !== false, "GET $path → 200");
@@ -286,6 +286,42 @@ T::ok($s === 302 && $cust, 'prospect converti en client');
 [$s, , $b] = $admin->get('/admin/gestion?from=2020-01-01&to=2099-12-31'); T::ok($s === 200 && str_contains($b, 'Acquisition par canal'), 'gestion : rapport sur période personnalisée');
 [$s, , $b] = $admin->get('/admin/gestion?from=%3Cscript%3E&to=x'); T::ok($s === 200 && !str_contains($b, '<script>alert'), 'gestion : dates invalides sans effet');
 [$s, , $b] = $admin->get('/admin'); T::ok($s === 200 && str_contains($b, 'prospects à relancer'), 'tableau de bord : indicateurs prospects');
+
+// ------------------------------------------------------------------ Fiche service, simulateur, parcours client
+T::group('Fiche service admin, simulateur, parcours client enrichi');
+$A = (int) \App\Core\Database::val("SELECT id FROM services WHERE slug = 'lavage-automobile'");
+[$s, , $b] = $admin->get("/admin/services/$A"); T::ok($s === 200 && str_contains($b, 'Simulateur de prix') && str_contains($b, 'Prêt à être réservé') && str_contains($b, 'La plus choisie'), 'fiche service : formules, contrôle de publication, simulateur');
+[$s] = $ag->get("/admin/services/$A"); T::ok($s === 403 || $s === 302, 'agent : fiche service refusée');
+[$s] = $admin->get('/admin/services/999999'); T::eq($s, 404, 'fiche service inconnue : 404');
+$vh = (int) \App\Core\Database::val("SELECT id FROM service_field_choices WHERE label = 'SUV / 4x4'"); $fid = (int) \App\Core\Database::val("SELECT f.id FROM service_fields f WHERE f.service_id = $A AND f.field_key = 'vehicle'");
+$cplx = (int) \App\Core\Database::val("SELECT id FROM service_prices WHERE service_id = $A AND name = 'Complet'");
+$tk = $admin->token("/admin/services/$A");
+[$s, , $b] = $admin->postJson("/admin/services/$A/simuler", ['formula_id' => $cplx, 'fields' => ['vehicle' => $vh, 'count' => 2], 'options' => []], $tk); $q = json_decode($b, true);
+T::ok($s === 200 && $q['subtotal'] === 16000 && $q['total'] === 16000, 'simulateur : Complet SUV ×2 = 16 000 (même calcul que le site)');
+[$s, , $b] = $admin->postJson("/admin/services/$A/simuler", ['formula_id' => 999999, 'fields' => []], $tk); T::eq($s, 422, 'simulateur : formule invalide refusée');
+[$s] = $admin->req('POST', "/admin/services/$A/simuler", [], [], true); T::eq($s, 419, 'simulateur sans jeton CSRF refusé');
+[$s, $h] = $admin->post("/admin/services/$A/dupliquer", ['_csrf' => $tk]); T::ok($s === 302 && str_contains($h['location'][0] ?? '', '/admin/services/'), 'duplication : redirige vers la fiche de la copie');
+// Création d'une formule depuis la fiche : retour sur la fiche
+$tk2 = $admin->token("/admin/crud/service_prices/nouveau?service_id=$A");
+[$s, $h] = $admin->post('/admin/crud/service_prices', ['_csrf' => $tk2, 'service_id' => $A, 'name' => 'Express', 'amount' => '2500', 'duration_minutes' => '20', 'includes' => "Lavage rapide\nSéchage", 'popular' => '0', 'active' => '1', 'sort' => '9']); \App\Core\Database::reset();
+T::ok($s === 302 && str_contains($h['location'][0] ?? '', "/admin/services/$A"), 'formule créée depuis la fiche : retour sur la fiche');
+T::eq((int) \App\Core\Database::val("SELECT amount FROM service_prices WHERE name = 'Express' AND service_id = $A"), 2500, 'nouvelle formule enregistrée avec son prix');
+[$s, , $b] = $admin->get("/admin/crud/service_images/nouveau?service_id=$A"); T::eq($s, 200, 'formulaire de photo');
+[$s, $h] = $admin->multipart('/admin/crud/service_images', ['_csrf' => $admin->token("/admin/crud/service_images/nouveau?service_id=$A"), 'service_id' => $A, 'sort' => '1'], 'zz', 'x.txt', 'x', 'text/plain'); \App\Core\Database::reset();
+T::eq((int) \App\Core\Database::val('SELECT COUNT(*) FROM service_images'), 0, 'photo obligatoire : rien créé sans fichier');
+[$s, $h] = $admin->multipart('/admin/crud/service_images', ['_csrf' => $admin->token("/admin/crud/service_images/nouveau?service_id=$A"), 'service_id' => $A, 'sort' => '1'], 'path', 'g.png', $PNG, 'image/png'); \App\Core\Database::reset();
+T::eq((int) \App\Core\Database::val('SELECT COUNT(*) FROM service_images WHERE service_id = ?', [$A]), 1, 'photo ajoutée à la galerie');
+$pub2 = new Client($port);
+[$s, , $b] = $pub2->get('/services/lavage-automobile'); T::ok($s === 200 && str_contains($b, 'La plus choisie') && str_contains($b, 'Aspiration intérieure') && str_contains($b, "formula=$cplx") && str_contains($b, 'Express'), 'page service : formules, contenu inclus, badge, bouton « choisir »');
+[$s, , $b] = $pub2->get("/reserver?service=lavage-automobile&formula=$cplx"); T::ok($s === 200 && str_contains($b, "data-preformula=\"$cplx\"") && str_contains($b, 'id="mobile-total"'), 'réservation : formule présélectionnée, total mobile');
+[$s, , $b] = $pub2->get("/api/services/$A/form"); $d = json_decode($b, true); $cx = array_values(array_filter($d['formulas'], fn($f) => $f['name'] === 'Complet'))[0] ?? null;
+T::ok($s === 200 && $cx && $cx['popular'] === true && count($cx['includes']) === 4, 'API formulaire : formule populaire et contenu inclus');
+// calendrier .ics et suivi
+$ref = \App\Core\Database::val("SELECT reference FROM bookings WHERE status <> 'cancelled' ORDER BY id DESC LIMIT 1"); $phone = \App\Core\Database::val('SELECT c.phone FROM bookings b JOIN customers c ON c.id = b.customer_id WHERE b.reference = ?', [$ref]);
+[$s] = $pub2->get("/suivi/$ref/calendrier"); T::eq($s, 302, 'agenda : refusé sans avoir prouvé sa réservation');
+$pub2->post('/suivi', ['_csrf' => $pub2->token('/suivi'), 'reference' => $ref, 'phone' => $phone]);
+[$s, $h, $b] = $pub2->get("/suivi/$ref/calendrier"); T::ok($s === 200 && str_contains($h['content-type'][0] ?? '', 'text/calendar') && str_contains($b, 'BEGIN:VEVENT') && str_contains($b, "UID:$ref@") && preg_match('/DTSTART:\d{8}T\d{6}Z/', $b) === 1, 'agenda : fichier .ics valide pour la réservation');
+[$s, , $b] = $pub2->get("/suivi/$ref"); T::ok($s === 200 && str_contains($b, 'Avancement de la réservation') && str_contains($b, 'aria-current="step"'), 'suivi : progression visuelle de la réservation');
 
 // Permissions relues à chaque requête
 \App\Core\Database::reset();

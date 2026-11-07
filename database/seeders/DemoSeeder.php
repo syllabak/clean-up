@@ -20,6 +20,7 @@ final class DemoSeeder
             self::users();
             self::content();
             self::crm();
+            self::extras();
         });
     }
 
@@ -159,6 +160,15 @@ final class DemoSeeder
             $st = $first[$i];
             DB::insert('users', ['role_id' => $roles['agent'], 'staff_id' => $st['id'], 'name' => $st['name'], 'email' => $email, 'password_hash' => $hash('Agent#2026'), 'active' => 1, 'created_at' => now()]);
         }
+    }
+
+    /** Formules : contenu inclus et formule mise en avant (démonstration). */
+    private static function extras(): void
+    {
+        $set = fn(string $slug, string $formula, string $inc, int $pop = 0) => DB::exec('UPDATE service_prices SET includes = ?, popular = ? WHERE name = ? AND service_id = (SELECT id FROM services WHERE slug = ?)', [$inc, $pop, $formula, $slug]);
+        $set('lavage-automobile', 'Simple', "Lavage extérieur\nSéchage");
+        $set('lavage-automobile', 'Complet', "Lavage extérieur et séchage\nAspiration intérieure\nNettoyage du tableau de bord\nVitres intérieures et extérieures", 1);
+        $set('lavage-automobile', 'Premium', "Tout le Complet\nShampoing des sièges\nLustrage de la carrosserie\nTraitement des plastiques");
     }
 
     /** Prospects et dépenses de démonstration (les canaux viennent de la migration 009). */

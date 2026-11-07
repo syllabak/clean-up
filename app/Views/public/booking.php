@@ -1,5 +1,5 @@
 <div class="page-head"><div class="container"><h1>Réserver une prestation</h1></div></div>
-<div class="container section wiz" id="wizard" data-currency="<?= e($currency) ?>" data-csrf="<?= e(\App\Core\Csrf::token()) ?>" data-preselect="<?= e($preselect) ?>">
+<div class="container section wiz" id="wizard" data-currency="<?= e($currency) ?>" data-csrf="<?= e(\App\Core\Csrf::token()) ?>" data-preselect="<?= e($preselect) ?>" data-preformula="<?= (int) $preformula ?>">
   <script type="application/json" id="services-data"><?= json_encode($services, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
   <ol class="wiz-progress" id="progress">
     <li>Service</li><li>Détails</li><li>Lieu</li><li>Vos coordonnées</li><li>Date et heure</li><li>Récapitulatif</li>
@@ -72,4 +72,5 @@
       <hr><p class="mb-0 text-muted small">Total estimé</p><p class="total mb-0" id="side-total">—</p>
     </div></aside>
   </div>
+  <div class="mobile-total" aria-hidden="true"><span>Total estimé</span><strong id="mobile-total">—</strong></div>
 </div>
