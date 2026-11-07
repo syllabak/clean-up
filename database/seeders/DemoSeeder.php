@@ -7,7 +7,7 @@ use App\Core\Database as DB;
 /** Données de démonstration / tests (zones de Dakar, 6 services, 3 équipes, comptes). SQLite de test uniquement. */
 final class DemoSeeder
 {
-    public const ADMIN_EMAIL = 'admin@netexpress.test';
+    public const ADMIN_EMAIL = 'admin@cleanup.test';
     public const ADMIN_PASSWORD = 'Admin#2026';
 
     public static function run(): void
@@ -153,9 +153,9 @@ final class DemoSeeder
         $roles = array_column(DB::all('SELECT id, name FROM roles'), 'id', 'name');
         $hash = fn(string $p) => password_hash($p, PASSWORD_DEFAULT);
         DB::insert('users', ['role_id' => $roles['admin'], 'name' => 'Administrateur', 'email' => self::ADMIN_EMAIL, 'password_hash' => $hash(self::ADMIN_PASSWORD), 'active' => 1, 'created_at' => now()]);
-        DB::insert('users', ['role_id' => $roles['manager'], 'name' => 'Gestionnaire', 'email' => 'gestion@netexpress.test', 'password_hash' => $hash('Gestion#2026'), 'active' => 1, 'created_at' => now()]);
+        DB::insert('users', ['role_id' => $roles['manager'], 'name' => 'Gestionnaire', 'email' => 'gestion@cleanup.test', 'password_hash' => $hash('Gestion#2026'), 'active' => 1, 'created_at' => now()]);
         $first = DB::all('SELECT id, name, email FROM staff ORDER BY id');
-        foreach ([[0, 'moussa@netexpress.test'], [2, 'awa@netexpress.test']] as [$i, $email]) {
+        foreach ([[0, 'moussa@cleanup.test'], [2, 'awa@cleanup.test']] as [$i, $email]) {
             $st = $first[$i];
             DB::insert('users', ['role_id' => $roles['agent'], 'staff_id' => $st['id'], 'name' => $st['name'], 'email' => $email, 'password_hash' => $hash('Agent#2026'), 'active' => 1, 'created_at' => now()]);
         }

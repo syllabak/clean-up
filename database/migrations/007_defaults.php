@@ -3,7 +3,7 @@
 use App\Core\Database;
 
 return function (): void {
-    Database::insert('companies', ['id' => 1, 'name' => "Net'Express", 'slug' => 'net-express', 'active' => 1, 'created_at' => now()]);
+    Database::insert('companies', ['id' => 1, 'name' => "Clean Up", 'slug' => 'clean-up', 'active' => 1, 'created_at' => now()]);
 
     $perms = [
         'dashboard.view' => 'Voir le tableau de bord', 'bookings.view' => 'Voir les réservations', 'bookings.manage' => 'Gérer les réservations',
@@ -26,12 +26,12 @@ return function (): void {
     }
 
     $settings = [
-        'company_name' => "Net'Express", 'company_phone' => '+221 77 000 00 00', 'company_whatsapp' => '221770000000', 'company_email' => 'contact@netexpress.sn',
+        'company_name' => "Clean Up", 'company_phone' => '+221 77 000 00 00', 'company_whatsapp' => '221770000000', 'company_email' => 'contact@cleanup.sn',
         'company_address' => 'Dakar, Sénégal', 'opening_text' => 'Lundi – Samedi : 8h – 18h', 'currency' => 'FCFA',
         'hero_title' => 'Votre intérieur et votre voiture, comme neufs. Chez vous.', 'hero_subtitle' => 'Des équipes mobiles se déplacent à domicile ou au bureau. Réservez en deux minutes, choisissez votre créneau.',
         'hero_image' => '', 'slot_step_minutes' => '30', 'min_lead_hours' => '4', 'max_days_ahead' => '30', 'buffer_same_zone' => '10', 'default_travel_minutes' => '20',
         'revenue_tracking_enabled' => '1', 'reminder_hours_before' => '24', 'notif_max_attempts' => '4', 'notif_retry_minutes' => '10',
-        'admin_notification_email' => 'contact@netexpress.sn', 'admin_notification_phone' => '',
+        'admin_notification_email' => 'contact@cleanup.sn', 'admin_notification_phone' => '',
     ];
     foreach ($settings as $k => $v) Database::insert('settings', ['company_id' => 1, 'skey' => $k, 'svalue' => $v]);
 
@@ -60,7 +60,7 @@ return function (): void {
     }
 
     $pages = [
-        ['a-propos', 'À propos', "Net'Express est une entreprise de nettoyage mobile : nous venons à vous pour laver votre véhicule, vos canapés, matelas, tapis, ainsi que votre maison ou vos bureaux.\n\nNos équipes sont formées, équipées et assurent un service soigné, ponctuel et transparent sur les prix."],
+        ['a-propos', 'À propos', "Clean Up est une entreprise de nettoyage mobile : nous venons à vous pour laver votre véhicule, vos canapés, matelas, tapis, ainsi que votre maison ou vos bureaux.\n\nNos équipes sont formées, équipées et assurent un service soigné, ponctuel et transparent sur les prix."],
         ['cgv', 'Conditions générales', "1. Objet. Les présentes conditions encadrent les réservations de prestations de nettoyage effectuées sur ce site.\n\n2. Réservation. Une réservation est enregistrée « en attente » puis confirmée par l'entreprise. Le prix affiché est une estimation susceptible d'ajustement après constat sur place.\n\n3. Annulation. Le client peut annuler gratuitement jusqu'à 12 heures avant l'intervention.\n\n4. Règlement. Le mode de règlement est convenu avec l'entreprise ; aucun paiement n'est effectué en ligne.\n\n5. Responsabilité. L'entreprise est responsable des dommages directement causés par ses équipes, sous réserve de déclaration le jour de l'intervention.\n\n(Texte indicatif à faire valider par votre conseil juridique.)"],
         ['confidentialite', 'Politique de confidentialité', "Nous collectons les informations nécessaires à la réalisation de votre prestation : nom, téléphone, email éventuel et adresse d'intervention. Elles servent uniquement à gérer votre réservation et à vous contacter. Elles ne sont ni vendues ni cédées à des tiers.\n\nVous pouvez demander l'accès, la rectification ou la suppression de vos données en nous écrivant à l'adresse indiquée sur la page Contact.\n\n(Texte indicatif à adapter à la réglementation applicable, notamment la loi sénégalaise sur la protection des données personnelles.)"],
     ];

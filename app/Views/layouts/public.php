@@ -1,5 +1,5 @@
 <?php
-$company = setting('company_name', "Net'Express");
+$company = setting('company_name', "Clean Up");
 $wa = setting('company_whatsapp', '');
 ?><!doctype html>
 <html lang="fr">

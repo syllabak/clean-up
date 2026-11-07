@@ -3,7 +3,7 @@
  * - Ne met JAMAIS en cache : /admin, /agent, /api, /reservation, /suivi, /connexion, /photo, ni aucune réponse POST.
  *   Les données personnelles et les disponibilités ne sont donc jamais conservées sur l'appareil.
  * - Hors connexion, une navigation échouée affiche la page /hors-ligne ; aucune réservation n'est mise en file d'attente. */
-const VERSION = 'nx-v2';
+const VERSION = 'cu-v3';
 const BASE = location.pathname.replace(/\/sw\.js$/, '');   // "" à la racine, "/cleanup" en sous-dossier
 const STATIC = ['/assets/vendor/bootstrap.min.css', '/assets/vendor/bootstrap.bundle.min.js', '/assets/css/app.css', '/assets/js/app.js', '/assets/icons/icon-192.png', '/hors-ligne'].map((p) => BASE + p);
 const NEVER = /^\/(admin|agent|api|reservation|suivi|connexion|deconnexion|photo|cron|contact)(\/|$)/;

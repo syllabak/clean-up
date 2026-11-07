@@ -1,4 +1,4 @@
-# Net'Express — plateforme de réservation de services de nettoyage
+# Clean Up — plateforme de réservation de services de nettoyage
 
 Application PHP 8.2+ (MVC maison, PDO), Bootstrap 5 local, PWA. Une entreprise, avec `company_id` partout pour préparer un futur mode SaaS. Aucun paiement en ligne : le chiffre d'affaires se saisit à la main sur chaque réservation.
 
@@ -14,10 +14,10 @@ Comptes de démonstration (SQLite uniquement, à ne jamais garder en production)
 
 | Rôle | Email | Mot de passe |
 |---|---|---|
-| Administrateur | admin@netexpress.test | Admin#2026 |
-| Gestionnaire | gestion@netexpress.test | Gestion#2026 |
-| Agent (Équipe Auto) | moussa@netexpress.test | Agent#2026 |
-| Agent (Équipe Textile) | awa@netexpress.test | Agent#2026 |
+| Administrateur | admin@cleanup.test | Admin#2026 |
+| Gestionnaire | gestion@cleanup.test | Gestion#2026 |
+| Agent (Équipe Auto) | moussa@cleanup.test | Agent#2026 |
+| Agent (Équipe Textile) | awa@cleanup.test | Agent#2026 |
 
 Espace équipe : `/connexion` (les agents arrivent sur `/agent`, les autres sur `/admin`).
 

@@ -156,7 +156,7 @@ final class BookingService
     {
         $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         do {
-            $r = 'NX-' . date('ymd') . '-';
+            $r = 'CU-' . date('ymd') . '-';
             for ($i = 0; $i < 4; $i++) $r .= $alphabet[random_int(0, strlen($alphabet) - 1)];
         } while (Database::val('SELECT id FROM bookings WHERE reference = ?', [$r]));
         return $r;

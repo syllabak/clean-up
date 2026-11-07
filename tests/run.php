@@ -89,7 +89,7 @@ fresh_db($dbFile);
 $svcB = new BookingService(); $av = new AvailabilityService();
 $mon = next_dow(1);
 $b1 = $svcB->create(wash_input($mon, '08:00'));
-T::ok(str_starts_with($b1['reference'], 'NX-'), 'référence unique générée : ' . $b1['reference']);
+T::ok(str_starts_with($b1['reference'], 'CU-'), 'référence unique générée : ' . $b1['reference']);
 T::eq([$b1['status'], $b1['total'], $b1['duration_minutes'], $b1['end_time']], ['pending', 4000, 45, '08:45'], 'statut initial, prix serveur (3000+1000), durée, fin');
 T::eq((int) DB::val('SELECT COUNT(*) FROM booking_items WHERE booking_id = ?', [$b1['id']]), 1, 'ligne de prestation enregistrée');
 T::eq((int) DB::val('SELECT COUNT(*) FROM booking_status_history WHERE booking_id = ?', [$b1['id']]), 1, 'historique de statut initialisé');
@@ -235,7 +235,7 @@ T::eq(DB::val('SELECT status FROM notification_logs WHERE id = ?', [$failed['id'
 $soon = time() + 20 * 3600;   // dans 20 h : dans la fenêtre de rappel de 24 h
 $tomorrow = date('Y-m-d', $soon);
 $cid = (int) DB::val('SELECT id FROM customers LIMIT 1');
-$bk = DB::insert('bookings', ['company_id' => 1, 'reference' => 'NX-TEST-REM1', 'customer_id' => $cid, 'neighborhood_id' => nb('Plateau'), 'service_id' => svc('lavage-automobile'), 'address_text' => 'x',
+$bk = DB::insert('bookings', ['company_id' => 1, 'reference' => 'CU-TEST-REM1', 'customer_id' => $cid, 'neighborhood_id' => nb('Plateau'), 'service_id' => svc('lavage-automobile'), 'address_text' => 'x',
     'scheduled_date' => $tomorrow, 'start_time' => date('H:i', $soon), 'end_time' => '23:59', 'duration_minutes' => 45, 'status' => 'confirmed', 'created_at' => now()]);
 T::eq($ns->sendReminders(), 1, 'rappel envoyé pour une intervention dans moins de 24 h');
 T::eq($ns->sendReminders(), 0, 'et une seule fois par réservation');
@@ -245,7 +245,7 @@ T::group('Sécurité : limitation de débit, mots de passe, téléversement');
 T::eq([RateLimiter::hit('t1', 3, 60), RateLimiter::hit('t1', 3, 60), RateLimiter::hit('t1', 3, 60), RateLimiter::hit('t1', 3, 60)], [true, true, true, false], 'limitation : 3 autorisées, 4e refusée');
 RateLimiter::clear('t1');
 T::eq(RateLimiter::hit('t1', 3, 60), true, 'compteur réinitialisable');
-$hash = DB::val("SELECT password_hash FROM users WHERE email = ?", ['admin@netexpress.test']);
+$hash = DB::val("SELECT password_hash FROM users WHERE email = ?", ['admin@cleanup.test']);
 T::ok(str_starts_with($hash, '$') && password_verify('Admin#2026', $hash) && !password_verify('mauvais', $hash), 'mot de passe haché (password_hash) et vérifié');
 $fake = sys_get_temp_dir() . '/fake.jpg'; file_put_contents($fake, '<?php echo 1; ?>');
 T::throws(fn() => Upload::image(['error' => 0, 'tmp_name' => $fake, 'size' => filesize($fake), 'name' => 'x.jpg'], sys_get_temp_dir() . '/up'), RuntimeException::class, 'script PHP déguisé en .jpg refusé');

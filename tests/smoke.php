@@ -80,23 +80,23 @@ $anon = new Client($port);
 [$s, $h] = $anon->get('/agent'); T::ok($s === 302, '/agent sans connexion → redirigé');
 [$s] = $anon->get('/admin/crud/users'); T::eq($s, 302, '/admin/crud/users sans connexion → redirigé');
 [$s] = $anon->get('/photo/1'); T::eq($s, 302, 'photo sans connexion → redirigé');
-[$s] = $anon->post('/connexion', ['email' => 'admin@netexpress.test', 'password' => 'Admin#2026']); T::eq($s, 419, 'POST sans jeton CSRF → 419');
+[$s] = $anon->post('/connexion', ['email' => 'admin@cleanup.test', 'password' => 'Admin#2026']); T::eq($s, 419, 'POST sans jeton CSRF → 419');
 [$s] = $anon->post('/connexion', ['_csrf' => 'faux', 'email' => 'a@b.c', 'password' => 'x']); T::eq($s, 419, 'POST avec faux jeton → 419');
 [$s] = $anon->req('POST', '/reservation', ['a' => 1], [], true); T::eq($s, 419, 'POST JSON /reservation sans jeton → 419');
 [$s] = $anon->post('/deconnexion'); T::eq($s, 419, 'déconnexion sans jeton → 419');
-T::eq($anon->login('admin@netexpress.test', 'mauvais'), 302, 'mauvais mot de passe → retour au formulaire');
+T::eq($anon->login('admin@cleanup.test', 'mauvais'), 302, 'mauvais mot de passe → retour au formulaire');
 [$s] = $anon->get('/admin'); T::eq($s, 302, '... et toujours non connecté');
-T::eq($anon->login("admin@netexpress.test' OR '1'='1", 'x'), 302, 'tentative d\'injection SQL dans l\'email : refusée sans erreur');
+T::eq($anon->login("admin@cleanup.test' OR '1'='1", 'x'), 302, 'tentative d\'injection SQL dans l\'email : refusée sans erreur');
 
 $admin = new Client($port);
-[$s, $h] = (function () use ($admin) { $t = $admin->token(); return $admin->post('/connexion', ['_csrf' => $t, 'email' => 'admin@netexpress.test', 'password' => 'Admin#2026']); })();
+[$s, $h] = (function () use ($admin) { $t = $admin->token(); return $admin->post('/connexion', ['_csrf' => $t, 'email' => 'admin@cleanup.test', 'password' => 'Admin#2026']); })();
 T::ok($s === 302 && str_ends_with($h['location'][0], '/admin'), 'connexion admin → /admin');
 [$s, , $b] = $admin->get('/admin'); T::ok($s === 200 && str_contains($b, 'Tableau de bord'), 'tableau de bord accessible');
 foreach (['/admin/reservations', '/admin/planning', '/admin/planning?view=week', '/admin/parametres', '/admin/notifications', '/admin/audit', '/admin/crud/services', '/admin/crud/neighborhoods', '/admin/crud/teams', '/admin/crud/staff', '/admin/crud/users', '/admin/crud/notifications', '/admin/crud/time_off', '/admin/crud/pages'] as $p) {
     [$s] = $admin->get($p); T::eq($s, 200, "admin : GET $p");
 }
 [$s] = $admin->get('/admin/crud/inexistant'); T::eq($s, 404, 'ressource CRUD inconnue → 404');
-$m = new Client($port); T::eq($m->login('gestion@netexpress.test', 'Gestion#2026'), 302, 'connexion gestionnaire');
+$m = new Client($port); T::eq($m->login('gestion@cleanup.test', 'Gestion#2026'), 302, 'connexion gestionnaire');
 [$s] = $m->get('/admin/reservations'); T::eq($s, 200, 'gestionnaire : réservations accessibles');
 [$s] = $m->get('/admin/parametres'); T::eq($s, 403, 'gestionnaire : paramètres refusés (403)');
 [$s] = $m->get('/admin/crud/users'); T::eq($s, 403, 'gestionnaire : utilisateurs refusés (403)');
@@ -105,7 +105,7 @@ $m = new Client($port); T::eq($m->login('gestion@netexpress.test', 'Gestion#2026
 $bf = new Client($port); $codes = [];
 for ($i = 0; $i < 11; $i++) { $t = $bf->token(); [$s] = $bf->post('/connexion', ['_csrf' => $t, 'email' => 'x@y.zz', 'password' => 'nope' . $i]); $codes[] = $s; }
 T::ok(in_array(429, $codes, true), 'force brute : blocage (429) après quelques tentatives [' . implode(',', $codes) . ']');
-$stillBlocked = (new Client($port)); $t = $stillBlocked->token(); [$s] = $stillBlocked->post('/connexion', ['_csrf' => $t, 'email' => 'admin@netexpress.test', 'password' => 'Admin#2026']);
+$stillBlocked = (new Client($port)); $t = $stillBlocked->token(); [$s] = $stillBlocked->post('/connexion', ['_csrf' => $t, 'email' => 'admin@cleanup.test', 'password' => 'Admin#2026']);
 T::eq($s, 429, 'la même adresse IP reste bloquée même avec le bon mot de passe');
 \App\Core\Database::reset(); \App\Core\Database::exec('DELETE FROM rate_limits');
 
@@ -145,7 +145,7 @@ $start = $slots[0]['start'];
 $book = $pay + ['date' => $day, 'start' => $start, 'first_name' => 'Mariama', 'last_name' => 'Thiam', 'phone' => '77 456 78 90', 'email' => 'mariama@example.com', 'address_text' => 'Villa 24, rue 8, Unité 15', 'instructions' => 'Portail bleu', 'website' => ''];
 [$s, , $b] = $cl->postJson('/reservation', array_merge($book, ['website' => 'http://spam.example']), $csrf); T::eq($s, 400, 'piège à robots (champ caché rempli) → refusé');
 [$s, , $b] = $cl->postJson('/reservation', $book, $csrf); $r = json_decode($b, true);
-T::ok($s === 201 && str_starts_with($r['reference'], 'NX-'), 'réservation créée : ' . ($r['reference'] ?? $b));
+T::ok($s === 201 && str_starts_with($r['reference'], 'CU-'), 'réservation créée : ' . ($r['reference'] ?? $b));
 $ref = $r['reference'];
 $cl2 = new Client($port); $csrf2 = $cl2->token('/reserver');
 [$s, , $b] = $cl2->postJson('/reservation', array_merge($book, ['phone' => '77 111 22 33', 'first_name' => 'Autre']), $csrf2);
@@ -163,7 +163,7 @@ $tr = new Client($port); $tt = $tr->token('/suivi');
 [$s] = $tr->get("/suivi/$ref"); T::eq($s, 302, '... toujours pas d\'accès');
 [$s, $h] = $tr->post('/suivi', ['_csrf' => $tt, 'reference' => strtolower($ref), 'phone' => '+221 77 456 78 90']); T::ok($s === 302 && str_ends_with($h['location'][0], "/suivi/$ref"), 'bonne référence + téléphone (autre format) → accès');
 [$s, , $b] = $tr->get("/suivi/$ref"); T::ok($s === 200 && str_contains($b, 'Annuler ma réservation'), 'page de suivi avec bouton d\'annulation');
-[$s, , $b] = $tr->get('/suivi/NX-000000-ZZZZ'); T::eq($s, 302, 'référence d\'un tiers : pas d\'accès');
+[$s, , $b] = $tr->get('/suivi/CU-000000-ZZZZ'); T::eq($s, 302, 'référence d\'un tiers : pas d\'accès');
 [$s] = $tr->post("/suivi/$ref/annuler", ['_csrf' => $tt]); \App\Core\Database::reset();
 T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE reference = ?', [$ref]), 'cancelled', 'annulation par le client enregistrée');
 // Contact
@@ -217,7 +217,7 @@ $admin->post("/admin/crud/teams/$team", ['_csrf' => $t, 'name' => 'Équipe Texti
 T::eq(array_column(\App\Core\Database::all('SELECT service_id FROM team_services WHERE team_id = ?', [$team]), 'service_id'), [svc('nettoyage-matelas')], 'CRUD : services de l\'équipe (table pivot) mis à jour');
 // Paramètres
 $t = $admin->token('/admin/parametres');
-$admin->post('/admin/parametres', ['_csrf' => $t, 'company_phone' => '+221 33 999 99 99', 'slot_step_minutes' => '30', 'min_lead_hours' => '1', 'max_days_ahead' => '30', 'buffer_same_zone' => '10', 'cancel_hours_before' => '12', 'reminder_hours_before' => '24', 'notif_max_attempts' => '4', 'notif_retry_minutes' => '10', 'currency' => 'FCFA', 'company_name' => "Net'Express"]);
+$admin->post('/admin/parametres', ['_csrf' => $t, 'company_phone' => '+221 33 999 99 99', 'slot_step_minutes' => '30', 'min_lead_hours' => '1', 'max_days_ahead' => '30', 'buffer_same_zone' => '10', 'cancel_hours_before' => '12', 'reminder_hours_before' => '24', 'notif_max_attempts' => '4', 'notif_retry_minutes' => '10', 'currency' => 'FCFA', 'company_name' => "Clean Up"]);
 [, , $b] = $cl->get('/contact'); T::ok(str_contains($b, '+221 33 999 99 99'), 'paramètres : le téléphone modifié apparaît sur le site');
 $t = $admin->token('/admin/parametres');
 [$s, $h] = $admin->post('/admin/parametres', ['_csrf' => $t, 'slot_step_minutes' => 'abc']); [, , $b] = $admin->get('/admin/parametres'); T::ok(str_contains($b, 'doit être un nombre entier'), 'paramètres : valeur invalide refusée');
@@ -228,13 +228,13 @@ T::ok(!glob(BASE_PATH . '/public/uploads/site/*.php'), 'upload : aucun fichier P
 
 // ------------------------------------------------------------------ Agent
 T::group('Interface agent : droits et mission');
-$ag = new Client($port); T::eq($ag->login('moussa@netexpress.test', 'Agent#2026'), 302, 'connexion agent Moussa');
+$ag = new Client($port); T::eq($ag->login('moussa@cleanup.test', 'Agent#2026'), 302, 'connexion agent Moussa');
 [$s, $h] = $ag->get('/admin'); T::eq($s, 403, 'agent : /admin interdit (403)');
 [$s] = $ag->get('/admin/crud/services'); T::eq($s, 403, 'agent : CRUD interdit (403)');
 [$s] = $ag->get('/admin/reservations'); T::eq($s, 403, 'agent : réservations (admin) interdites');
 [$s, , $b] = $ag->get('/agent'); T::ok($s === 200 && str_contains($b, 'Bonjour Moussa'), 'tableau de bord agent');
 [$s, , $b] = $ag->get("/agent/mission/$bid"); T::ok($s === 200 && str_contains($b, 'tel:') && str_contains($b, 'google.com/maps') && str_contains($b, 'Je suis en route'), 'mission affectée : téléphone cliquable, itinéraire, bouton d\'étape');
-$otherAgent = new Client($port); $otherAgent->login('awa@netexpress.test', 'Agent#2026');
+$otherAgent = new Client($port); $otherAgent->login('awa@cleanup.test', 'Agent#2026');
 [$s] = $otherAgent->get("/agent/mission/$bid"); T::eq($s, 404, 'autre agent : mission d\'un collègue introuvable (404)');
 [$s] = $otherAgent->post("/agent/mission/$bid/statut", ['_csrf' => $otherAgent->token('/agent'), 'to' => 'en_route']); \App\Core\Database::reset();
 T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$bid]), 'assigned', 'autre agent : changement de statut refusé');
