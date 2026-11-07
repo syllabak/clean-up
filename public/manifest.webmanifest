@@ -1,6 +1,6 @@
 {
-  "name": "Net'Express — nettoyage à domicile",
-  "short_name": "Net'Express",
+  "name": "Clean Up — nettoyage à domicile",
+  "short_name": "Clean Up",
   "description": "Réservez un nettoyage à domicile ou au bureau.",
   "lang": "fr",
   "start_url": "./",

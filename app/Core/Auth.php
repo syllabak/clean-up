@@ -22,8 +22,6 @@ final class Auth
         if (!password_verify($password, $hash) || !$u) return false;
         session_regenerate_id(true);
         $_SESSION['uid'] = (int) $u['id'];
-        $perms = Database::all('SELECT p.name FROM permissions p JOIN role_permissions rp ON rp.permission_id = p.id WHERE rp.role_id = ?', [$u['role_id']]);
-        $_SESSION['perms'] = array_column($perms, 'name');
         $_SESSION['role'] = $u['role_name'];
         $_SESSION['staff_id'] = $u['staff_id'] ? (int) $u['staff_id'] : null;
         Database::update('users', (int) $u['id'], ['last_login_at' => now()]);
@@ -39,7 +37,15 @@ final class Auth
     }
 
     public static function check(): bool { return self::user() !== null; }
-    public static function can(string $perm): bool { return self::check() && in_array($perm, $_SESSION['perms'] ?? [], true); }
+    /** Permissions du rôle, relues en base à chaque requête : un changement de rôle s'applique immédiatement. */
+    public static function perms(): array
+    {
+        static $cache = [];
+        $u = self::user();
+        if (!$u) return [];
+        return $cache[$u['id'] . ':' . $u['role_id']] ??= array_column(Database::all('SELECT p.name FROM permissions p JOIN role_permissions rp ON rp.permission_id = p.id WHERE rp.role_id = ?', [$u['role_id']]), 'name');
+    }
+    public static function can(string $perm): bool { return in_array($perm, self::perms(), true); }
     public static function staffId(): ?int { return $_SESSION['staff_id'] ?? null; }
     public static function isAgentOnly(): bool { return self::can('agent.missions') && !self::can('dashboard.view'); }
 }

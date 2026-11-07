@@ -11,7 +11,7 @@ final class Mailer
     {
         $driver = Env::get('MAIL_DRIVER', 'log');
         $from = Env::get('MAIL_FROM_ADDRESS', 'noreply@localhost');
-        $fromName = Env::get('MAIL_FROM_NAME', 'Net\'Express');
+        $fromName = Env::get('MAIL_FROM_NAME', 'Clean Up');
         if ($driver === 'log') {
             file_put_contents(BASE_PATH . '/storage/logs/mail.log', sprintf("[%s] TO:%s | %s\n%s\n---\n", date('c'), $to, $subject, $body), FILE_APPEND | LOCK_EX);
             return;

@@ -82,6 +82,9 @@ final class BookingService
         });
 
         Audit::log('booking.create', 'booking', $booking, ['source' => $in['source'] ?? 'web'], null);
+        try {   // attribution du canal et conversion du prospect : une panne CRM ne bloque jamais une réservation
+            (new CrmService())->onBookingCreated($booking, (int) $this->repo->find($booking)['customer_id'], (int) ($in['channel_id'] ?? 0) ?: null);
+        } catch (\Throwable $e) { error_log('CRM: ' . $e->getMessage()); }
         // Après validation de la transaction : une panne de notification ne remet rien en cause.
         $this->notifier->dispatch('booking.created', $booking);
         if (setting('auto_assign', '0') === '1') (new AssignmentService())->autoAssign($booking);
@@ -153,7 +156,7 @@ final class BookingService
     {
         $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         do {
-            $r = 'NX-' . date('ymd') . '-';
+            $r = 'CU-' . date('ymd') . '-';
             for ($i = 0; $i < 4; $i++) $r .= $alphabet[random_int(0, strlen($alphabet) - 1)];
         } while (Database::val('SELECT id FROM bookings WHERE reference = ?', [$r]));
         return $r;

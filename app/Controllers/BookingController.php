@@ -13,7 +13,7 @@ final class BookingController extends Controller
     {
         $services = Database::all("SELECT id, name, slug, short_description, billing_unit FROM services WHERE company_id = ? AND active = 1 AND deleted_at IS NULL AND availability_status = 'available' ORDER BY sort", [Env::companyId()]);
         foreach ($services as &$s) $s['from_price'] = ServiceController::fromPrice(Database::one('SELECT * FROM services WHERE id = ?', [$s['id']]));
-        $this->view('public/booking', ['title' => 'Réserver une prestation', 'services' => $services, 'preselect' => Request::str('service'), 'currency' => setting('currency', 'FCFA'), 'noindex' => true, 'page_js' => 'booking.js']);
+        $this->view('public/booking', ['title' => 'Réserver une prestation', 'services' => $services, 'preselect' => Request::str('service'), 'preformula' => Request::int('formula'), 'channels' => Database::all('SELECT id, name FROM acquisition_channels WHERE company_id = ? AND active = 1 AND public = 1 AND deleted_at IS NULL ORDER BY sort, name', [Env::companyId()]), 'currency' => setting('currency', 'FCFA'), 'noindex' => true, 'page_js' => 'booking.js']);
     }
 
     public function formDef(string $id): void
@@ -28,7 +28,8 @@ final class BookingController extends Controller
         }
         json_response([
             'service' => ['id' => (int) $s['id'], 'name' => $s['name'], 'description' => $s['description'], 'conditions' => $s['conditions'], 'billing_unit' => $s['billing_unit']],
-            'formulas' => array_map(fn($f) => ['id' => (int) $f['id'], 'name' => $f['name'], 'description' => $f['description'], 'amount' => (int) $f['amount']],
+            'formulas' => array_map(fn($f) => ['id' => (int) $f['id'], 'name' => $f['name'], 'description' => $f['description'], 'amount' => (int) $f['amount'], 'popular' => (bool) $f['popular'],
+                'includes' => array_values(array_filter(array_map('trim', explode("\n", (string) $f['includes']))))],
                 Database::all('SELECT * FROM service_prices WHERE service_id = ? AND active = 1 AND deleted_at IS NULL ORDER BY sort, id', [$s['id']])),
             'fields' => $out,
             'options' => array_map(fn($o) => ['id' => (int) $o['id'], 'name' => $o['name'], 'description' => $o['description'], 'price' => (int) $o['price']],
@@ -132,6 +133,27 @@ final class BookingController extends Controller
         (new BookingService())->cancel((int) $b['id'], null, 'Annulée par le client');
         $this->ok('Votre réservation a été annulée.');
         redirect('/suivi/' . $ref);
+    }
+
+    /** Fichier calendrier (.ics) de la réservation, pour l'ajouter à son agenda. */
+    public function calendar(string $ref): void
+    {
+        $b = $this->owned($ref);
+        $tz = new \DateTimeZone(date_default_timezone_get());
+        $utc = new \DateTimeZone('UTC');
+        $start = (new \DateTime($b['scheduled_date'] . ' ' . $b['start_time'], $tz))->setTimezone($utc);
+        $end = (new \DateTime($b['scheduled_date'] . ' ' . $b['end_time'], $tz))->setTimezone($utc);
+        $esc = fn(string $t) => str_replace(["\\", ';', ',', "\r", "\n"], ['\\\\', '\\;', '\\,', '', '\\n'], $t);
+        $lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//' . setting('company_name', 'Clean Up') . '//Reservation//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+            'UID:' . $b['reference'] . '@' . (parse_url(Env::get('APP_URL', ''), PHP_URL_HOST) ?: 'cleanup'), 'DTSTAMP:' . gmdate('Ymd\THis\Z'), 'DTSTART:' . $start->format('Ymd\THis\Z'), 'DTEND:' . $end->format('Ymd\THis\Z'),
+            'SUMMARY:' . $esc($b['service_name'] . ' — ' . setting('company_name', 'Clean Up')), 'LOCATION:' . $esc($b['address_text'] . ', ' . $b['neighborhood_name']),
+            'DESCRIPTION:' . $esc('Réservation ' . $b['reference'] . '. Total estimé : ' . money((int) $b['total']) . '. Contact : ' . setting('company_phone', '')),
+            'BEGIN:VALARM', 'TRIGGER:-PT2H', 'ACTION:DISPLAY', 'DESCRIPTION:Intervention dans 2 heures', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'];
+        header('Content-Type: text/calendar; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . preg_replace('/[^A-Za-z0-9\-]/', '', $b['reference']) . '.ics"');
+        header('Cache-Control: private, no-store');
+        echo implode("\r\n", $lines) . "\r\n";
+        exit;
     }
 
     // ------------------------------------------------------------ internes
