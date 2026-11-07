@@ -259,6 +259,34 @@ $ag->post("/agent/mission/$bid/statut", ['_csrf' => $ag->token("/agent/mission/$
 T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$bid]), 'completed', 'agent : mission terminée');
 [$s, , $b] = $ag->get('/agent'); T::ok($s === 200, 'agent : tableau de bord après mission');
 
+// ------------------------------------------------------------------ CRM et gestion
+T::group('CRM : droits, pages, prospects, fiche client, gestion');
+$pub = new Client($port);
+[$s] = $pub->post('/contact', ['_csrf' => $pub->token('/contact'), 'name' => 'Khady Seck', 'phone' => '77 888 77 66', 'message' => 'Je voudrais un devis pour un canapé']); \App\Core\Database::reset();
+$lead = \App\Core\Database::one("SELECT * FROM leads WHERE phone = '221778887766'");
+T::ok($s === 302 && $lead && $lead['status'] === 'new', 'formulaire de contact : un prospect est créé');
+T::eq((int) \App\Core\Database::val("SELECT id FROM acquisition_channels WHERE code = 'contact'"), (int) $lead['channel_id'], 'prospect rattaché au canal « formulaire de contact »');
+[$s] = (new Client($port))->get('/admin/crm'); T::eq($s, 302, 'CRM : visiteur anonyme redirigé vers la connexion');
+foreach (['/admin/crm', '/admin/crm/prospects/' . $lead['id'], '/admin/gestion', '/admin/crud/acquisition_channels', '/admin/crud/leads', '/admin/crud/expenses'] as $u) { [$s] = $admin->get($u); T::eq($s, 200, "admin : $u"); }
+[$s] = $m->get('/admin/crm'); T::eq($s, 200, 'gestionnaire : CRM autorisé');
+[$s] = $m->get('/admin/gestion'); T::eq($s, 403, 'gestionnaire : gestion financière refusée');
+[$s] = $m->get('/admin/crud/expenses'); T::eq($s, 403, 'gestionnaire : dépenses refusées');
+[$s] = $ag->get('/admin/crm'); T::ok($s === 403 || $s === 302, 'agent : CRM refusé (' . $s . ')');
+[$s] = $admin->post("/admin/crm/prospects/{$lead['id']}/statut", ['status' => 'contacted']); T::eq($s, 419, 'changement de statut sans jeton CSRF refusé');
+$t = $admin->token('/admin/crm/prospects/' . $lead['id']);
+$admin->post("/admin/crm/prospects/{$lead['id']}/statut", ['_csrf' => $t, 'status' => 'quoted']); \App\Core\Database::reset();
+T::eq(\App\Core\Database::val('SELECT status FROM leads WHERE id = ?', [$lead['id']]), 'quoted', 'statut du prospect modifié');
+$admin->post("/admin/crm/prospects/{$lead['id']}/echange", ['_csrf' => $t, 'type' => 'call', 'summary' => 'Appelée, rappel jeudi']); \App\Core\Database::reset();
+T::eq((int) \App\Core\Database::val('SELECT COUNT(*) FROM interactions WHERE lead_id = ? AND type = ?', [$lead['id'], 'call']), 1, 'échange enregistré');
+[$s, $h] = $admin->post("/admin/crm/prospects/{$lead['id']}/convertir", ['_csrf' => $t]); \App\Core\Database::reset();
+$cust = \App\Core\Database::one("SELECT * FROM customers WHERE phone = '221778887766'");
+T::ok($s === 302 && $cust, 'prospect converti en client');
+[$s, , $b] = $admin->get('/admin/clients/' . $cust['id']); T::ok($s === 200 && str_contains($b, 'Seck') && str_contains($b, 'Appelée, rappel jeudi'), 'fiche client : coordonnées et historique affichés');
+[$s] = $admin->get('/admin/clients/999999'); T::eq($s, 404, 'fiche client inconnue : 404');
+[$s, , $b] = $admin->get('/admin/gestion?from=2020-01-01&to=2099-12-31'); T::ok($s === 200 && str_contains($b, 'Acquisition par canal'), 'gestion : rapport sur période personnalisée');
+[$s, , $b] = $admin->get('/admin/gestion?from=%3Cscript%3E&to=x'); T::ok($s === 200 && !str_contains($b, '<script>alert'), 'gestion : dates invalides sans effet');
+[$s, , $b] = $admin->get('/admin'); T::ok($s === 200 && str_contains($b, 'prospects à relancer'), 'tableau de bord : indicateurs prospects');
+
 // ------------------------------------------------------------------ Cron
 T::group('Tâches planifiées HTTP');
 [$s] = $cl->get('/cron/run'); T::eq($s, 403, 'cron sans jeton → 403');

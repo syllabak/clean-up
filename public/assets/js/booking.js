@@ -244,7 +244,7 @@
   function submit() {
     $('next').disabled = true; $('next').textContent = 'Envoi en cours…';
     var body = payload({ date: S.date, start: S.slot, first_name: $('first_name').value.trim(), last_name: $('last_name').value.trim(), phone: $('phone').value.trim(), email: $('email').value.trim(),
-      address_text: $('address').value.trim(), instructions: $('instructions').value.trim(), website: $('website').value });
+      address_text: $('address').value.trim(), instructions: $('instructions').value.trim(), website: $('website').value, channel_id: $('channel') ? $('channel').value : '' });
     api('/reservation', body).then(function (r) {
       if (r.ok) { location.href = r.data.redirect; return; }
       if (r.status === 409) { S.slot = null; showError(r.data.error); go(4); return; }

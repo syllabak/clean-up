@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 use App\Core\Router;
 use App\Controllers\{HomeController, ServiceController, BookingController, AuthController, AgentController, CronController};
-use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController};
+use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController};
 
 $r = new Router();
 
@@ -58,6 +58,17 @@ $r->get('/admin/notifications', [NotificationAdminController::class, 'index'], [
 $r->post('/admin/notifications/{id}/relancer', [NotificationAdminController::class, 'retry'], ['perm:notifications.manage']);
 $r->post('/admin/notifications/relancer-tout', [NotificationAdminController::class, 'retryAll'], ['perm:notifications.manage']);
 $r->get('/admin/audit', [AuditController::class, 'index'], ['perm:users.manage']);
+// CRM et gestion
+$r->get('/admin/crm', [CrmController::class, 'pipeline'], ['perm:crm.manage']);
+$r->get('/admin/crm/prospects/{id}', [CrmController::class, 'lead'], ['perm:crm.manage']);
+$r->post('/admin/crm/prospects/{id}/statut', [CrmController::class, 'leadStatus'], ['perm:crm.manage']);
+$r->post('/admin/crm/prospects/{id}/relance', [CrmController::class, 'leadFollowUp'], ['perm:crm.manage']);
+$r->post('/admin/crm/prospects/{id}/convertir', [CrmController::class, 'leadConvert'], ['perm:crm.manage']);
+$r->post('/admin/crm/prospects/{id}/echange', [CrmController::class, 'leadInteraction'], ['perm:crm.manage']);
+$r->get('/admin/clients/{id}', [CrmController::class, 'customer'], ['perm:customers.manage']);
+$r->post('/admin/clients/{id}/echange', [CrmController::class, 'customerInteraction'], ['perm:customers.manage']);
+$r->post('/admin/clients/{id}/canal', [CrmController::class, 'customerChannel'], ['perm:customers.manage']);
+$r->get('/admin/gestion', [BusinessController::class, 'index'], ['perm:finance.manage']);
 // CRUD générique piloté par config/crud.php (les permissions sont vérifiées dans le contrôleur)
 $r->get('/admin/crud/{type}', [CrudController::class, 'index'], ['auth']);
 $r->get('/admin/crud/{type}/nouveau', [CrudController::class, 'create'], ['auth']);

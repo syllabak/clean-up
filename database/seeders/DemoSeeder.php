@@ -19,6 +19,7 @@ final class DemoSeeder
             self::teams($skills, $svc);
             self::users();
             self::content();
+            self::crm();
         });
     }
 
@@ -158,6 +159,18 @@ final class DemoSeeder
             $st = $first[$i];
             DB::insert('users', ['role_id' => $roles['agent'], 'staff_id' => $st['id'], 'name' => $st['name'], 'email' => $email, 'password_hash' => $hash('Agent#2026'), 'active' => 1, 'created_at' => now()]);
         }
+    }
+
+    /** Prospects et dépenses de démonstration (les canaux viennent de la migration 009). */
+    private static function crm(): void
+    {
+        $ch = fn(string $code) => (int) DB::val('SELECT id FROM acquisition_channels WHERE code = ?', [$code]);
+        $leads = [['Fatou Diallo', '221771110001', 'instagram', 'contacted', 25000, '+0 day'], ['Cheikh Ndiaye', '221771110002', 'whatsapp', 'quoted', 60000, '-2 day'],
+            ['Société Sahel Immo', '221771110003', 'partner', 'new', 150000, '+1 day'], ['Mariama Sow', '221771110004', 'facebook', 'lost', 18000, '-5 day']];
+        foreach ($leads as [$n, $ph, $c, $st, $v, $f]) DB::insert('leads', ['company_id' => 1, 'name' => $n, 'phone' => $ph, 'channel_id' => $ch($c), 'status' => $st, 'estimated_value' => $v,
+            'next_follow_up' => date('Y-m-d', strtotime($f)), 'lost_reason' => $st === 'lost' ? 'Prix trop élevé' : null, 'created_at' => now()]);
+        foreach ([['Sponsoring Instagram', 'marketing', 30000, 'instagram'], ['Impression de flyers', 'marketing', 15000, 'flyers'], ['Produits de nettoyage', 'produits', 45000, null], ['Carburant de la semaine', 'carburant', 20000, null]] as [$l, $cat, $a, $c])
+            DB::insert('expenses', ['company_id' => 1, 'expense_date' => date('Y-m-d'), 'category' => $cat, 'label' => $l, 'amount' => $a, 'channel_id' => $c ? $ch($c) : null, 'created_at' => now()]);
     }
 
     private static function content(): void

@@ -13,7 +13,7 @@ final class BookingController extends Controller
     {
         $services = Database::all("SELECT id, name, slug, short_description, billing_unit FROM services WHERE company_id = ? AND active = 1 AND deleted_at IS NULL AND availability_status = 'available' ORDER BY sort", [Env::companyId()]);
         foreach ($services as &$s) $s['from_price'] = ServiceController::fromPrice(Database::one('SELECT * FROM services WHERE id = ?', [$s['id']]));
-        $this->view('public/booking', ['title' => 'Réserver une prestation', 'services' => $services, 'preselect' => Request::str('service'), 'currency' => setting('currency', 'FCFA'), 'noindex' => true, 'page_js' => 'booking.js']);
+        $this->view('public/booking', ['title' => 'Réserver une prestation', 'services' => $services, 'preselect' => Request::str('service'), 'channels' => Database::all('SELECT id, name FROM acquisition_channels WHERE company_id = ? AND active = 1 AND public = 1 AND deleted_at IS NULL ORDER BY sort, name', [Env::companyId()]), 'currency' => setting('currency', 'FCFA'), 'noindex' => true, 'page_js' => 'booking.js']);
     }
 
     public function formDef(string $id): void

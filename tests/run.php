@@ -255,6 +255,54 @@ T::ok(preg_match('/^[a-f0-9]{24}\.png$/', (string) $name) === 1, "vraie image ac
 $esc = e('<script>alert(1)</script>"\'');
 T::ok(!str_contains($esc, '<script>') && str_contains($esc, '&lt;script&gt;'), 'échappement XSS (e())');
 
+// ------------------------------------------------------------------ CRM et gestion
+T::group('CRM : canaux, prospects, attribution, rapports');
+use App\Services\{CrmService, BusinessReportService};
+fresh_db($dbFile);
+$svcB = new BookingService(); $crm = new CrmService();
+$bw = $svcB->create(wash_input(next_dow(1), '08:00'));
+$insta = $crm->channelByCode('instagram'); $fb = $crm->channelByCode('facebook');
+T::ok(DB::tableExists('leads') && DB::tableExists('expenses') && $insta && $fb, 'tables CRM et canaux par défaut créés');
+T::eq((int) DB::val("SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id JOIN permissions p ON p.id = rp.permission_id WHERE r.name = 'manager' AND p.name = 'finance.manage'"), 0, 'le gestionnaire n\'a pas accès aux finances');
+$l1 = $crm->createLead(['name' => 'Aminata Fall', 'phone' => '77 555 00 11', 'channel_id' => $fb, 'notes' => 'Veut un lavage SUV']);
+T::eq($crm->createLead(['name' => 'Aminata Fall', 'phone' => '+221 77 555 00 11', 'notes' => 'relance']), $l1, 'même numéro : prospect réutilisé (pas de doublon)');
+T::eq(DB::val('SELECT status FROM leads WHERE id = ?', [$l1]), 'new', 'prospect créé au statut « nouveau »');
+$crm->setStatus($l1, 'contacted', null);
+T::eq(DB::val('SELECT status FROM leads WHERE id = ?', [$l1]), 'contacted', 'changement de statut');
+T::throws(fn() => $crm->setStatus($l1, 'bidon', null), RuntimeException::class, 'statut inconnu refusé');
+// Une réservation avec le même numéro convertit le prospect et attribue le canal choisi par le client
+$tue = next_dow(1);   // lundi, jour desservi par Unité 15
+$bk = $svcB->create(wash_input($tue, '10:00', 'Unité 15', ['first_name' => 'Aminata', 'last_name' => 'Fall', 'phone' => '77 555 00 11', 'channel_id' => $insta]));
+T::eq((int) DB::val('SELECT channel_id FROM bookings WHERE id = ?', [$bk['id']]), $insta, 'canal choisi par le client enregistré sur la réservation');
+T::eq((int) DB::val('SELECT channel_id FROM customers WHERE id = ?', [$bk['customer_id']]), $insta, 'canal rattaché au nouveau client');
+T::eq(DB::val('SELECT status FROM leads WHERE id = ?', [$l1]), 'won', 'prospect converti automatiquement par la réservation');
+T::eq((int) DB::val('SELECT customer_id FROM leads WHERE id = ?', [$l1]), (int) $bk['customer_id'], 'prospect relié au client');
+T::eq((int) DB::val('SELECT channel_id FROM bookings WHERE id = ?', [$bw['id']]), $crm->channelByCode('web'), 'sans choix : canal « site web » par défaut');
+$bk2 = $svcB->create(wash_input($tue, '15:00', 'Unité 15', ['first_name' => 'Aminata', 'last_name' => 'Fall', 'phone' => '77 555 00 11', 'channel_id' => 999999]));
+T::eq((int) DB::val('SELECT channel_id FROM bookings WHERE id = ?', [$bk2['id']]), $insta, 'canal invalide ignoré : on garde celui du client');
+// Conversion manuelle
+$l2 = $crm->createLead(['name' => 'Moussa Ba', 'phone' => '78 444 33 22', 'channel_id' => $fb]);
+$cid2 = $crm->convert($l2, null);
+T::eq([DB::val('SELECT status FROM leads WHERE id = ?', [$l2]), (int) DB::val('SELECT channel_id FROM customers WHERE id = ?', [$cid2])], ['won', $fb], 'conversion manuelle : client créé avec le canal du prospect');
+T::throws(fn() => $crm->convert($crm->createLead(['name' => 'Sans Numéro', 'email' => 'x@y.sn']), null), RuntimeException::class, 'conversion impossible sans téléphone');
+T::ok((int) DB::val('SELECT COUNT(*) FROM interactions WHERE lead_id = ?', [$l1]) >= 2, 'historique des échanges alimenté automatiquement');
+T::eq(CrmService::segment(0, 0) . '/' . CrmService::segment(1, 5000) . '/' . CrmService::segment(2, 5000) . '/' . CrmService::segment(1, 150000), 'Nouveau/Occasionnel/Régulier/VIP', 'segmentation des clients');
+// Rapports : CA, dépenses, coût par client, ROI
+DB::update('bookings', (int) $bk['id'], ['status' => 'completed', 'declared_amount' => 20000]);
+DB::insert('expenses', ['company_id' => 1, 'expense_date' => $tue, 'category' => 'marketing', 'label' => 'Pub Instagram', 'amount' => 10000, 'channel_id' => $insta, 'created_at' => now()]);
+DB::insert('expenses', ['company_id' => 1, 'expense_date' => $tue, 'category' => 'produits', 'label' => 'Savon', 'amount' => 4000, 'created_at' => now()]);
+$rep = new BusinessReportService();
+[$from, $to] = BusinessReportService::range($tue, $tue);
+$row = array_values(array_filter($rep->acquisition(date('Y-m-d', strtotime('-1 day')), $to), fn($r) => $r['id'] === $insta))[0] ?? null;
+T::eq([$row['revenue'], $row['spend']], [20000, 40000], 'acquisition : CA et dépenses du canal (30 000 de démo + 10 000 saisis)');
+T::eq([$row['roi'], $row['cac']], [-50, 40000], 'acquisition : ROI = (20 000 − 40 000) / 40 000 = −50 %, coût par client = 40 000 / 1 client');
+$pf = $rep->profit($from, $to);
+T::eq([$pf['revenue'], $pf['expenses'], $pf['profit']], [20000, 14000, 6000], 'résultat = CA − dépenses (20 000 − 14 000)');
+T::eq(BusinessReportService::range('n\'importe quoi', '2026-03-01')[0], '2026-03-01', 'période invalide : début remplacé, dates remises dans l\'ordre');
+T::eq(count($rep->monthly(6)), 6, 'résultat sur 6 mois');
+$cu = $rep->customers($from, $to);
+T::ok($cu['total'] >= 2 && $cu['buyers'] >= 1, 'statistiques clients');
+
 DB::reset();
 foreach (['', '-wal', '-shm'] as $s) @unlink($dbFile . $s);
 exit(T::summary());

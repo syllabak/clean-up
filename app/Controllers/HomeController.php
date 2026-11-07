@@ -45,6 +45,10 @@ final class HomeController extends Controller
         $id = Database::insert('contact_messages', ['company_id' => Env::companyId(), 'name' => Request::str('name'), 'email' => Request::str('email') ?: null,
             'phone' => Request::str('phone') ?: null, 'message' => Request::str('message'), 'created_at' => now()]);
         Audit::log('contact.message', 'contact_message', $id, [], null);
+        try {   // le message devient aussi un prospect à suivre dans le CRM
+            $crm = new \App\Services\CrmService();
+            $crm->createLead(['name' => Request::str('name'), 'phone' => Request::str('phone'), 'email' => Request::str('email'), 'notes' => Request::str('message'), 'channel_id' => $crm->channelByCode('contact')]);
+        } catch (\Throwable $e) { error_log('CRM contact: ' . $e->getMessage()); }
         try {   // simple copie email vers l'entreprise ; aucune incidence si ça échoue
             $to = setting('admin_notification_email', '');
             if ($to) \App\Services\Channels\Mailer::send($to, 'Message du site — ' . Request::str('name'), Request::str('message') . "\n\n" . Request::str('email') . ' ' . Request::str('phone'));
