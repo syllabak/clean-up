@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Génère les affiches Clean Up (HTML A3 portrait) à partir de contact.json.
-Usage : python3 build.py && node render.cjs      (nécessite : pip install segno)
+Usage : python3 build.py && node render.cjs      (nécessite : pip install segno)\nPhotos réelles : déposez photos/avant.jpg et photos/apres.jpg (affiche 03) ; sans elles, une illustration est utilisée.
 Les coordonnées se modifient dans contact.json, puis on relance les deux commandes.
 """
 import html, io, json, pathlib
@@ -58,10 +58,75 @@ h1 em { font-style: normal; color: var(--lemon) }
 .cta .rows small { display: block; font-size: 4.2mm; font-weight: 600; color: #4d6178; text-transform: uppercase; letter-spacing: .5mm }
 .qr { background: #fff; border-radius: 5mm; padding: 5mm; text-align: center; font-size: 4mm; font-weight: 800; color: var(--ink); text-transform: uppercase; letter-spacing: .4mm }
 .qr svg { display: block; width: 100%; height: auto; margin-bottom: 3mm }
+.ba { position: relative; z-index: 2; margin-top: 12mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm }
+.ba figure { position: relative; border-radius: 6mm; overflow: hidden; height: 88mm; box-shadow: 0 2mm 0 rgba(0,0,0,.18) }
+.ba figure.before { background: linear-gradient(180deg, #c9cfd6, #aab2bb) }
+.ba figure.after { background: linear-gradient(180deg, #ffffff, #d9ecfb) }
+.ba svg { position: absolute; inset: 6mm 4mm 0 4mm; width: calc(100% - 8mm); height: calc(100% - 6mm) }
+.ba figcaption { position: absolute; left: 5mm; top: 5mm; padding: 1.4mm 4mm; border-radius: 20mm; font-size: 5mm; font-weight: 900; letter-spacing: .8mm; text-transform: uppercase }
+.before figcaption { background: #5b4636; color: #fff } .after figcaption { background: var(--lemon); color: var(--ink) }
+.ba .arrow { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 20mm; height: 20mm; border-radius: 50%; background: var(--lemon); color: var(--ink); display: grid; place-items: center; font-size: 12mm; font-weight: 900; border: 2mm solid var(--ink); z-index: 3 }
+.dense h1 { font-size: 21mm; margin-top: 4mm } .dense .kicker { margin-top: 12mm } .dense .lead { margin-top: 6mm; font-size: 7mm }
+.dense .ba { margin-top: 8mm } .dense .ba figure { height: 82mm } .dense .cards { margin-top: 6mm; padding-bottom: 0; gap: 4mm } .dense .card { padding: 5mm 6mm 6mm }
+.dense .card h3 { font-size: 7mm } .dense .card p { margin-top: 2mm; font-size: 4.8mm } .dense .cta { margin-top: 6mm; padding-top: 9mm; padding-bottom: 10mm } .dense .cta h2 { font-size: 11.5mm }
+.ba.photos { gap: 3mm } .ba.photos figure { background: #ddd }
+.ba.photos img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover }
+.ba.photos figcaption { top: auto; bottom: 0; left: 0; border-radius: 0 3mm 0 0; padding: 3mm 7mm; font-size: 6.5mm; background: #2b2320; color: #fff }
+.ba.photos .after figcaption { left: auto; right: 0; border-radius: 3mm 0 0 0; background: #2b2320; color: #fff }
 .strip { position: relative; z-index: 2; margin: 0 -20mm; background: var(--water); color: #fff; text-align: center; padding: 4.5mm; font-size: 4.6mm; font-weight: 700; letter-spacing: .3mm }
 """
 
 DROP = '<svg viewBox="0 0 24 24" fill="#0B2545"><path d="M12 2.5c3.6 4.3 6 7.6 6 11a6 6 0 0 1-12 0c0-3.4 2.4-6.7 6-11z"/></svg>'
+
+
+def armchair(dirty: bool) -> str:
+    """Fauteuil dessiné : taché et terne (avant) ou propre et éclatant (après)."""
+    c, c2, c3 = ("#8b7b69", "#7d6e5d", "#85755f") if dirty else ("#2f7fd0", "#4592e0", "#3a89d8")
+    parts = [
+        f'<rect x="70" y="26" width="160" height="124" rx="32" fill="{c}"/>',
+        f'<rect x="86" y="42" width="128" height="96" rx="22" fill="{c2}"/>',
+        f'<rect x="30" y="102" width="62" height="116" rx="28" fill="{c}"/>',
+        f'<rect x="208" y="102" width="62" height="116" rx="28" fill="{c}"/>',
+        f'<rect x="72" y="140" width="156" height="62" rx="20" fill="{c3}"/>',
+        f'<rect x="38" y="196" width="224" height="30" rx="13" fill="{c}"/>',
+        '<rect x="54" y="224" width="14" height="30" rx="5" fill="#5a3d2b"/><rect x="232" y="224" width="14" height="30" rx="5" fill="#5a3d2b"/>',
+        '<path d="M92 170h116" stroke="rgba(255,255,255,.28)" stroke-width="3" stroke-dasharray="7 7" stroke-linecap="round" fill="none"/>',
+    ]
+    if dirty:
+        parts += [
+            '<ellipse cx="118" cy="168" rx="26" ry="14" fill="#4a3a2c" opacity=".55"/>',
+            '<ellipse cx="190" cy="82" rx="20" ry="26" fill="#3e3025" opacity=".5" transform="rotate(20 190 82)"/>',
+            '<ellipse cx="58" cy="150" rx="14" ry="20" fill="#3e3025" opacity=".5"/>',
+            '<ellipse cx="236" cy="170" rx="11" ry="16" fill="#4a3a2c" opacity=".5"/>',
+            '<ellipse cx="130" cy="70" rx="12" ry="9" fill="#5b4a36" opacity=".45"/>',
+        ] + [f'<circle cx="{x}" cy="{y}" r="2.4" fill="#4a3a2c" opacity=".5"/>' for x, y in
+             [(100, 60), (160, 110), (215, 135), (88, 190), (178, 188), (140, 52), (70, 120), (250, 130)]]
+        parts.append('<path d="M30 238c20-8 40-8 60 0M200 240c18-6 36-6 52 0" stroke="rgba(0,0,0,.18)" stroke-width="5" fill="none" stroke-linecap="round"/>')
+    else:
+        star = lambda x, y, r: f'<path d="M{x} {y-r}Q{x} {y} {x+r} {y}Q{x} {y} {x} {y+r}Q{x} {y} {x-r} {y}Q{x} {y} {x} {y-r}Z" fill="#FFD23F"/>'
+        parts += [
+            '<path d="M96 58c18-8 44-10 70-6" stroke="rgba(255,255,255,.55)" stroke-width="9" stroke-linecap="round" fill="none"/>',
+            '<path d="M40 126c0-8 4-14 10-18" stroke="rgba(255,255,255,.45)" stroke-width="7" stroke-linecap="round" fill="none"/>',
+            star(236, 44, 20), star(62, 70, 13), star(246, 196, 12), star(150, 8, 10),
+        ]
+    return f'<svg viewBox="0 0 300 260" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">{"".join(parts)}</svg>'
+
+
+def photo(kind: str):
+    """Chemin relatif (depuis html/) d'une vraie photo photos/avant.* ou photos/apres.*, si elle existe."""
+    for ext in ("jpg", "jpeg", "png", "webp"):
+        if (ROOT / "photos" / f"{kind}.{ext}").exists():
+            return f"../photos/{kind}.{ext}"
+    return None
+
+
+def before_after() -> str:
+    a, b = photo("avant"), photo("apres")
+    if a and b:   # vraies photos : même présentation que les avant / après de terrain
+        return ('<div class="ba photos"><figure class="before"><img src="' + a + '" alt=""><figcaption>Avant</figcaption></figure>'
+                '<figure class="after"><img src="' + b + '" alt=""><figcaption>Après</figcaption></figure></div>')
+    return ('<div class="ba"><figure class="before"><figcaption>Avant</figcaption>' + armchair(True) + '</figure>'
+            '<figure class="after"><figcaption>Après</figcaption>' + armchair(False) + '</figure><div class="arrow">→</div></div>')
 
 
 def card(title, text="", items=(), hot=False, tag=""):
@@ -70,14 +135,15 @@ def card(title, text="", items=(), hot=False, tag=""):
             + f"<h3>{html.escape(title)}</h3>" + (f"<p>{html.escape(text)}</p>" if text else "") + (f"<ul>{li}</ul>" if li else "") + "</div>")
 
 
-def poster(name, kicker, title_html, lead, cards_html, cols, cta_title, bubbles):
+def poster(name, kicker, title_html, lead, cards_html, cols, cta_title, bubbles, visual=''):
     b = "".join(f'<div class="bubble" style="left:{x}mm;top:{y}mm;width:{d}mm;height:{d}mm"></div>' for x, y, d in bubbles)
     page = f"""<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Affiche {html.escape(name)}</title><style>{CSS}</style></head>
-<body><div class="poster">{b}
+<body><div class="poster{" dense" if visual else ""}">{b}
 <div class="brand"><div class="mark">{DROP}</div><b>{html.escape(C['nom'])}</b><span>{html.escape(C['zone'])}</span></div>
 <div class="kicker">{html.escape(kicker)}</div>
 <h1>{title_html}</h1>
 <p class="lead">{html.escape(lead)}</p>
+{visual}
 <div class="cards c{cols}">{cards_html}</div>
 <div class="cta"><div><h2>{html.escape(cta_title)}</h2>
 <div class="rows"><div><small>Réservation en ligne</small>{html.escape(C['site'])}</div>
@@ -114,7 +180,7 @@ poster("03-maison-textile", "Canapés · Matelas · Tapis · Maison",
        + card("Matelas", "Acariens, taches et odeurs en moins.")
        + card("Tapis et moquettes", "Tarif au mètre carré.")
        + card("Nettoyage de maison", "Ponctuel ou régulier, vitres en option."),
-       2, "Un devis immédiat, sans appeler.", BUB)
+       2, "Un devis immédiat, sans appeler.", BUB, visual=before_after())
 
 poster("04-bureaux", "Entreprises et professionnels",
        "Des bureaux propres <em>chaque lundi.</em>",

@@ -85,10 +85,43 @@ php tests/smoke.php   # parcours HTTP complet sur un serveur temporaire (CSRF, d
 - **Droits** : `crm.manage` (administrateur et gestionnaire), `finance.manage` (administrateur seul).
 - Après mise à jour d'une installation existante : `php bin/migrate.php` (migrations 008 et 009).
 
+## Parcours simplifiés
+
+**Pour le client**
+- **Réservation en 3 écrans** au lieu de 6 : (1) le besoin, avec les détails qui apparaissent sous le service choisi ; (2) où et quand, avec **un seul choix de quartier** (au lieu de quatre listes en cascade) et les créneaux qui s'affichent dès que le quartier est choisi ; (3) nom, téléphone et récapitulatif sur la même page. Le nom est un seul champ ; email, instructions d'accès et « comment nous avez-vous connus » sont repliés, car facultatifs.
+- **Lien de suivi personnel** : chaque réservation a un lien secret (`/suivi/RÉFÉRENCE/JETON`) envoyé dans les messages « réservation enregistrée » et « confirmée » (variable `{lien_suivi}` des modèles) et affiché sur la page de confirmation. Un clic ouvre le suivi, sans retaper la référence ni le téléphone (qui restent possibles). La migration 013 ajoute ce lien aux modèles existants qui ne l'ont pas encore.
+- **Coordonnées retenues sur l'appareil** : à la réservation suivante, nom, téléphone, email et adresse sont préremplis (stockés dans le navigateur uniquement, avec un lien « Ce n'est pas vous ? Effacer »).
+- **Réserver à nouveau** : bouton sur le suivi d'une réservation terminée ou annulée, qui rouvre le même service.
+
+**Pour la gestion**
+- **Tableau de bord** : « À faire maintenant » (réservations à confirmer, interventions à affecter, prospects à contacter ou relancer, messages du site, envois en échec, chacun avec son bouton), liste des interventions du jour, et « Premiers pas » (administrateur) qui indique ce qu'il reste à régler : coordonnées, service prêt, zones, équipe et horaires, envoi des messages, comptes de démonstration.
+- **Recherche unique** (barre en haut de l'administration) : référence, nom, morceau de numéro ou email retrouvent réservations, clients et prospects. Une référence exacte ouvre directement la réservation.
+- **Actions rapides** : « Confirmer », « Appeler » et « WhatsApp » (message déjà écrit) directement dans la liste des réservations, le tableau de bord, la recherche et la fiche réservation.
+- **Menu de 8 entrées** (Tableau de bord, Réservations, Planning, Clients, Prospects, Marketing, Gestion, Configuration) au lieu de 28. Tout ce qui se règle rarement (services, zones, équipes, messages, site, utilisateurs, paramètres) est rangé dans **Configuration**, par thème ; chacun ne voit que ce à quoi il a droit.
+- Après mise à jour : `php bin/migrate.php` (migration 013).
+
+## Marketing et publicité
+
+Tout se règle dans l'administration (**Marketing → Canaux marketing**, réservé à l'administrateur) : aucun fichier à modifier sur le serveur. Les valeurs saisies l'emportent sur le `.env`, qui reste le repli. Les clés et mots de passe ne sont jamais réaffichés (laissez le champ vide pour les garder). Ils sont enregistrés dans la base : protégez-la comme le `.env`.
+
+- **Email, SMS** : mode test (journal), `mail()`, SMTP, API HTTP du fournisseur de SMS. Un bouton « Envoyer un test » sur chaque canal.
+- **WhatsApp**, trois modes. *Désactivé*. *Sans API* : l'application prépare chaque message et un lien WhatsApp ; vous l'envoyez d'un clic depuis votre téléphone (écran « Ouvrir WhatsApp », à marquer « Envoyé »). *Avec API* : WhatsApp Business Cloud API de Meta (identifiant du numéro, jeton). Pour écrire en premier à un client, Meta impose un modèle de message approuvé : renseignez son nom et l'ordre des variables. Les notifications de réservation par WhatsApp (modèles dans « Modèles de messages ») ne partent qu'en mode API.
+- **Campagnes** (Marketing → Campagnes) : email, SMS ou WhatsApp vers tous les clients consentants, un segment (nouveaux, occasionnels, réguliers, VIP), les inactifs depuis 90 jours ou un canal d'acquisition. Test avant lancement, envoi programmable, envoi par lots (tâche planifiée, `bin/queue.php` ou `/cron/run`), reprise des échecs, annulation, et résultat : réservations et chiffre d'affaires venus du lien de la campagne. Variables : `{client} {nom} {entreprise} {telephone} {lien}`. Une mention de désinscription est ajoutée à chaque message.
+- **Facebook / Instagram Ads et Google Ads** : l'application ne crée pas les annonces (cela reste dans Meta Ads Manager et Google Ads, qui gardent budget et ciblage). Elle mesure leurs résultats : balise Meta et balise Google (conversion à chaque réservation, Analytics 4 en option), chargées **seulement après l'accord du visiteur** (bandeau), et API Conversions de Meta côté serveur (coordonnées hachées, mêmes identifiants que la balise pour ne pas compter deux fois). La politique de sécurité (CSP) n'autorise les domaines Meta et Google que lorsque le suivi est activé.
+- **Origine de chaque réservation** : les paramètres `utm_*`, `fbclid` et `gclid` sont retenus pour la visite, enregistrés sur la réservation et le prospect, et le canal d'acquisition est déduit (Facebook, Instagram, Google, publicité…). **Marketing → Liens suivis** génère les adresses à coller dans vos annonces, messages et QR codes. Avec les dépenses saisies par canal, « Gestion et résultats » donne coût par client et retour sur investissement.
+- **Consentement daté** : la réservation publique propose une case facultative, décochée par défaut (« Je veux recevoir les offres »). Chaque consentement et chaque retrait sont datés, rattachés à leur source (réservation, équipe, réponse WhatsApp ou SMS), visibles sur la fiche client et tracés dans son historique. Une réservation sans la case ne retire jamais un consentement.
+- **Désinscription automatique (STOP)** : quand un client répond STOP (ou arrêt, désabonner…), son consentement est retiré et une confirmation lui est renvoyée. Il faut pour cela donner une adresse à votre fournisseur (elles s'affichent dans Marketing → Canaux marketing) :
+  - *WhatsApp (API Meta)* : `https://votre-domaine/webhooks/whatsapp`. Dans Meta for Developers → WhatsApp → Configuration → Webhooks, saisissez cette adresse et le « jeton de vérification » choisi dans l'application, puis abonnez-vous au champ `messages`. La « clé secrète de l'application » sert à vérifier la signature de Meta : sans elle, aucune réponse n'est acceptée.
+  - *SMS* : `https://votre-domaine/webhooks/sms`, à indiquer comme adresse de réception des SMS chez votre fournisseur, avec le « jeton des réponses entrantes » (en-tête `X-Webhook-Token`, ou `?token=` si le fournisseur ne permet pas d'en-tête). Les champs `from`/`msisdn`/`sender` et `text`/`message`/`body` sont reconnus, en JSON ou en formulaire.
+  - *WhatsApp sans API* : aucune réponse n'arrive dans l'application ; décochez « Accepte de recevoir nos offres » sur la fiche du client qui écrit STOP.
+- **Résultats publicitaires** (Marketing → Résultats publicitaires) : par plateforme (réservations, clients, chiffre d'affaires, dépenses saisies, coût par réservation, ROI) et par annonce ou campagne (source, type, nom du lien suivi, prospects, réservations). Les dépenses se saisissent par plateforme : le coût par annonce n'est pas calculé.
+- Après mise à jour : `php bin/migrate.php` (migrations 011 et 012). Droit `marketing.manage` : administrateur et gestionnaire.
+
 ## Limites connues
 
-- Le mode MySQL/MariaDB (optionnel), SMTP réel et API SMS réelle n'ont pas été testés (seuls SQLite et les pilotes `log` l'ont été). SQLite n'admet qu'un écrit à la fois : largement suffisant pour une entreprise, à reconsidérer si le volume de réservations simultanées devient très élevé.
+- Le mode MySQL/MariaDB (optionnel), SMTP réel, API SMS réelle, WhatsApp Cloud API, API Conversions de Meta, webhooks WhatsApp et SMS (testés avec des requêtes simulées) et balises Google n'ont pas été testés contre les vrais services (seuls SQLite et les pilotes `log` l'ont été ; les appels aux API sont vérifiés par leurs charges utiles, pas en réel). SQLite n'admet qu'un écrit à la fois : largement suffisant pour une entreprise, à reconsidérer si le volume de réservations simultanées devient très élevé.
 - Une prestation par réservation (la table `booking_items` permet le multi-services, pas l'interface).
 - Le planning n'a pas de glisser-déposer : on déplace depuis la fiche réservation, avec créneaux vérifiés.
+- Marketing : pas de création d'annonces. Les clients dont le consentement date d'avant la migration 012 n'ont pas de date de consentement. Faites valider le bandeau cookies et les mentions par un juriste (loi sénégalaise sur les données personnelles).
 - Les textes légaux fournis (CGV, confidentialité) sont indicatifs et à faire valider.
 - Le mode SaaS n'est que préparé : `company_id` existe, mais les tables enfants (formules, options…) se filtrent via leur parent, et il n'y a pas de gestion multi-entreprises.

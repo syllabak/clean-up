@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 use App\Core\Router;
-use App\Controllers\{HomeController, ServiceController, BookingController, AuthController, AgentController, CronController};
-use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController};
+use App\Controllers\{HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
+use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
 
 $r = new Router();
 
@@ -33,11 +33,17 @@ $r->post('/suivi', [BookingController::class, 'track'], ['throttle:track,10,600'
 $r->get('/suivi/{ref}', [BookingController::class, 'trackShow']);
 $r->get('/suivi/{ref}/calendrier', [BookingController::class, 'calendar']);
 $r->post('/suivi/{ref}/annuler', [BookingController::class, 'trackCancel']);
+$r->get('/suivi/{ref}/{key}', [BookingController::class, 'trackLink'], ['throttle:track,30,600']);   // lien personnel reçu par message : un clic suffit
 
 // ---- Authentification
 $r->get('/connexion', [AuthController::class, 'form']);
 $r->post('/connexion', [AuthController::class, 'login'], ['throttle:login,8,300']);
 $r->post('/deconnexion', [AuthController::class, 'logout']);
+
+// ---- Réponses entrantes des fournisseurs (désinscription STOP) : authentifiées par signature ou jeton, sans session
+$r->get('/webhooks/whatsapp', [WebhookController::class, 'whatsappVerify'], ['throttle:hook,120,60']);
+$r->post('/webhooks/whatsapp', [WebhookController::class, 'whatsappReceive'], ['throttle:hook,300,60']);
+$r->post('/webhooks/sms', [WebhookController::class, 'smsReceive'], ['throttle:hook,300,60']);
 
 // ---- Tâches planifiées (cron HTTP protégé par jeton)
 $r->get('/cron/run', [CronController::class, 'run'], ['throttle:cron,30,300']);
@@ -45,6 +51,8 @@ $r->get('/cron/install', [CronController::class, 'install']);   // usage unique,
 
 // ---- Administration
 $r->get('/admin', [DashboardController::class, 'index'], ['perm:dashboard.view']);
+$r->get('/admin/configuration', [ConfigController::class, 'index'], ['perm:dashboard.view']);
+$r->get('/admin/recherche', [SearchController::class, 'index'], ['perm:dashboard.view']);
 $r->get('/admin/reservations', [BookingAdminController::class, 'index'], ['perm:bookings.view']);
 $r->get('/admin/reservations/{id}', [BookingAdminController::class, 'show'], ['perm:bookings.view']);
 $r->post('/admin/reservations/{id}/statut', [BookingAdminController::class, 'status'], ['perm:bookings.manage']);
@@ -75,6 +83,23 @@ $r->get('/admin/clients/{id}', [CrmController::class, 'customer'], ['perm:custom
 $r->post('/admin/clients/{id}/echange', [CrmController::class, 'customerInteraction'], ['perm:customers.manage']);
 $r->post('/admin/clients/{id}/canal', [CrmController::class, 'customerChannel'], ['perm:customers.manage']);
 $r->get('/admin/gestion', [BusinessController::class, 'index'], ['perm:finance.manage']);
+// Marketing : canaux (administrateur), campagnes, WhatsApp sans API, liens suivis
+$r->get('/admin/marketing', [MarketingController::class, 'index'], ['perm:marketing.manage']);
+$r->get('/admin/marketing/canaux', [MarketingController::class, 'channels'], ['perm:settings.manage']);
+$r->post('/admin/marketing/canaux/{section}', [MarketingController::class, 'channelSave'], ['perm:settings.manage']);
+$r->post('/admin/marketing/canaux/{section}/tester', [MarketingController::class, 'channelTest'], ['perm:settings.manage', 'throttle:mktest,10,300']);
+$r->get('/admin/marketing/campagnes', [MarketingController::class, 'campaigns'], ['perm:marketing.manage']);
+$r->get('/admin/marketing/campagnes/nouveau', [MarketingController::class, 'campaignNew'], ['perm:marketing.manage']);
+$r->post('/admin/marketing/campagnes', [MarketingController::class, 'campaignCreate'], ['perm:marketing.manage']);
+$r->get('/admin/marketing/campagnes/{id}', [MarketingController::class, 'campaign'], ['perm:marketing.manage']);
+$r->post('/admin/marketing/campagnes/{id}/lancer', [MarketingController::class, 'campaignLaunch'], ['perm:marketing.manage']);
+$r->post('/admin/marketing/campagnes/{id}/lot', [MarketingController::class, 'campaignBatch'], ['perm:marketing.manage']);
+$r->post('/admin/marketing/campagnes/{id}/annuler', [MarketingController::class, 'campaignCancel'], ['perm:marketing.manage']);
+$r->post('/admin/marketing/campagnes/{id}/tester', [MarketingController::class, 'campaignTest'], ['perm:marketing.manage', 'throttle:mktest,10,300']);
+$r->get('/admin/marketing/campagnes/{id}/whatsapp', [MarketingController::class, 'whatsapp'], ['perm:marketing.manage']);
+$r->post('/admin/marketing/campagnes/{id}/whatsapp/{mid}', [MarketingController::class, 'whatsappMark'], ['perm:marketing.manage']);
+$r->get('/admin/marketing/publicites', [MarketingController::class, 'ads'], ['perm:marketing.manage']);
+$r->get('/admin/marketing/liens', [MarketingController::class, 'links'], ['perm:marketing.manage']);
 // CRUD générique piloté par config/crud.php (les permissions sont vérifiées dans le contrôleur)
 $r->get('/admin/crud/{type}', [CrudController::class, 'index'], ['auth']);
 $r->get('/admin/crud/{type}/nouveau', [CrudController::class, 'create'], ['auth']);

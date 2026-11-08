@@ -62,6 +62,7 @@ final class BookingService
 
             $cs = new CustomerService();
             $customerId = $cs->findOrCreate(trim($in['first_name']), trim($in['last_name']), $in['phone'], trim((string) ($in['email'] ?? '')) ?: null);
+            if (filter_var($in['marketing_consent'] ?? false, FILTER_VALIDATE_BOOLEAN)) (new ConsentService())->grant($customerId, 'reservation');   // jamais de retrait par ce chemin
             $addressId = $cs->addAddress($customerId, $nid, trim($in['address_text']), trim((string) ($in['instructions'] ?? '')) ?: null);
 
             $id = Database::insert('bookings', [
@@ -70,8 +71,8 @@ final class BookingService
                 'instructions' => trim((string) ($in['instructions'] ?? '')) ?: null, 'scheduled_date' => $in['date'], 'start_time' => $slot['start'],
                 'end_time' => $slot['end'], 'duration_minutes' => $quote['duration'], 'team_id' => $slot['team_id'], 'status' => 'pending',
                 'subtotal' => $quote['subtotal'], 'travel_fee' => $quote['travel_fee'], 'total' => $quote['total'],
-                'source' => $in['source'] ?? 'web', 'created_at' => now(),
-            ]);
+                'source' => $in['source'] ?? 'web', 'created_at' => now(), 'track_token' => bin2hex(random_bytes(16)),
+            ] + TrackingService::columns((array) ($in['attr'] ?? [])));
             Database::insert('booking_items', [
                 'booking_id' => $id, 'service_id' => $serviceId, 'name' => $quote['service']['name'], 'formula_name' => $quote['formula']['name'] ?? null,
                 'details' => json_encode($quote['details'], JSON_UNESCAPED_UNICODE), 'quantity' => $quote['quantity'], 'unit_price' => $quote['unit_price'],

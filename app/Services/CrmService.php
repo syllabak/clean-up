@@ -51,7 +51,7 @@ final class CrmService
             'channel_id' => $this->channelId((int) ($d['channel_id'] ?? 0)), 'service_id' => ((int) ($d['service_id'] ?? 0)) ?: null, 'estimated_value' => (int) ($d['estimated_value'] ?? 0),
             'assigned_user_id' => ((int) ($d['assigned_user_id'] ?? 0)) ?: null, 'next_follow_up' => ($d['next_follow_up'] ?? '') ?: date('Y-m-d', strtotime('+1 day')),
             'notes' => ($d['notes'] ?? '') ?: null, 'status' => 'new', 'created_at' => now(),
-        ]);
+        ] + TrackingService::columns((array) ($d['attr'] ?? [])));
         Audit::log('lead.create', 'lead', $id, [], $userId);
         return $id;
     }

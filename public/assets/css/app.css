@@ -128,3 +128,15 @@ body.agent { background: #F3F6F9; padding-bottom: env(safe-area-inset-bottom); }
 }
 
 @media (max-width: 991px) { .is-booking .wa-float { bottom: 4.6rem; } }
+
+/* Bandeau de consentement aux cookies publicitaires */
+.mk-banner { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 1080; max-width: 640px; margin-inline: auto; background: var(--ink); color: #fff; border-radius: 14px; padding: 14px 16px; box-shadow: 0 8px 30px rgba(0,0,0,.35); font-size: .92rem }
+.mk-banner p { margin: 0 0 10px } .mk-banner a { color: var(--lemon); text-decoration: underline }
+.mk-banner .mk-actions { display: flex; gap: 8px; justify-content: flex-end }
+
+/* Menu d'administration regroupé et recherche */
+.side-group { color: #7f9bbb; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: .9rem .7rem .25rem }
+.admin-search { flex: 1 1 260px; max-width: 420px } .admin-search input { border-radius: 20px }
+
+/* Parcours en 3 écrans : de l'air entre les blocs d'un même écran */
+.wiz-step.active + .wiz-step.active, .wiz-step.active ~ .wiz-step.active { margin-top: 2rem; }

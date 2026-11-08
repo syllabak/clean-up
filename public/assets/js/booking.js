@@ -1,4 +1,4 @@
-/* Parcours de réservation en 6 étapes. Le prix et les créneaux viennent toujours du serveur ; il est
+/* Parcours de réservation en 3 écrans (besoin, où et quand, coordonnées). Le prix et les créneaux viennent toujours du serveur ; il est
    recalculé et revalidé à la soumission : rien de ce qui s'affiche ici n'est pris pour argent comptant. */
 (function () {
   'use strict';
@@ -9,7 +9,8 @@
   var SERVICES = JSON.parse(document.getElementById('services-data').textContent);
   var S = { step: 0, svc: null, def: null, formula: null, fields: {}, options: [], hood: null, date: null, slot: null, quote: null, days: null };
   var PREFORMULA = parseInt(root.dataset.preformula, 10) || 0;
-  var STEPS = ['Service', 'Détails', 'Lieu', 'Coordonnées', 'Créneau', 'Récapitulatif'];
+  // Trois écrans ; chacun regroupe des sections (data-step) : 0 service + 1 détails | 2 lieu + 4 créneau | 3 coordonnées + 5 récapitulatif
+  var PAGES = [[0, 1], [2, 4], [3, 5]], TITLES = ['Votre besoin', 'Où et quand', 'Vos coordonnées'];
   var $ = function (id) { return document.getElementById(id); };
   var money = function (n) { return new Intl.NumberFormat('fr-FR').format(n).replace(/\u202f/g, ' ') + ' ' + CUR; };
   var dur = function (m) { var h = Math.floor(m / 60), r = m % 60; return h ? h + ' h' + (r ? ' ' + String(r).padStart(2, '0') : '') : r + ' min'; };
@@ -36,38 +37,38 @@
   }
 
   // ---------------------------------------------------------------- Navigation
-  function go(n) {
-    S.step = n; showError('');
-    document.querySelectorAll('.wiz-step').forEach(function (s) { s.classList.toggle('active', +s.dataset.step === n); });
+  function go(p) {
+    S.step = p; showError('');
+    document.querySelectorAll('.wiz-step').forEach(function (sec) { sec.classList.toggle('active', PAGES[p].indexOf(+sec.dataset.step) !== -1); });
     var pr = $('progress'); pr.innerHTML = '';
-    STEPS.forEach(function (t, i) { pr.appendChild(el('li', { class: i < n ? 'done' : i === n ? 'cur' : '', text: (i + 1) + '. ' + t })); });
-    $('prev').style.visibility = n === 0 ? 'hidden' : 'visible';
-    $('next').textContent = n === 5 ? 'Confirmer la réservation' : 'Continuer';
+    TITLES.forEach(function (t, i) { pr.appendChild(el('li', { class: i < p ? 'done' : i === p ? 'cur' : '', text: (i + 1) + '. ' + t })); });
+    $('prev').style.visibility = p === 0 ? 'hidden' : 'visible';
+    $('next').textContent = p === 2 ? 'Confirmer la réservation' : 'Continuer';
     $('next').disabled = false;
-    if (n === 4) loadDays();
-    if (n === 5) renderRecap();
+    if (p === 1 && S.hood) loadDays();
+    if (p === 2) renderRecap();
     window.scrollTo({ top: root.offsetTop - 80, behavior: 'smooth' });
   }
   $('prev').addEventListener('click', function () { if (S.step > 0) go(S.step - 1); });
-  $('next').addEventListener('click', function () { validate(S.step).then(function (ok) { if (!ok) return; if (S.step === 5) submit(); else go(S.step + 1); }); });
+  $('next').addEventListener('click', function () { validate(S.step).then(function (ok) { if (!ok) return; if (S.step === 2) submit(); else go(S.step + 1); }); });
 
-  function validate(n) {
+  function splitName(full) {
+    var t = full.trim().split(/\s+/);
+    return t.length < 2 ? { first: t[0] || '', last: '-' } : { first: t.slice(0, -1).join(' '), last: t[t.length - 1] };
+  }
+  function validate(p) {
     showError('');
-    if (n === 0) { if (!S.svc) { showError('Choisissez un service.'); return Promise.resolve(false); } return Promise.resolve(true); }
-    if (n === 1) return refreshQuote(true);
-    if (n === 2) {
+    if (p === 0) { if (!S.svc) { showError('Choisissez un service.'); return Promise.resolve(false); } return refreshQuote(true); }
+    if (p === 1) {
       if (!S.hood) { showError('Choisissez votre quartier.'); return Promise.resolve(false); }
-      if ($('address').value.trim().length < 5) { showError('Indiquez une adresse précise (au moins 5 caractères).'); return Promise.resolve(false); }
+      if ($('address').value.trim().length < 5) { showError('Indiquez votre adresse (au moins 5 caractères).'); return Promise.resolve(false); }
+      if (!S.slot) { showError('Choisissez une date puis une heure.'); return Promise.resolve(false); }
       return refreshQuote(true);
     }
-    if (n === 3) {
-      var phone = $('phone').value.replace(/\D/g, ''), em = $('email').value.trim();
-      if (!$('first_name').value.trim() || !$('last_name').value.trim()) { showError('Indiquez votre prénom et votre nom.'); return Promise.resolve(false); }
-      if (phone.length < 9 || phone.length > 15) { showError('Indiquez un numéro de téléphone valide.'); return Promise.resolve(false); }
-      if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { showError("L'email n'est pas valide."); return Promise.resolve(false); }
-      return Promise.resolve(true);
-    }
-    if (n === 4) { if (!S.slot) { showError('Choisissez une date puis une heure.'); return Promise.resolve(false); } return Promise.resolve(true); }
+    var phone = $('phone').value.replace(/\D/g, ''), em = $('email').value.trim();
+    if (!$('full_name').value.trim()) { showError('Indiquez votre nom.'); return Promise.resolve(false); }
+    if (phone.length < 9 || phone.length > 15) { showError('Indiquez un numéro de téléphone valide.'); return Promise.resolve(false); }
+    if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { showError("L'email n'est pas valide."); return Promise.resolve(false); }
     return Promise.resolve(true);
   }
 
@@ -77,7 +78,7 @@
     SERVICES.forEach(function (s) {
       var inp = el('input', { type: 'radio', name: 'service', value: s.id });
       var lab = el('label', { class: 'opt-card' }, [inp, el('strong', { text: s.name }), el('div', { class: 'small text-muted', text: s.short_description || '' }), el('div', { class: 'small fw-semibold text-primary', text: 'dès ' + money(s.from_price) + (s.billing_unit === 'per_sqm' ? ' /m²' : '') })]);
-      inp.addEventListener('change', function () { selectService(s); });
+      inp.addEventListener('change', function () { selectService(s); setTimeout(function () { $('sec-needs').scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 400); });
       if (S.svc && S.svc.id === s.id) inp.checked = true;
       box.appendChild(el('div', { class: 'col-md-6' }, [lab]));
     });
@@ -87,7 +88,7 @@
     S.svc = s; S.formula = null; S.fields = {}; S.options = []; S.quote = null; S.date = S.slot = null;
     api('/api/services/' + s.id + '/form').then(function (r) { if (!r.ok) return showError('Service indisponible.'); S.def = r.data;
       if (PREFORMULA && r.data.formulas.some(function (f) { return f.id === PREFORMULA; })) { S.formula = PREFORMULA; }
-      PREFORMULA = 0; renderDetails(); refreshQuote(false); });
+      PREFORMULA = 0; renderDetails(); $('sec-needs').classList.remove('d-none'); refreshQuote(false); });
     updateSide();
   }
 
@@ -165,25 +166,21 @@
     if ($('mobile-total')) $('mobile-total').textContent = S.quote ? money(S.quote.total) : '—';
   }
 
-  // ---------------------------------------------------------------- Étape 2 : localisation en cascade
-  function fill(sel, rows, ph) {
-    sel.innerHTML = ''; sel.appendChild(el('option', { value: '', text: ph }));
-    rows.forEach(function (r) { sel.appendChild(el('option', { value: r.id, text: r.name })); });
-    sel.disabled = rows.length === 0;
-  }
-  function cascade(parent, child, type, ph, after) {
-    $(parent).addEventListener('change', function () {
-      S.hood = null; S.slot = S.date = null; $('hood-info').textContent = '';
-      var next = ['city', 'commune', 'hood'], i = next.indexOf(child);
-      next.slice(i + 1).forEach(function (n) { fill($(n), [], n === 'commune' ? 'Choisir la commune' : 'Choisir le quartier'); });
-      if (!$(parent).value) { fill($(child), [], ph); return; }
-      api('/api/geo/' + type + '/' + $(parent).value).then(function (r) { fill($(child), r.data, ph); if (after) after(r.data); });
+  // ---------------------------------------------------------------- Lieu : un seul choix de quartier, groupé par commune
+  var hoodData = [];
+  function loadHoods(selectedId) {
+    api('/api/geo/all/0').then(function (r) {
+      hoodData = Array.isArray(r.data) ? r.data : [];
+      var sel = $('hood'); sel.innerHTML = ''; sel.appendChild(el('option', { value: '', text: hoodData.length ? 'Choisir votre quartier' : 'Aucun quartier desservi pour le moment' }));
+      var groups = {}, order = [];
+      hoodData.forEach(function (h) { var g = h.commune + (h.city && h.city !== h.commune ? ' · ' + h.city : ''); if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(h); });
+      order.forEach(function (g) {
+        var parent = order.length > 1 ? sel.appendChild(el('optgroup', { label: g })) : sel;
+        groups[g].forEach(function (h) { parent.appendChild(el('option', { value: h.id, text: h.name })); });
+      });
+      if (selectedId && hoodData.some(function (h) { return h.id === selectedId; })) { sel.value = selectedId; sel.dispatchEvent(new Event('change')); }
     });
   }
-  var hoodData = [];
-  cascade('region', 'city', 'cities', 'Choisir la ville');
-  cascade('city', 'commune', 'communes', 'Choisir la commune');
-  cascade('commune', 'hood', 'neighborhoods', 'Choisir le quartier', function (d) { hoodData = d; });
   $('hood').addEventListener('change', function () {
     var h = hoodData.filter(function (x) { return String(x.id) === $('hood').value; })[0];
     S.date = S.slot = null;
@@ -193,7 +190,7 @@
     if (h.days) info += ' Nous intervenons ici : ' + h.days + '.';
     if (h.conditions) info += ' ' + h.conditions;
     $('hood-info').textContent = info;
-    refreshQuote(false);
+    refreshQuote(true).then(function (ok) { if (ok) loadDays(); });   // les créneaux apparaissent dès que le quartier est choisi
   });
 
   // ---------------------------------------------------------------- Étape 4 : calendrier et créneaux
@@ -201,7 +198,7 @@
   function parseDay(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
   function fmtDay(s) { var d = parseDay(s); return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()]; }
   function loadDays() {
-    $('days').innerHTML = ''; $('slots-wrap').classList.add('d-none'); $('days-loading').classList.remove('d-none'); $('dur-label').textContent = S.quote ? dur(S.quote.duration) : '';
+    $('days').innerHTML = ''; $('slots-wrap').classList.add('d-none'); $('days-loading').textContent = 'Chargement des disponibilités…'; $('days-loading').classList.remove('d-none'); $('dur-label').textContent = S.quote ? dur(S.quote.duration) : '';
     api('/api/availability/days', payload()).then(function (r) {
       $('days-loading').classList.add('d-none');
       if (!r.ok) return showError(errText(r.data));
@@ -247,24 +244,43 @@
     (q.details || []).forEach(function (d) { if (d[0] !== 'Formule') row(d[0], d[1]); });
     row('Quand', fmtDay(S.date) + ' à ' + S.slot + ' (≈ ' + dur(q.duration) + ')');
     row('Où', $('address').value.trim() + ' — ' + S.hood.name);
-    row('Contact', $('first_name').value.trim() + ' ' + $('last_name').value.trim() + ' · ' + $('phone').value.trim());
     row('Sous-total', money(q.subtotal)); row('Déplacement', q.travel_fee ? money(q.travel_fee) : 'Offert'); row('Total estimé', money(q.total));
   }
   function submit() {
     $('next').disabled = true; $('next').textContent = 'Envoi en cours…';
-    var body = payload({ date: S.date, start: S.slot, first_name: $('first_name').value.trim(), last_name: $('last_name').value.trim(), phone: $('phone').value.trim(), email: $('email').value.trim(),
-      address_text: $('address').value.trim(), instructions: $('instructions').value.trim(), website: $('website').value, channel_id: $('channel') ? $('channel').value : '' });
+    var nm = splitName($('full_name').value);
+    var body = payload({ date: S.date, start: S.slot, first_name: nm.first, last_name: nm.last, phone: $('phone').value.trim(), email: $('email').value.trim(),
+      address_text: $('address').value.trim(), instructions: $('instructions').value.trim(), website: $('website').value, channel_id: $('channel') ? $('channel').value : '', marketing_consent: $('consent') ? $('consent').checked : false });
     api('/reservation', body).then(function (r) {
-      if (r.ok) { location.href = r.data.redirect; return; }
-      if (r.status === 409) { S.slot = null; showError(r.data.error); go(4); return; }
+      if (r.ok) { saveProfile(); location.href = r.data.redirect; return; }
+      if (r.status === 409) { S.slot = null; showError(r.data.error); go(1); return; }
       if (r.status === 429) { showError('Trop de tentatives. Patientez quelques minutes.'); } else showError(errText(r.data));
       $('next').disabled = false; $('next').textContent = 'Confirmer la réservation';
     }).catch(function () { showError('Connexion impossible. Vérifiez votre réseau puis réessayez : votre réservation n\'a pas été enregistrée.'); $('next').disabled = false; $('next').textContent = 'Confirmer la réservation'; });
   }
 
+  // ---------------------------------------------------------------- Coordonnées retenues sur cet appareil (jamais envoyées ailleurs)
+  var PROFILE_KEY = 'cu_profile', PROFILE_FIELDS = ['full_name', 'phone', 'email', 'address', 'instructions'];
+  function loadProfile() { try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); } catch (e) { return null; } }
+  function saveProfile() {
+    try { var p = {}; PROFILE_FIELDS.forEach(function (f) { p[f] = $(f).value.trim(); }); p.hood = S.hood ? S.hood.id : null; localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch (e) { /* navigation privée : on ne retient rien */ }
+  }
+  var prof = loadProfile();
+  if (prof && prof.full_name) {
+    PROFILE_FIELDS.forEach(function (f) { if ($(f) && !$(f).value && prof[f]) $(f).value = prof[f]; });
+    if ($('prefill-note')) $('prefill-note').hidden = false;
+  }
+  if ($('prefill-clear')) $('prefill-clear').addEventListener('click', function (e) {
+    e.preventDefault();
+    try { localStorage.removeItem(PROFILE_KEY); } catch (x) { /* rien */ }
+    PROFILE_FIELDS.forEach(function (f) { if ($(f)) $(f).value = ''; });
+    $('prefill-note').hidden = true;
+  });
+
   // ---------------------------------------------------------------- Démarrage
   renderServices();
-  api('/api/geo/regions/0').then(function (r) { fill($('region'), r.data, 'Choisir la région'); if (r.data.length === 1) { $('region').value = r.data[0].id; $('region').dispatchEvent(new Event('change')); } });
+  loadHoods(prof && prof.hood ? prof.hood : null);
   var pre = SERVICES.filter(function (s) { return s.slug === root.dataset.preselect; })[0];
-  if (pre) { selectService(pre); renderServices(); go(1); } else go(0);
+  if (pre) { selectService(pre); renderServices(); }
+  go(0);
 })();

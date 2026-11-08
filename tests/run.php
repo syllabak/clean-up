@@ -340,6 +340,170 @@ $fld = DB::insert('service_fields', ['service_id' => $nt, 'field_key' => 'x', 'l
 T::ok(str_contains(implode('|', array_column($cat->readiness($nt), 1)), 'Taille'), 'liste sans choix détectée');
 T::throws(fn() => $cat->duplicate(999999), RuntimeException::class, 'duplication d\'un service inconnu refusée');
 
+// ------------------------------------------------------------------ Marketing
+T::group('Marketing : canaux configurables, campagnes, WhatsApp, suivi publicitaire');
+use App\Services\{ChannelConfig, MarketingService, TrackingService, CustomerService};
+use App\Services\Channels\WhatsAppGateway;
+$mk = new MarketingService(); $cs = new CustomerService();
+
+putenv('SMS_DRIVER=log');
+setting_set('mk_sms_driver', 'http');
+T::eq(ChannelConfig::get('sms_driver', 'SMS_DRIVER', 'log'), 'http', 'valeur saisie dans l\'administration : elle l\'emporte sur le .env');
+setting_set('mk_sms_driver', '');
+T::eq(ChannelConfig::get('sms_driver', 'SMS_DRIVER', 'log'), 'log', 'champ vide : retombe sur le .env');
+
+$c1 = $cs->findOrCreate('Awa', 'Diop', '77 100 00 01', 'awa@example.com');
+$c2 = $cs->findOrCreate('Moussa', 'Ba', '77 100 00 02', null);
+$c3 = $cs->findOrCreate('Fatou', 'Sy', '77 100 00 03', 'fatou@example.com');
+DB::exec('UPDATE customers SET marketing_consent = 1 WHERE id IN (?, ?)', [$c1, $c2]);
+DB::exec('UPDATE customers SET marketing_consent = 1 WHERE marketing_consent = 0 AND id NOT IN (?, ?, ?)', [$c1, $c2, $c3]);   // sans effet sur c3
+DB::exec('UPDATE customers SET marketing_consent = 0 WHERE id NOT IN (?, ?)', [$c1, $c2]);   // isole le jeu d'essai
+T::eq(array_column($mk->audience('sms', 'consent'), 'id'), [$c1, $c2], 'SMS : seuls les clients consentants avec un numéro');
+T::eq(array_column($mk->audience('email', 'consent'), 'id'), [$c1], 'email : il faut aussi une adresse valide');
+T::eq(array_column($mk->audience('sms', 'new'), 'id'), [$c1, $c2], 'segment « nouveaux » : aucune intervention terminée');
+T::eq($mk->audience('sms', 'inactive'), [], 'segment « inactifs » : personne sans historique');
+T::throws(fn() => $mk->create(['name' => '', 'channel' => 'sms', 'audience' => 'consent', 'body' => 'x'], null), ValidationException::class, 'campagne sans nom refusée');
+T::throws(fn() => $mk->create(['name' => 'Promo', 'channel' => 'email', 'audience' => 'consent', 'body' => 'x'], null), ValidationException::class, 'email sans objet refusé');
+T::throws(fn() => $mk->create(['name' => 'Promo', 'channel' => 'fax', 'audience' => 'consent', 'body' => 'x'], null), ValidationException::class, 'canal inconnu refusé');
+
+$cid1 = $mk->create(['name' => 'Promo canapés', 'channel' => 'sms', 'audience' => 'consent', 'body' => 'Bonjour {client}, -10 % : {lien}'], null);
+T::eq($mk->launch($cid1, null), 2, 'lancement : un message par client consentant');
+$msg = DB::one('SELECT * FROM marketing_messages WHERE campaign_id = ? AND customer_id = ?', [$cid1, $c1]);
+T::ok(str_contains($msg['content'], 'Bonjour Awa') && str_contains($msg['content'], 'utm_source=sms') && str_contains($msg['content'], 'utm_medium=campaign') && str_contains($msg['content'], 'utm_campaign=promo-canapes'), 'message personnalisé avec lien suivi');
+T::ok(str_contains($msg['content'], 'STOP'), 'mention de désinscription ajoutée');
+T::throws(fn() => $mk->launch($cid1, null), RuntimeException::class, 'une campagne ne se lance qu\'une fois');
+T::eq($mk->processQueue(), 2, 'tâche planifiée : les deux SMS partent');
+T::eq(DB::val('SELECT status FROM marketing_campaigns WHERE id = ?', [$cid1]), 'done', 'campagne terminée');
+T::ok(str_contains((string) @file_get_contents(BASE_PATH . '/storage/logs/sms.log'), '221771000001'), 'SMS écrit dans le journal du mode test');
+T::eq($mk->processQueue(), 0, 'rien à renvoyer ensuite');
+
+$cid2 = $mk->create(['name' => 'Relance', 'channel' => 'sms', 'audience' => 'consent', 'body' => 'Salut {client}'], null);
+$mk->launch($cid2, null);
+DB::exec('UPDATE customers SET marketing_consent = 0 WHERE id = ?', [$c2]);
+T::eq($mk->processQueue(), 1, 'consentement retiré entre le lancement et l\'envoi : message ignoré');
+T::eq((int) DB::val("SELECT COUNT(*) FROM marketing_messages WHERE campaign_id = ? AND status = 'skipped'", [$cid2]), 1, 'message marqué « ignoré »');
+DB::exec('UPDATE customers SET marketing_consent = 1 WHERE id = ?', [$c2]);
+
+$cid3 = $mk->create(['name' => 'Annulée', 'channel' => 'sms', 'audience' => 'consent', 'body' => 'Salut', 'scheduled_at' => date('Y-m-d\TH:i', strtotime('+2 days'))], null);
+$mk->launch($cid3, null);
+T::eq($mk->processQueue(), 0, 'campagne programmée dans le futur : rien ne part');
+$mk->cancel($cid3, null);
+T::eq((int) DB::val("SELECT COUNT(*) FROM marketing_messages WHERE campaign_id = ? AND status = 'cancelled'", [$cid3]), 2, 'annulation : les messages restants ne partiront pas');
+
+// WhatsApp : désactivé, sans API (liens), avec API
+$wa = $mk->create(['name' => 'WhatsApp promo', 'channel' => 'whatsapp', 'audience' => 'consent', 'body' => 'Hello {client}'], null);
+setting_set('mk_wa_mode', 'off');
+T::throws(fn() => $mk->launch($wa, null), RuntimeException::class, 'WhatsApp désactivé : lancement refusé');
+setting_set('mk_wa_mode', 'link');
+T::eq($mk->launch($wa, null), 2, 'WhatsApp sans API : messages préparés');
+T::eq((int) DB::val("SELECT COUNT(*) FROM marketing_messages WHERE campaign_id = ? AND status = 'manual'", [$wa]), 2, 'messages à envoyer à la main');
+T::eq($mk->processQueue(), 0, 'la tâche planifiée n\'envoie rien en mode sans API');
+T::eq(WhatsAppGateway::link('+221 77 100 00 01', 'Bonjour & merci'), 'https://wa.me/221771000001?text=Bonjour%20%26%20merci', 'lien WhatsApp avec message encodé');
+foreach (DB::all('SELECT id FROM marketing_messages WHERE campaign_id = ?', [$wa]) as $r) $mk->markManual((int) $r['id'], true);
+T::eq(DB::val('SELECT status FROM marketing_campaigns WHERE id = ?', [$wa]), 'done', 'tous marqués envoyés : campagne terminée');
+setting_set('mk_wa_mode', 'cloud');
+T::throws(fn() => WhatsAppGateway::send('221771000001', 'Hello'), RuntimeException::class, 'API WhatsApp sans identifiant ni jeton : erreur claire');
+setting_set('mk_wa_mode', 'off');
+T::throws(fn() => WhatsAppGateway::send('221771000001', 'Hello'), RuntimeException::class, 'WhatsApp désactivé : envoi API refusé');
+
+// Notifications automatiques par WhatsApp : seulement en mode API
+$nWa = (int) DB::val("SELECT COUNT(*) FROM notifications WHERE channel = 'whatsapp'");
+T::ok($nWa >= 3, 'modèles WhatsApp fournis pour les réservations');
+
+// Suivi publicitaire
+$_GET = ['utm_source' => 'Face<book>', 'utm_medium' => 'paid_social', 'gclid' => 'abc_123', 'autre' => 'ignoré']; $_SESSION = [];
+TrackingService::capture();
+T::eq(TrackingService::attribution(), ['utm_source' => 'Facebook', 'utm_medium' => 'paid_social', 'gclid' => 'abc_123'], 'origine retenue, nettoyée, paramètres inconnus ignorés');
+$_GET = []; $_SESSION = [];
+$g = $crm->channelByCode('google'); $ig = $crm->channelByCode('instagram'); $fbc = $crm->channelByCode('facebook'); $ads = $crm->channelByCode('ads');
+T::ok($g && $fbc && $ads, 'canaux Google, Facebook et « publicité » présents');
+T::eq(TrackingService::channelId(['gclid' => 'x']), $g, 'clic Google Ads → canal Google');
+T::eq(TrackingService::channelId(['fbclid' => 'x']), $fbc, 'clic Facebook → canal Facebook');
+T::eq(TrackingService::channelId(['utm_source' => 'instagram']), $ig, 'source Instagram → canal Instagram');
+T::eq(TrackingService::channelId(['utm_source' => 'x', 'utm_medium' => 'cpc']), $ads, 'source inconnue en publicité payante → canal « publicité »');
+T::eq(TrackingService::channelId([]), null, 'aucun repère → pas de canal imposé');
+$bkAd = $svcB->create(wash_input(next_dow(1, 10), '15:00', 'Unité 15', ['first_name' => 'Ibou', 'last_name' => 'Ndiaye', 'phone' => '77 321 00 99', 'attr' => ['utm_source' => 'facebook', 'utm_medium' => 'paid_social', 'utm_campaign' => 'promo', 'fbclid' => 'IwAR1']]));
+$row = DB::one('SELECT utm_source, utm_medium, utm_campaign, fbclid, gclid FROM bookings WHERE id = ?', [$bkAd['id']]);
+T::eq($row, ['utm_source' => 'facebook', 'utm_medium' => 'paid_social', 'utm_campaign' => 'promo', 'fbclid' => 'IwAR1', 'gclid' => null], 'origine publicitaire enregistrée avec la réservation');
+$p = TrackingService::metaPayload('Lead', 'CU-TEST', ['phone' => '77 100 00 01', 'email' => ' Awa@Example.com ', 'ip' => '1.2.3.4'], 6000, ['fbclid' => 'IwAR1'], 'https://x.sn/', 'TEST1');
+$json = json_encode($p);
+T::ok(!str_contains($json, '771000001') && !str_contains($json, 'awa@example') && str_contains($json, hash('sha256', '221771000001')) && str_contains($json, hash('sha256', 'awa@example.com')), 'API Conversions : téléphone et email envoyés hachés, jamais en clair');
+T::ok($p['data'][0]['event_id'] === 'CU-TEST' && $p['data'][0]['custom_data']['value'] === 6000 && $p['test_event_code'] === 'TEST1' && str_contains($p['data'][0]['user_data']['fbc'], 'IwAR1'), 'événement : identifiant de dédoublonnage, valeur, code de test, clic Facebook');
+T::eq(TrackingService::enabled(), false, 'suivi publicitaire inactif par défaut');
+T::eq(TrackingService::cspExtra(), ['script-src' => [], 'connect-src' => [], 'img-src' => []], 'inactif : aucun domaine externe autorisé');
+setting_set('mk_meta_enabled', '1'); setting_set('mk_meta_pixel_id', 'pas-un-id');
+T::eq(TrackingService::metaPixel(), null, 'identifiant de pixel invalide ignoré');
+setting_set('mk_meta_pixel_id', '1234567890');
+T::eq(TrackingService::metaPixel(), '1234567890', 'pixel valide actif');
+T::ok(in_array('https://connect.facebook.net', TrackingService::cspExtra()['script-src'], true), 'pixel actif : domaine Meta autorisé dans la CSP');
+setting_set('mk_google_enabled', '1'); setting_set('mk_google_ads_id', 'AW-123456789'); setting_set('mk_google_label_booking', 'AbC-dEfGh1'); setting_set('mk_google_ga4_id', "G-AB12'<x");
+T::eq(TrackingService::google(), ['ads' => 'AW-123456789', 'ga4' => null, 'label_booking' => 'AbC-dEfGh1', 'label_lead' => null], 'Google : identifiants validés, valeur piégée refusée');
+T::ok(in_array('https://www.googletagmanager.com', TrackingService::cspExtra()['script-src'], true), 'Google actif : domaine autorisé dans la CSP');
+foreach (['mk_meta_enabled', 'mk_meta_pixel_id', 'mk_google_enabled', 'mk_google_ads_id', 'mk_google_label_booking', 'mk_google_ga4_id'] as $k) setting_set($k, '');
+T::eq(TrackingService::enabled(), false, 'suivi désactivé de nouveau');
+
+// ------------------------------------------------------------------ Consentement, STOP, résultats publicitaires
+T::group('Consentement daté, désinscription STOP, résultats publicitaires');
+use App\Services\ConsentService;
+foreach (['STOP', 'stop', ' Stop. ', 'ARRÊT', 'Arrêt', 'désabonner', 'unsubscribe'] as $w) T::ok(ConsentService::isStop($w), "« $w » retire le consentement");
+foreach (['stopper la fuite', 'merci', 'oui', 'je veux un devis', ''] as $w) T::ok(!ConsentService::isStop($w), "« $w » n'est pas une désinscription");
+$cons = new ConsentService();
+$k1 = $cs->findOrCreate('Ndeye', 'Gueye', '77 400 00 01', null);
+$cons->grant($k1, 'reservation');
+$row = DB::one('SELECT marketing_consent, marketing_consent_at, marketing_optout_at, marketing_consent_source FROM customers WHERE id = ?', [$k1]);
+T::ok($row['marketing_consent'] == 1 && $row['marketing_consent_at'] && $row['marketing_optout_at'] === null && $row['marketing_consent_source'] === 'reservation', 'consentement daté avec sa source');
+T::eq((int) DB::val("SELECT COUNT(*) FROM interactions WHERE customer_id = ? AND summary LIKE 'Consentement aux offres donné%'", [$k1]), 1, 'consentement tracé dans l\'historique du client');
+$at = $row['marketing_consent_at']; $cons->grant($k1, 'admin');
+T::eq(DB::val('SELECT marketing_consent_at FROM customers WHERE id = ?', [$k1]), $at, 'redonner un consentement existant ne change pas sa date');
+T::eq($cons->optOutByPhone('+221 77 400 00 01', 'whatsapp'), 1, 'STOP : le client est désinscrit par son numéro');
+$row = DB::one('SELECT marketing_consent, marketing_optout_at, marketing_consent_source FROM customers WHERE id = ?', [$k1]);
+T::ok($row['marketing_consent'] == 0 && $row['marketing_optout_at'] && $row['marketing_consent_source'] === 'whatsapp', 'désinscription datée avec sa source');
+T::eq($cons->optOutByPhone('77 400 00 01', 'sms'), 0, 'déjà désinscrit : rien à faire');
+T::eq($cons->optOutByPhone('12', 'sms'), 0, 'numéro invalide ignoré');
+T::eq(ConsentService::stamp(['marketing_consent' => 1], ['marketing_consent' => 0])['marketing_consent_source'], 'admin', 'saisie par l\'équipe : horodatage ajouté');
+T::eq(array_keys(ConsentService::stamp(['marketing_consent' => 1], ['marketing_consent' => 1])), ['marketing_consent'], 'case inchangée : aucun horodatage');
+$bkC = $svcB->create(wash_input(next_dow(1, 17), '15:00', 'Unité 15', ['first_name' => 'Rama', 'last_name' => 'Thiam', 'phone' => '77 400 00 02', 'marketing_consent' => true]));
+$cr = DB::one('SELECT marketing_consent, marketing_consent_source FROM customers WHERE id = ?', [$bkC['customer_id']]);
+T::ok($cr['marketing_consent'] == 1 && $cr['marketing_consent_source'] === 'reservation', 'case cochée à la réservation : consentement enregistré');
+$bkN = $svcB->create(wash_input(next_dow(1, 17), '11:00', 'Unité 15', ['first_name' => 'Pape', 'last_name' => 'Sarr', 'phone' => '77 400 00 03']));
+T::eq((int) DB::val('SELECT marketing_consent FROM customers WHERE id = ?', [$bkN['customer_id']]), 0, 'case non cochée : aucun consentement');
+$cons->grant((int) $bkN['customer_id'], 'admin'); $svcB->create(wash_input(next_dow(1, 10), '11:00', 'Unité 15', ['first_name' => 'Pape', 'last_name' => 'Sarr', 'phone' => '77 400 00 03']));
+T::eq((int) DB::val('SELECT marketing_consent FROM customers WHERE id = ?', [$bkN['customer_id']]), 1, 'une réservation sans la case ne retire jamais un consentement');
+
+DB::update('bookings', (int) $bkAd['id'], ['channel_id' => $fbc]);
+DB::insert('expenses', ['company_id' => 1, 'expense_date' => date('Y-m-d'), 'category' => 'marketing', 'label' => 'Facebook Ads', 'amount' => 10000, 'channel_id' => $fbc, 'created_at' => now()]);
+DB::insert('expenses', ['company_id' => 1, 'expense_date' => date('Y-m-d'), 'category' => 'marketing', 'label' => 'Google Ads', 'amount' => 5000, 'channel_id' => $g, 'created_at' => now()]);
+$rep = $mk->adReport(date('Y-m-d', strtotime('-1 day')), date('Y-m-d', strtotime('+90 days')));
+$pf = array_column($rep['platforms'], null, 'name');
+T::ok(isset($pf['Facebook']) && $pf['Facebook']['bookings'] === 1 && $pf['Facebook']['spend'] === 10000 && $pf['Facebook']['cost_per_booking'] === 10000, 'plateforme Facebook : réservation, dépense et coût par réservation');
+T::ok(isset($pf['Google (Ads, recherche)']) && $pf['Google (Ads, recherche)']['bookings'] === 0 && $pf['Google (Ads, recherche)']['roi'] === -100, 'plateforme sans réservation : dépense visible, ROI de -100 %');
+$adRow = array_values(array_filter($rep['ads'], fn($a) => $a['campaign'] === 'promo'))[0] ?? null;
+T::ok($adRow && $adRow['source'] === 'facebook' && $adRow['medium'] === 'paid_social' && $adRow['bookings'] === 1 && !$adRow['internal'], 'annonce « promo » : source, type et réservation');
+T::eq($rep['total']['spend'], (int) DB::val('SELECT SUM(amount) FROM expenses WHERE channel_id IS NOT NULL AND deleted_at IS NULL AND expense_date >= ? AND expense_date <= ?', [date('Y-m-d', strtotime('-1 day')), date('Y-m-d', strtotime('+90 days'))]), 'total dépensé = toutes les dépenses rattachées à un canal sur la période');
+T::eq($mk->adReport('2000-01-01', '2000-01-31')['platforms'], [], 'période sans données : rien');
+
+// ------------------------------------------------------------------ Parcours simplifiés : lien de suivi, premiers pas
+T::group('Lien de suivi personnel, notifications, premiers pas');
+use App\Services\OnboardingService;
+$tk = DB::one('SELECT reference, track_token FROM bookings WHERE id = ?', [$bkAd['id']]);
+T::ok(preg_match('/^[a-f0-9]{32}$/', (string) $tk['track_token']) === 1, 'chaque réservation reçoit un jeton de suivi aléatoire');
+T::eq((int) DB::val('SELECT COUNT(DISTINCT track_token) FROM bookings'), (int) DB::val('SELECT COUNT(*) FROM bookings'), 'jetons tous différents');
+$link = DB::val("SELECT content FROM notification_logs WHERE booking_id = ? AND channel = 'sms' AND event = 'booking.created'", [$bkAd['id']]);
+T::ok($link !== null && str_contains((string) $link, '/suivi/' . $tk['reference'] . '/' . $tk['track_token']), 'le SMS « réservation enregistrée » contient le lien de suivi personnel');
+T::ok(str_contains((string) DB::val("SELECT body FROM notifications WHERE event = 'booking.confirmed' AND channel = 'email' AND audience = 'client'"), '{lien_suivi}'), 'modèle email « confirmée » : lien de suivi ajouté');
+$steps = OnboardingService::steps();
+T::eq(count($steps), 6, 'six étapes de « premiers pas »');
+$by = array_column($steps, 'done', 'label');
+T::eq($by["Renseigner les coordonnées de l'entreprise"], false, 'coordonnées par défaut : étape à faire');
+T::eq($by['Supprimer ou sécuriser les comptes de démonstration'], false, 'comptes de démonstration présents : étape à faire');
+T::eq($by["Brancher l'envoi des emails ou des SMS"], false, 'envois en mode test : étape à faire');
+setting_set('company_phone', '+221 77 123 45 67'); setting_set('company_email', 'contact@monentreprise.sn');
+DB::exec("UPDATE users SET email = REPLACE(email, '@cleanup.test', '@monentreprise.sn')");
+setting_set('mk_email_driver', 'smtp');
+$by = array_column(OnboardingService::steps(), 'done', 'label');
+T::ok($by["Renseigner les coordonnées de l'entreprise"] && $by['Supprimer ou sécuriser les comptes de démonstration'] && $by["Brancher l'envoi des emails ou des SMS"], 'étapes cochées une fois réglées');
+setting_set('mk_email_driver', '');
+
 DB::reset();
 foreach (['', '-wal', '-shm'] as $s) @unlink($dbFile . $s);
 exit(T::summary());

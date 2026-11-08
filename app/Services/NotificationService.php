@@ -3,7 +3,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Core\{Database, Env};
-use App\Services\Channels\{Mailer, SmsGateway};
+use App\Services\Channels\{Mailer, SmsGateway, WhatsAppGateway};
 
 /**
  * Point d'entrée unique des notifications. Une panne email/SMS n'interrompt jamais le flux métier :
@@ -29,6 +29,7 @@ final class NotificationService
             $templates = Database::all('SELECT * FROM notifications WHERE company_id = ? AND event = ? AND active = 1', [Env::companyId(), $event]);
             foreach ($templates as $t) {
                 if (!self::enabled($event, $t['channel'])) continue;
+                if ($t['channel'] === 'whatsapp' && !WhatsAppGateway::isCloud()) continue;   // sans API, WhatsApp ne peut pas partir tout seul
                 $to = $this->recipient($t['audience'], $t['channel'], $b);
                 if (!$to) continue;
                 $logId = Database::insert('notification_logs', [
@@ -50,7 +51,11 @@ final class NotificationService
         if (!$log || $log['status'] === 'sent') return false;
         $attempts = (int) $log['attempts'] + 1;
         try {
-            $log['channel'] === 'sms' ? SmsGateway::send($log['recipient'], $log['content']) : Mailer::send($log['recipient'], (string) $log['subject'], $log['content']);
+            match ($log['channel']) {
+                'sms' => SmsGateway::send($log['recipient'], $log['content']),
+                'whatsapp' => WhatsAppGateway::send($log['recipient'], $log['content'], $this->whatsappVars($log)),
+                default => Mailer::send($log['recipient'], (string) $log['subject'], $log['content']),
+            };
             Database::update('notification_logs', $logId, ['status' => 'sent', 'attempts' => $attempts, 'error' => null, 'sent_at' => now(), 'next_attempt_at' => null]);
             return true;
         } catch (\Throwable $e) {
@@ -96,13 +101,20 @@ final class NotificationService
         return $n;
     }
 
+    /** Variables des modèles WhatsApp de Meta (rechargées depuis la réservation). */
+    private function whatsappVars(array $log): array
+    {
+        $b = !empty($log['booking_id']) ? (new \App\Repositories\BookingRepository())->find((int) $log['booking_id']) : null;
+        return ($b ? $this->vars($b) : []) + ['{message}' => $log['content']];
+    }
+
     private function recipient(string $audience, string $channel, array $b): ?string
     {
         if ($audience === 'admin') {
-            $v = $channel === 'sms' ? setting('admin_notification_phone', '') : setting('admin_notification_email', '');
-            return $v !== '' && $v !== null ? ($channel === 'sms' ? normalize_phone($v) : $v) : null;
+            $v = $channel !== 'email' ? setting('admin_notification_phone', '') : setting('admin_notification_email', '');
+            return $v !== '' && $v !== null ? ($channel !== 'email' ? normalize_phone($v) : $v) : null;
         }
-        if ($channel === 'sms') return $b['customer_phone'] ?: null;
+        if ($channel !== 'email') return $b['customer_phone'] ?: null;
         return filter_var($b['customer_email'] ?? '', FILTER_VALIDATE_EMAIL) ? $b['customer_email'] : null;
     }
 
@@ -114,6 +126,7 @@ final class NotificationService
             '{adresse}' => trim($b['address_text'] . ' (' . $b['neighborhood_name'] . ')'), '{total}' => money((int) $b['total']),
             '{equipe}' => $b['team_name'] ?? 'notre équipe', '{statut}' => status_label($b['status']),
             '{entreprise}' => setting('company_name', ''), '{telephone}' => setting('company_phone', ''),
+            '{lien_suivi}' => url('/suivi' . (!empty($b['track_token']) ? '/' . $b['reference'] . '/' . $b['track_token'] : '')),
         ];
     }
 }

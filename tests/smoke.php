@@ -331,6 +331,138 @@ $mgr = (int) \App\Core\Database::val("SELECT id FROM roles WHERE name = 'manager
 \App\Core\Database::insert('role_permissions', ['role_id' => $mgr, 'permission_id' => $pcrm]);
 [$s] = $m->get('/admin/crm'); T::eq($s, 200, 'permission rendue : effective tout de suite');
 
+// ------------------------------------------------------------------ Marketing
+T::group('Marketing : droits, canaux, campagnes, balises publicitaires');
+[$s] = (new Client($port))->get('/admin/marketing'); T::eq($s, 302, 'marketing : visiteur anonyme redirigé');
+foreach (['/admin/marketing', '/admin/marketing/canaux', '/admin/marketing/campagnes', '/admin/marketing/campagnes/nouveau', '/admin/marketing/liens'] as $u) { [$s] = $admin->get($u); T::eq($s, 200, "admin : $u"); }
+[$s] = $m->get('/admin/marketing'); T::eq($s, 200, 'gestionnaire : marketing autorisé');
+[$s] = $m->get('/admin/marketing/campagnes/nouveau'); T::eq($s, 200, 'gestionnaire : création de campagne autorisée');
+[$s] = $m->get('/admin/marketing/canaux'); T::eq($s, 403, 'gestionnaire : réglage des canaux (clés, mots de passe) refusé');
+[$s] = $m->post('/admin/marketing/canaux/meta', ['_csrf' => $m->token('/admin/marketing'), 'meta_enabled' => '1']); T::eq($s, 403, 'gestionnaire : enregistrement des canaux refusé');
+[$s] = $ag->get('/admin/marketing'); T::ok($s === 403 || $s === 302, 'agent : marketing refusé (' . $s . ')');
+[$s] = $admin->post('/admin/marketing/canaux/meta', ['meta_enabled' => '1']); T::eq($s, 419, 'enregistrement sans jeton CSRF refusé');
+
+$t = $admin->token('/admin/marketing/canaux');
+[$s] = $admin->post('/admin/marketing/canaux/meta', ['_csrf' => $t, 'meta_enabled' => '1', 'meta_pixel_id' => 'pas-un-id', 'meta_capi_token' => '', 'meta_test_code' => '']);
+\App\Core\Database::reset(); $GLOBALS['__settings_dirty'] = true;
+T::ok($s === 302 && setting('mk_meta_pixel_id', '') === '', 'pixel invalide refusé, rien d\'enregistré');
+[$s] = $admin->post('/admin/marketing/canaux/meta', ['_csrf' => $t, 'meta_enabled' => '1', 'meta_pixel_id' => '1234567890', 'meta_capi_token' => 'SECRET-TOKEN-XYZ', 'meta_test_code' => '']);
+\App\Core\Database::reset(); $GLOBALS['__settings_dirty'] = true;
+T::ok(setting('mk_meta_pixel_id') === '1234567890' && setting('mk_meta_capi_token') === 'SECRET-TOKEN-XYZ', 'pixel et jeton enregistrés');
+[, , $page] = $admin->get('/admin/marketing/canaux');
+T::ok(!str_contains($page, 'SECRET-TOKEN-XYZ') && str_contains($page, 'enregistré'), 'le jeton enregistré n\'est jamais réaffiché');
+$admin->post('/admin/marketing/canaux/meta', ['_csrf' => $t, 'meta_enabled' => '1', 'meta_pixel_id' => '1234567890', 'meta_capi_token' => '', 'meta_test_code' => '']);
+\App\Core\Database::reset(); $GLOBALS['__settings_dirty'] = true;
+T::eq(setting('mk_meta_capi_token'), 'SECRET-TOKEN-XYZ', 'champ secret laissé vide : valeur conservée');
+[$s] = $admin->post('/admin/marketing/canaux/sms', ['_csrf' => $t, 'sms_driver' => 'http', 'sms_api_url' => 'javascript:alert(1)', 'sms_token' => '', 'sms_sender' => '', 'sms_body_template' => '']);
+\App\Core\Database::reset(); $GLOBALS['__settings_dirty'] = true;
+T::ok($s === 302 && (setting('mk_sms_api_url', '') === ''), 'adresse d\'API SMS non https refusée');
+[$s] = $admin->post('/admin/marketing/canaux/inconnu', ['_csrf' => $t]); T::eq($s, 404, 'canal inconnu : 404');
+
+$pubm = new Client($port);
+[$s, $hd, $body] = $pubm->get('/');
+T::ok($s === 200 && str_contains($body, 'name="mk-config"') && str_contains($body, 'marketing.js'), 'balises : le site charge le script de suivi quand le pixel est actif');
+T::ok(str_contains(implode(' ', $hd['content-security-policy'] ?? []), 'https://connect.facebook.net'), 'politique de sécurité : domaine Meta autorisé seulement maintenant');
+T::ok(!str_contains($body, '1234567890\'') && !str_contains($body, 'fbq('), 'aucun script publicitaire en ligne dans la page (chargé après accord)');
+[$s] = $pubm->get('/assets/js/marketing.js'); T::eq($s, 200, 'script de consentement servi');
+$admin->post('/admin/marketing/canaux/meta', ['_csrf' => $t, 'meta_enabled' => '0', 'meta_pixel_id' => '1234567890', 'meta_capi_token' => '', 'meta_test_code' => '']);
+[, $hd, $body] = (new Client($port))->get('/');
+T::ok(!str_contains($body, 'mk-config') && !str_contains(implode(' ', $hd['content-security-policy'] ?? []), 'facebook'), 'suivi désactivé : aucune balise, aucun domaine externe autorisé');
+
+$t = $admin->token('/admin/marketing/campagnes/nouveau');
+[$s, $hd] = $admin->post('/admin/marketing/campagnes', ['_csrf' => $t, 'name' => 'Promo test', 'channel' => 'sms', 'audience' => 'consent', 'body' => 'Bonjour {client} {lien}']);
+$loc = $hd['location'][0] ?? '';
+T::ok($s === 302 && preg_match('#/admin/marketing/campagnes/(\d+)$#', $loc, $mm), 'campagne créée en brouillon');
+[$s, , $b] = $admin->get($mm[0] ?? '/admin/marketing/campagnes'); T::ok($s === 200 && str_contains($b, 'Promo test') && str_contains($b, 'Avant de lancer'), 'fiche de la campagne avec aperçu avant lancement');
+[$s] = $admin->post('/admin/marketing/campagnes', ['_csrf' => $t, 'name' => '', 'channel' => 'sms', 'audience' => 'consent', 'body' => 'x']); T::eq($s, 302, 'campagne invalide : retour au formulaire');
+[$s] = $admin->get('/admin/marketing/campagnes/999999'); T::eq($s, 404, 'campagne inconnue : 404');
+[$s, , $b] = $admin->get('/admin/marketing/liens?preset=facebook&campaign=Promo+Novembre');
+T::ok($s === 200 && str_contains($b, 'utm_source=facebook') && str_contains($b, 'utm_medium=paid_social') && str_contains($b, 'utm_campaign=promo-novembre'), 'lien suivi Facebook généré');
+[$s, , $b] = (new Client($port))->get('/cron/run?token=jeton-de-test-123'); T::ok($s === 200 && array_key_exists('campaign_messages', json_decode($b, true) ?? []), 'tâche planifiée : traite aussi les campagnes');
+
+// ------------------------------------------------------------------ Désinscription STOP (webhooks)
+T::group('Webhooks : désinscription STOP par WhatsApp et SMS');
+$wh = new Client($port);
+$cons = \App\Services\CustomerService::class; $cid1 = (new $cons())->findOrCreate('Test', 'Stop', '77 500 00 01', null); $cid2 = (new $cons())->findOrCreate('Test', 'Sms', '77 500 00 02', null);
+\App\Core\Database::exec('UPDATE customers SET marketing_consent = 1 WHERE id IN (?, ?)', [$cid1, $cid2]);
+$st = fn(int $id) => (int) \App\Core\Database::val('SELECT marketing_consent FROM customers WHERE id = ?', [$id]);
+[$s] = $wh->req('POST', '/webhooks/sms', json_encode(['from' => '77 500 00 02', 'text' => 'STOP']), ['Content-Type: application/json']);
+T::eq($s, 403, 'SMS entrant sans jeton configuré ni fourni : refusé (et pas de 419 : pas de CSRF ici)');
+setting_set('mk_sms_inbound_token', 'jeton-sms-123'); setting_set('mk_wa_verify_token', 'verif-123'); setting_set('mk_wa_app_secret', 'secret-app');
+[$s] = $wh->req('POST', '/webhooks/sms', json_encode(['from' => '77 500 00 02', 'text' => 'STOP']), ['Content-Type: application/json', 'X-Webhook-Token: mauvais']);
+T::eq($s, 403, 'SMS entrant avec un mauvais jeton : refusé');
+T::eq($st($cid2), 1, 'client toujours inscrit après les refus');
+[$s] = $wh->req('POST', '/webhooks/sms', json_encode(['from' => '77 500 00 02', 'text' => 'Merci beaucoup']), ['Content-Type: application/json', 'X-Webhook-Token: jeton-sms-123']);
+\App\Core\Database::reset(); T::ok($s === 200 && $st($cid2) === 1, 'SMS entrant ordinaire : aucune désinscription');
+[$s, , $b] = $wh->req('POST', '/webhooks/sms', json_encode(['msisdn' => '221775000002', 'message' => ' stop ']), ['Content-Type: application/json', 'X-Webhook-Token: jeton-sms-123']);
+\App\Core\Database::reset(); T::ok($s === 200 && (json_decode($b, true)['optouts'] ?? 0) === 1 && $st($cid2) === 0, 'SMS « STOP » avec le bon jeton : client désinscrit');
+[$s] = $wh->req('POST', '/webhooks/sms?token=jeton-sms-123', http_build_query(['from' => '77 500 00 02', 'text' => 'STOP']), ['Content-Type: application/x-www-form-urlencoded']); T::eq($s, 200, 'SMS entrant : jeton aussi accepté dans l\'adresse, corps en formulaire');
+
+[$s, , $b] = $wh->get('/webhooks/whatsapp?hub_mode=subscribe&hub_verify_token=verif-123&hub_challenge=987654'); T::ok($s === 200 && trim($b) === '987654', 'WhatsApp : vérification de l\'adresse par Meta');
+[$s] = $wh->get('/webhooks/whatsapp?hub_mode=subscribe&hub_verify_token=faux&hub_challenge=987654'); T::eq($s, 403, 'WhatsApp : mauvais jeton de vérification refusé');
+$payload = json_encode(['entry' => [['changes' => [['value' => ['messages' => [['from' => '221775000001', 'type' => 'text', 'text' => ['body' => 'STOP']]]]]]]]]);
+[$s] = $wh->req('POST', '/webhooks/whatsapp', $payload, ['Content-Type: application/json']); T::eq($s, 403, 'WhatsApp : message sans signature refusé');
+[$s] = $wh->req('POST', '/webhooks/whatsapp', $payload, ['Content-Type: application/json', 'X-Hub-Signature-256: sha256=' . hash_hmac('sha256', $payload, 'mauvaise-cle')]); T::eq($s, 403, 'WhatsApp : mauvaise signature refusée');
+\App\Core\Database::reset(); T::eq($st($cid1), 1, 'client toujours inscrit après les refus');
+[$s, , $b] = $wh->req('POST', '/webhooks/whatsapp', $payload, ['Content-Type: application/json', 'X-Hub-Signature-256: sha256=' . hash_hmac('sha256', $payload, 'secret-app')]);
+\App\Core\Database::reset(); T::ok($s === 200 && $st($cid1) === 0, 'WhatsApp : « STOP » correctement signé, client désinscrit');
+$ev = \App\Core\Database::one('SELECT marketing_optout_at, marketing_consent_source FROM customers WHERE id = ?', [$cid1]);
+T::ok($ev['marketing_optout_at'] && $ev['marketing_consent_source'] === 'whatsapp', 'désinscription datée, source « WhatsApp »');
+[$s, , $b] = $admin->get('/admin/clients/' . $cid1); T::ok($s === 200 && str_contains($b, 'Désinscrit le'), 'fiche client : désinscription visible avec sa date');
+[$s, , $b] = $admin->get('/admin/marketing/canaux'); T::ok(str_contains($b, '/webhooks/whatsapp') && str_contains($b, '/webhooks/sms') && !str_contains($b, 'secret-app') && !str_contains($b, 'jeton-sms-123'), 'adresses des webhooks affichées, secrets jamais réaffichés');
+[$s, , $b] = $admin->get('/admin/marketing/publicites'); T::ok($s === 200 && str_contains($b, 'Par plateforme') && str_contains($b, 'Par annonce'), 'résultats publicitaires : page affichée');
+[$s] = $m->get('/admin/marketing/publicites'); T::eq($s, 200, 'gestionnaire : résultats publicitaires autorisés');
+[$s] = $ag->get('/admin/marketing/publicites'); T::ok($s === 403 || $s === 302, 'agent : résultats publicitaires refusés');
+// Consentement à la réservation : la case apparaît sur le formulaire public
+[, , $b] = (new Client($port))->get('/reserver'); T::ok(str_contains($b, 'id="consent"') && !preg_match('/id="consent"[^>]*checked/', $b), 'formulaire de réservation : case d\'offres présente, décochée par défaut');
+
+// ------------------------------------------------------------------ Parcours simplifiés
+T::group('Parcours simplifiés : lien de suivi, recherche, actions rapides, tableau de bord');
+\App\Core\Database::reset();
+$tok = \App\Core\Database::val('SELECT track_token FROM bookings WHERE reference = ?', [$ref]);
+$lk = new Client($port);
+[$s, $h] = $lk->get("/suivi/$ref/$tok"); T::ok($s === 302 && str_ends_with($h['location'][0], "/suivi/$ref"), 'lien de suivi personnel : redirige vers la réservation');
+[$s, , $b] = $lk->get("/suivi/$ref"); T::ok($s === 200 && str_contains($b, $ref), 'réservation visible sans saisir référence ni téléphone');
+[$s, $hh] = $lk->get("/suivi/$ref/calendrier"); T::ok($s === 200 && str_contains(implode(' ', $hh['content-type'] ?? []), 'text/calendar'), 'le lien personnel n\'avale pas la route « agenda »');
+T::ok(str_contains($b, 'Réserver à nouveau') && str_contains($b, '/reserver?service='), 'réservation terminée ou annulée : bouton « Réserver à nouveau »');
+$bad = new Client($port);
+[$s, $h] = $bad->get("/suivi/$ref/" . str_repeat('a', 32)); T::ok($s === 302 && str_ends_with($h['location'][0], '/suivi'), 'mauvais jeton : renvoyé au formulaire');
+[$s] = $bad->get("/suivi/$ref"); T::eq($s, 302, 'mauvais jeton : aucun accès accordé');
+[$s] = $bad->get('/suivi/CU-INCONNU/' . str_repeat('b', 32)); T::eq($s, 302, 'référence inconnue : même réponse');
+[, , $b] = (new Client($port))->get('/reserver'); T::ok(str_contains($b, 'id="prefill-note"') && str_contains($b, 'id="prefill-clear"'), 'formulaire de réservation : mémoire des coordonnées (avec « effacer »)');
+
+[$s, , $b] = $admin->get('/admin'); T::ok($s === 200 && str_contains($b, 'À faire maintenant') && str_contains($b, 'Premiers pas'), 'tableau de bord : « À faire maintenant » et « Premiers pas »');
+T::eq(substr_count($b, 'class="side-link'), 8, 'menu d\'administration : 8 entrées seulement');
+T::ok(str_contains($b, 'href="/admin/configuration"') && str_contains($b, 'name="q"') && str_contains($b, '/admin/recherche'), 'entrée « Configuration » et barre de recherche présentes');
+foreach (['/admin/configuration' => 'Configuration', '/admin/crud/services' => 'Configuration', '/admin/parametres' => 'Configuration', '/admin/crud/customers' => 'Clients', '/admin/crud/expenses' => 'Gestion', '/admin/crud/acquisition_channels' => 'Marketing', '/admin/marketing/campagnes' => 'Marketing'] as $u => $lab) {
+    [, , $pg] = $admin->get($u); preg_match('#class="side-link active"[^>]*>([^<]+)<#', $pg, $mm); T::eq($mm[1] ?? null, $lab, "menu : « $u » garde « $lab » actif");
+}
+[$s, , $b] = $admin->get('/admin/configuration'); T::ok($s === 200 && str_contains($b, 'Services et tarifs') && str_contains($b, 'Quartiers desservis') && str_contains($b, 'Utilisateurs'), 'Configuration : tous les réglages rangés sur une page');
+[$s, , $b] = $m->get('/admin/configuration'); T::ok($s === 200 && str_contains($b, 'Services et tarifs') && !str_contains($b, 'Utilisateurs') && !str_contains($b, 'Paramètres'), 'Configuration : le gestionnaire ne voit que ce qui lui est permis');
+[$s] = $ag->get('/admin/configuration'); T::ok($s === 403 || $s === 302, 'Configuration : agent refusé');
+[$s, , $b] = (new Client($port))->get('/api/geo/all/0'); $hoods = json_decode($b, true); T::ok($s === 200 && count($hoods) > 5 && isset($hoods[0]['commune'], $hoods[0]['travel_fee']), 'une seule liste de quartiers pour le client : ' . count($hoods) . ' quartiers');
+[, , $b] = (new Client($port))->get('/reserver'); T::ok(!str_contains($b, 'id="region"') && !str_contains($b, 'id="commune"') && str_contains($b, 'id="full_name"') && substr_count($b, 'data-step="') === 6, 'formulaire : plus de listes en cascade, un seul champ pour le nom');
+[$s, , $b] = $m->get('/admin'); T::ok($s === 200 && !str_contains($b, 'Premiers pas'), 'gestionnaire : pas de « Premiers pas » (réservé à l\'administrateur)');
+[$s] = (new Client($port))->get('/admin/recherche?q=test'); T::eq($s, 302, 'recherche : visiteur anonyme redirigé');
+[$s] = $ag->get('/admin/recherche?q=test'); T::ok($s === 403 || $s === 302, 'recherche : agent refusé');
+[$s, , $b] = $admin->get('/admin/recherche?q=' . rawurlencode('Khady')); T::ok($s === 200 && str_contains($b, 'Prospects') && str_contains($b, 'Khady Seck'), 'recherche par nom : prospect retrouvé');
+[$s, , $b] = $admin->get('/admin/recherche?q=' . rawurlencode('7 456 78')); T::ok($s === 200 && str_contains($b, 'Clients'), 'recherche par morceau de numéro : client retrouvé');
+[$s, $h] = $admin->get('/admin/recherche?q=' . rawurlencode($ref)); T::ok($s === 302 && str_contains($h['location'][0], '/admin/reservations/'), 'référence exacte : ouvre directement la réservation');
+[$s, , $b] = $admin->get('/admin/recherche?q=a'); T::ok($s === 200 && str_contains($b, 'au moins 2 caractères'), 'recherche trop courte : consigne affichée');
+[$s, , $b] = $admin->get('/admin/recherche?q=' . rawurlencode("'; DROP TABLE bookings; --")); T::eq($s, 200, 'recherche : saisie piégée sans effet');
+[$s, , $b] = $m->get('/admin/recherche?q=Khady'); T::ok($s === 200 && str_contains($b, 'Prospects'), 'gestionnaire : recherche prospects autorisée (droit CRM)');
+
+// Confirmation en un clic depuis une liste
+\App\Core\Database::reset();
+$pend = \App\Core\Database::val("SELECT id FROM bookings WHERE status = 'pending' LIMIT 1");
+if ($pend) {
+    [, , $b] = $admin->get('/admin/reservations'); T::ok(str_contains($b, 'value="confirmed"') && str_contains($b, 'wa.me/') && str_contains($b, 'tel:+'), 'liste des réservations : boutons Confirmer, Appeler, WhatsApp');
+    $tt = $admin->token('/admin/reservations');
+    [$s, $h] = $admin->req('POST', "/admin/reservations/$pend/statut", ['_csrf' => $tt, 'to' => 'confirmed', 'back' => '1'], ['Referer: http://127.0.0.1:' . $port . '/admin/reservations']);
+    \App\Core\Database::reset();
+    T::ok($s === 302 && str_ends_with($h['location'][0], '/admin/reservations') && \App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$pend]) === 'confirmed', 'Confirmer en un clic : statut changé, retour sur la liste');
+} else T::ok(true, 'aucune réservation en attente à confirmer dans ce jeu d\'essai');
+
 // ------------------------------------------------------------------ Cron
 T::group('Tâches planifiées HTTP');
 [$s] = $cl->get('/cron/run'); T::eq($s, 403, 'cron sans jeton → 403');
