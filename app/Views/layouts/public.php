@@ -16,6 +16,11 @@ $wa = setting('company_whatsapp', '');
 <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
 <link rel="stylesheet" href="<?= asset('vendor/bootstrap.min.css') ?>">
 <link rel="stylesheet" href="<?= asset('css/app.css') ?>">
+<?php $mkOn = \App\Services\TrackingService::enabled(); if ($mkOn): ?>
+<meta name="mk-config" content="<?= e(json_encode(\App\Services\TrackingService::publicConfig())) ?>">
+<?php if (!empty($mk_event)): ?><meta name="mk-event" content="<?= e(json_encode($mk_event)) ?>"><?php endif ?>
+<script src="<?= asset('js/marketing.js') ?>" defer></script>
+<?php endif ?>
 </head>
 <body class="site<?= ($page_js ?? "") === "booking.js" ? " is-booking" : "" ?>">
 <a class="skip" href="#main">Aller au contenu</a>
@@ -57,7 +62,8 @@ $wa = setting('company_whatsapp', '');
         <p class="mb-1"><a href="/a-propos">À propos</a></p>
         <p class="mb-1"><a href="/conditions-generales">Conditions générales</a></p>
         <p class="mb-1"><a href="/confidentialite">Confidentialité</a></p>
-        <p class="mb-0"><a href="/connexion">Espace équipe</a></p>
+        <p class="mb-1"><a href="/connexion">Espace équipe</a></p>
+        <?php if ($mkOn): ?><p class="mb-0"><a href="#" data-mk-reset>Cookies publicitaires</a></p><?php endif ?>
       </div>
     </div>
   </div>

@@ -3,15 +3,16 @@ declare(strict_types=1);
 namespace App\Services\Channels;
 
 use App\Core\Env;
+use App\Services\ChannelConfig;
 
 /** Envoi d'emails. MAIL_DRIVER : log (fichier), mail (fonction PHP mail()), smtp (client SMTP intégré, SSL/STARTTLS + AUTH LOGIN). */
 final class Mailer
 {
     public static function send(string $to, string $subject, string $body): void
     {
-        $driver = Env::get('MAIL_DRIVER', 'log');
-        $from = Env::get('MAIL_FROM_ADDRESS', 'noreply@localhost');
-        $fromName = Env::get('MAIL_FROM_NAME', 'Clean Up');
+        $driver = ChannelConfig::get('email_driver', 'MAIL_DRIVER', 'log');
+        $from = ChannelConfig::get('email_from_address', 'MAIL_FROM_ADDRESS', 'noreply@localhost');
+        $fromName = ChannelConfig::get('email_from_name', 'MAIL_FROM_NAME', 'Clean Up');
         if ($driver === 'log') {
             file_put_contents(BASE_PATH . '/storage/logs/mail.log', sprintf("[%s] TO:%s | %s\n%s\n---\n", date('c'), $to, $subject, $body), FILE_APPEND | LOCK_EX);
             return;
@@ -36,7 +37,7 @@ final class Mailer
 
     private static function smtp(string $to, string $from, array $headers, string $body): void
     {
-        $host = Env::get('MAIL_HOST', ''); $port = (int) Env::get('MAIL_PORT', '587'); $enc = strtolower(Env::get('MAIL_ENCRYPTION', 'tls'));
+        $host = ChannelConfig::get('email_host', 'MAIL_HOST'); $port = (int) ChannelConfig::get('email_port', 'MAIL_PORT', '587'); $enc = strtolower(ChannelConfig::get('email_encryption', 'MAIL_ENCRYPTION', 'tls'));
         if ($host === '') throw new \RuntimeException('MAIL_HOST non configuré.');
         $fp = @stream_socket_client(($enc === 'ssl' ? 'ssl://' : 'tcp://') . "$host:$port", $errno, $errstr, 10);
         if (!$fp) throw new \RuntimeException("Connexion SMTP impossible ($errstr)");
@@ -62,10 +63,10 @@ final class Mailer
                 if (!stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) throw new \RuntimeException('STARTTLS refusé.');
                 $cmd("EHLO $name", [250]);
             }
-            if (Env::get('MAIL_USERNAME', '') !== '') {
+            if (ChannelConfig::get('email_username', 'MAIL_USERNAME') !== '') {
                 $cmd('AUTH LOGIN', [334]);
-                $cmd(base64_encode(Env::get('MAIL_USERNAME')), [334]);
-                $cmd(base64_encode(Env::get('MAIL_PASSWORD', '')), [235]);
+                $cmd(base64_encode(ChannelConfig::get('email_username', 'MAIL_USERNAME')), [334]);
+                $cmd(base64_encode(ChannelConfig::get('email_password', 'MAIL_PASSWORD')), [235]);
             }
             $cmd("MAIL FROM:<$from>", [250]);
             $cmd("RCPT TO:<$to>", [250, 251]);

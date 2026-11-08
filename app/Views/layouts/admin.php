@@ -7,6 +7,7 @@ $nav = [
   ['Zones : quartiers', '/admin/crud/neighborhoods', 'geo.manage'], ['Zones : régions', '/admin/crud/regions', 'geo.manage'],
   ['Équipes', '/admin/crud/teams', 'staff.manage'], ['Agents', '/admin/crud/staff', 'staff.manage'], ['Compétences', '/admin/crud/skills', 'staff.manage'], ['Congés et fermetures', '/admin/crud/time_off', 'staff.manage'],
   ['Clients', '/admin/crud/customers', 'customers.manage'], ['Prospects (CRM)', '/admin/crm', 'crm.manage'], ['Canaux d\'acquisition', '/admin/crud/acquisition_channels', 'crm.manage'],
+  ['Marketing', '/admin/marketing', 'marketing.manage'], ['Campagnes', '/admin/marketing/campagnes', 'marketing.manage'], ['Liens suivis', '/admin/marketing/liens', 'marketing.manage'], ['Canaux marketing', '/admin/marketing/canaux', 'settings.manage'],
   ['Gestion et résultats', '/admin/gestion', 'finance.manage'], ['Dépenses', '/admin/crud/expenses', 'finance.manage'],
   ['Journal des envois', '/admin/notifications', 'notifications.manage'], ['Modèles de messages', '/admin/crud/notifications', 'notifications.manage'],
   ['Messages reçus', '/admin/crud/contact_messages', 'cms.manage'], ['Pages', '/admin/crud/pages', 'cms.manage'], ['FAQ', '/admin/crud/faq', 'cms.manage'], ['Témoignages', '/admin/crud/testimonials', 'cms.manage'],
@@ -27,7 +28,7 @@ $u = Auth::user();
     <a class="brand brand-admin" href="/admin"><span class="brand-drop" aria-hidden="true"></span><?= e(setting('company_name')) ?></a>
     <nav aria-label="Navigation principale">
       <?php foreach ($nav as [$label, $href, $perm]): if (!Auth::can($perm)) continue;
-        $active = $href === '/admin' ? $path === '/admin' : str_starts_with($path, $href); ?>
+        $active = in_array($href, ['/admin', '/admin/marketing'], true) ? $path === $href : str_starts_with($path, $href); ?>
         <a class="side-link <?= $active ? 'active' : '' ?>" href="<?= e($href) ?>" <?= $active ? 'aria-current="page"' : '' ?>><?= e($label) ?></a>
       <?php endforeach ?>
     </nav>

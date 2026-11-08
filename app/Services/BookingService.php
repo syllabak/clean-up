@@ -71,7 +71,7 @@ final class BookingService
                 'end_time' => $slot['end'], 'duration_minutes' => $quote['duration'], 'team_id' => $slot['team_id'], 'status' => 'pending',
                 'subtotal' => $quote['subtotal'], 'travel_fee' => $quote['travel_fee'], 'total' => $quote['total'],
                 'source' => $in['source'] ?? 'web', 'created_at' => now(),
-            ]);
+            ] + TrackingService::columns((array) ($in['attr'] ?? [])));
             Database::insert('booking_items', [
                 'booking_id' => $id, 'service_id' => $serviceId, 'name' => $quote['service']['name'], 'formula_name' => $quote['formula']['name'] ?? null,
                 'details' => json_encode($quote['details'], JSON_UNESCAPED_UNICODE), 'quantity' => $quote['quantity'], 'unit_price' => $quote['unit_price'],

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 use App\Core\Router;
 use App\Controllers\{HomeController, ServiceController, BookingController, AuthController, AgentController, CronController};
-use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController};
+use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController};
 
 $r = new Router();
 
@@ -75,6 +75,22 @@ $r->get('/admin/clients/{id}', [CrmController::class, 'customer'], ['perm:custom
 $r->post('/admin/clients/{id}/echange', [CrmController::class, 'customerInteraction'], ['perm:customers.manage']);
 $r->post('/admin/clients/{id}/canal', [CrmController::class, 'customerChannel'], ['perm:customers.manage']);
 $r->get('/admin/gestion', [BusinessController::class, 'index'], ['perm:finance.manage']);
+// Marketing : canaux (administrateur), campagnes, WhatsApp sans API, liens suivis
+$r->get('/admin/marketing', [MarketingController::class, 'index'], ['perm:marketing.manage']);
+$r->get('/admin/marketing/canaux', [MarketingController::class, 'channels'], ['perm:settings.manage']);
+$r->post('/admin/marketing/canaux/{section}', [MarketingController::class, 'channelSave'], ['perm:settings.manage']);
+$r->post('/admin/marketing/canaux/{section}/tester', [MarketingController::class, 'channelTest'], ['perm:settings.manage', 'throttle:mktest,10,300']);
+$r->get('/admin/marketing/campagnes', [MarketingController::class, 'campaigns'], ['perm:marketing.manage']);
+$r->get('/admin/marketing/campagnes/nouveau', [MarketingController::class, 'campaignNew'], ['perm:marketing.manage']);
+$r->post('/admin/marketing/campagnes', [MarketingController::class, 'campaignCreate'], ['perm:marketing.manage']);
+$r->get('/admin/marketing/campagnes/{id}', [MarketingController::class, 'campaign'], ['perm:marketing.manage']);
+$r->post('/admin/marketing/campagnes/{id}/lancer', [MarketingController::class, 'campaignLaunch'], ['perm:marketing.manage']);
+$r->post('/admin/marketing/campagnes/{id}/lot', [MarketingController::class, 'campaignBatch'], ['perm:marketing.manage']);
+$r->post('/admin/marketing/campagnes/{id}/annuler', [MarketingController::class, 'campaignCancel'], ['perm:marketing.manage']);
+$r->post('/admin/marketing/campagnes/{id}/tester', [MarketingController::class, 'campaignTest'], ['perm:marketing.manage', 'throttle:mktest,10,300']);
+$r->get('/admin/marketing/campagnes/{id}/whatsapp', [MarketingController::class, 'whatsapp'], ['perm:marketing.manage']);
+$r->post('/admin/marketing/campagnes/{id}/whatsapp/{mid}', [MarketingController::class, 'whatsappMark'], ['perm:marketing.manage']);
+$r->get('/admin/marketing/liens', [MarketingController::class, 'links'], ['perm:marketing.manage']);
 // CRUD générique piloté par config/crud.php (les permissions sont vérifiées dans le contrôleur)
 $r->get('/admin/crud/{type}', [CrudController::class, 'index'], ['auth']);
 $r->get('/admin/crud/{type}/nouveau', [CrudController::class, 'create'], ['auth']);

@@ -331,6 +331,55 @@ $mgr = (int) \App\Core\Database::val("SELECT id FROM roles WHERE name = 'manager
 \App\Core\Database::insert('role_permissions', ['role_id' => $mgr, 'permission_id' => $pcrm]);
 [$s] = $m->get('/admin/crm'); T::eq($s, 200, 'permission rendue : effective tout de suite');
 
+// ------------------------------------------------------------------ Marketing
+T::group('Marketing : droits, canaux, campagnes, balises publicitaires');
+[$s] = (new Client($port))->get('/admin/marketing'); T::eq($s, 302, 'marketing : visiteur anonyme redirigé');
+foreach (['/admin/marketing', '/admin/marketing/canaux', '/admin/marketing/campagnes', '/admin/marketing/campagnes/nouveau', '/admin/marketing/liens'] as $u) { [$s] = $admin->get($u); T::eq($s, 200, "admin : $u"); }
+[$s] = $m->get('/admin/marketing'); T::eq($s, 200, 'gestionnaire : marketing autorisé');
+[$s] = $m->get('/admin/marketing/campagnes/nouveau'); T::eq($s, 200, 'gestionnaire : création de campagne autorisée');
+[$s] = $m->get('/admin/marketing/canaux'); T::eq($s, 403, 'gestionnaire : réglage des canaux (clés, mots de passe) refusé');
+[$s] = $m->post('/admin/marketing/canaux/meta', ['_csrf' => $m->token('/admin/marketing'), 'meta_enabled' => '1']); T::eq($s, 403, 'gestionnaire : enregistrement des canaux refusé');
+[$s] = $ag->get('/admin/marketing'); T::ok($s === 403 || $s === 302, 'agent : marketing refusé (' . $s . ')');
+[$s] = $admin->post('/admin/marketing/canaux/meta', ['meta_enabled' => '1']); T::eq($s, 419, 'enregistrement sans jeton CSRF refusé');
+
+$t = $admin->token('/admin/marketing/canaux');
+[$s] = $admin->post('/admin/marketing/canaux/meta', ['_csrf' => $t, 'meta_enabled' => '1', 'meta_pixel_id' => 'pas-un-id', 'meta_capi_token' => '', 'meta_test_code' => '']);
+\App\Core\Database::reset(); $GLOBALS['__settings_dirty'] = true;
+T::ok($s === 302 && setting('mk_meta_pixel_id', '') === '', 'pixel invalide refusé, rien d\'enregistré');
+[$s] = $admin->post('/admin/marketing/canaux/meta', ['_csrf' => $t, 'meta_enabled' => '1', 'meta_pixel_id' => '1234567890', 'meta_capi_token' => 'SECRET-TOKEN-XYZ', 'meta_test_code' => '']);
+\App\Core\Database::reset(); $GLOBALS['__settings_dirty'] = true;
+T::ok(setting('mk_meta_pixel_id') === '1234567890' && setting('mk_meta_capi_token') === 'SECRET-TOKEN-XYZ', 'pixel et jeton enregistrés');
+[, , $page] = $admin->get('/admin/marketing/canaux');
+T::ok(!str_contains($page, 'SECRET-TOKEN-XYZ') && str_contains($page, 'enregistré'), 'le jeton enregistré n\'est jamais réaffiché');
+$admin->post('/admin/marketing/canaux/meta', ['_csrf' => $t, 'meta_enabled' => '1', 'meta_pixel_id' => '1234567890', 'meta_capi_token' => '', 'meta_test_code' => '']);
+\App\Core\Database::reset(); $GLOBALS['__settings_dirty'] = true;
+T::eq(setting('mk_meta_capi_token'), 'SECRET-TOKEN-XYZ', 'champ secret laissé vide : valeur conservée');
+[$s] = $admin->post('/admin/marketing/canaux/sms', ['_csrf' => $t, 'sms_driver' => 'http', 'sms_api_url' => 'javascript:alert(1)', 'sms_token' => '', 'sms_sender' => '', 'sms_body_template' => '']);
+\App\Core\Database::reset(); $GLOBALS['__settings_dirty'] = true;
+T::ok($s === 302 && (setting('mk_sms_api_url', '') === ''), 'adresse d\'API SMS non https refusée');
+[$s] = $admin->post('/admin/marketing/canaux/inconnu', ['_csrf' => $t]); T::eq($s, 404, 'canal inconnu : 404');
+
+$pubm = new Client($port);
+[$s, $hd, $body] = $pubm->get('/');
+T::ok($s === 200 && str_contains($body, 'name="mk-config"') && str_contains($body, 'marketing.js'), 'balises : le site charge le script de suivi quand le pixel est actif');
+T::ok(str_contains(implode(' ', $hd['content-security-policy'] ?? []), 'https://connect.facebook.net'), 'politique de sécurité : domaine Meta autorisé seulement maintenant');
+T::ok(!str_contains($body, '1234567890\'') && !str_contains($body, 'fbq('), 'aucun script publicitaire en ligne dans la page (chargé après accord)');
+[$s] = $pubm->get('/assets/js/marketing.js'); T::eq($s, 200, 'script de consentement servi');
+$admin->post('/admin/marketing/canaux/meta', ['_csrf' => $t, 'meta_enabled' => '0', 'meta_pixel_id' => '1234567890', 'meta_capi_token' => '', 'meta_test_code' => '']);
+[, $hd, $body] = (new Client($port))->get('/');
+T::ok(!str_contains($body, 'mk-config') && !str_contains(implode(' ', $hd['content-security-policy'] ?? []), 'facebook'), 'suivi désactivé : aucune balise, aucun domaine externe autorisé');
+
+$t = $admin->token('/admin/marketing/campagnes/nouveau');
+[$s, $hd] = $admin->post('/admin/marketing/campagnes', ['_csrf' => $t, 'name' => 'Promo test', 'channel' => 'sms', 'audience' => 'consent', 'body' => 'Bonjour {client} {lien}']);
+$loc = $hd['location'][0] ?? '';
+T::ok($s === 302 && preg_match('#/admin/marketing/campagnes/(\d+)$#', $loc, $mm), 'campagne créée en brouillon');
+[$s, , $b] = $admin->get($mm[0] ?? '/admin/marketing/campagnes'); T::ok($s === 200 && str_contains($b, 'Promo test') && str_contains($b, 'Avant de lancer'), 'fiche de la campagne avec aperçu avant lancement');
+[$s] = $admin->post('/admin/marketing/campagnes', ['_csrf' => $t, 'name' => '', 'channel' => 'sms', 'audience' => 'consent', 'body' => 'x']); T::eq($s, 302, 'campagne invalide : retour au formulaire');
+[$s] = $admin->get('/admin/marketing/campagnes/999999'); T::eq($s, 404, 'campagne inconnue : 404');
+[$s, , $b] = $admin->get('/admin/marketing/liens?preset=facebook&campaign=Promo+Novembre');
+T::ok($s === 200 && str_contains($b, 'utm_source=facebook') && str_contains($b, 'utm_medium=paid_social') && str_contains($b, 'utm_campaign=promo-novembre'), 'lien suivi Facebook généré');
+[$s, , $b] = (new Client($port))->get('/cron/run?token=jeton-de-test-123'); T::ok($s === 200 && array_key_exists('campaign_messages', json_decode($b, true) ?? []), 'tâche planifiée : traite aussi les campagnes');
+
 // ------------------------------------------------------------------ Cron
 T::group('Tâches planifiées HTTP');
 [$s] = $cl->get('/cron/run'); T::eq($s, 403, 'cron sans jeton → 403');
