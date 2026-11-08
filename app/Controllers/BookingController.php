@@ -83,11 +83,14 @@ final class BookingController extends Controller
         $in = Request::json();
         if (!empty($in['website'])) json_response(['error' => 'Requête refusée.'], 400);     // piège à robots
         $in['source'] = 'web';
+        $in['attr'] = \App\Services\TrackingService::attribution();
+        if (empty($in['channel_id'])) $in['channel_id'] = \App\Services\TrackingService::channelId($in['attr']);   // canal déduit de la publicité
         try {
             $b = (new BookingService())->create($in);
         } catch (SlotUnavailableException $e) {
             json_response(['error' => $e->getMessage(), 'code' => 'slot_taken'], 409);
         }
+        \App\Services\TrackingService::sendMeta('Lead', $b['reference'], ['phone' => $b['customer_phone'], 'email' => $b['customer_email'] ?? '', 'first_name' => $b['customer_first_name'], 'last_name' => $b['customer_last_name']], (int) $b['total']);
         Session::set('last_booking', $b['reference']);
         Session::set('track_ok', array_merge(Session::get('track_ok', []), [$b['reference'] => true]));
         json_response(['reference' => $b['reference'], 'redirect' => with_base('/reservation/confirmation/' . $b['reference'])], 201);
@@ -97,7 +100,8 @@ final class BookingController extends Controller
     {
         $b = (new BookingRepository())->findByReference($ref);
         if (!$b || Session::get('last_booking') !== $ref) redirect('/suivi');
-        $this->view('public/confirmation', ['title' => 'Réservation enregistrée', 'b' => $b, 'items' => (new BookingRepository())->items((int) $b['id']), 'noindex' => true]);
+        $this->view('public/confirmation', ['title' => 'Réservation enregistrée', 'b' => $b, 'items' => (new BookingRepository())->items((int) $b['id']), 'noindex' => true,
+            'mk_event' => ['name' => 'booking', 'id' => $b['reference'], 'value' => (int) $b['total']]]);
     }
 
     // ------------------------------------------------------------ Suivi par le client (référence + téléphone)

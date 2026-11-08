@@ -21,10 +21,14 @@ require dirname(__DIR__) . '/bootstrap.php';
 use App\Core\{Request, Session, ValidationException};
 
 Session::start();
+\App\Services\TrackingService::capture();
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');
 header('Referrer-Policy: strict-origin-when-cross-origin');
-header("Content-Security-Policy: default-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'");
+$csp = ['default-src' => ["'self'"], 'img-src' => ["'self'", 'data:', 'https://*.tile.openstreetmap.org'], 'style-src' => ["'self'", "'unsafe-inline'"], 'script-src' => ["'self'"], 'connect-src' => ["'self'"],
+    'frame-ancestors' => ["'self'"], 'form-action' => ["'self'"], 'base-uri' => ["'self'"]];
+try { foreach (\App\Services\TrackingService::cspExtra() as $dir => $hosts) $csp[$dir] = array_merge($csp[$dir], $hosts); } catch (Throwable) {}   // base non migrée : politique de base
+header('Content-Security-Policy: ' . implode('; ', array_map(fn($d, $v) => $d . ' ' . implode(' ', $v), array_keys($csp), $csp)));
 header('Permissions-Policy: geolocation=(self), camera=(self), microphone=()');
 if (Request::isHttps()) header('Strict-Transport-Security: max-age=31536000');
 

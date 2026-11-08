@@ -85,10 +85,22 @@ php tests/smoke.php   # parcours HTTP complet sur un serveur temporaire (CSRF, d
 - **Droits** : `crm.manage` (administrateur et gestionnaire), `finance.manage` (administrateur seul).
 - Après mise à jour d'une installation existante : `php bin/migrate.php` (migrations 008 et 009).
 
+## Marketing et publicité
+
+Tout se règle dans l'administration (**Marketing → Canaux marketing**, réservé à l'administrateur) : aucun fichier à modifier sur le serveur. Les valeurs saisies l'emportent sur le `.env`, qui reste le repli. Les clés et mots de passe ne sont jamais réaffichés (laissez le champ vide pour les garder). Ils sont enregistrés dans la base : protégez-la comme le `.env`.
+
+- **Email, SMS** : mode test (journal), `mail()`, SMTP, API HTTP du fournisseur de SMS. Un bouton « Envoyer un test » sur chaque canal.
+- **WhatsApp**, trois modes. *Désactivé*. *Sans API* : l'application prépare chaque message et un lien WhatsApp ; vous l'envoyez d'un clic depuis votre téléphone (écran « Ouvrir WhatsApp », à marquer « Envoyé »). *Avec API* : WhatsApp Business Cloud API de Meta (identifiant du numéro, jeton). Pour écrire en premier à un client, Meta impose un modèle de message approuvé : renseignez son nom et l'ordre des variables. Les notifications de réservation par WhatsApp (modèles dans « Modèles de messages ») ne partent qu'en mode API.
+- **Campagnes** (Marketing → Campagnes) : email, SMS ou WhatsApp vers tous les clients consentants, un segment (nouveaux, occasionnels, réguliers, VIP), les inactifs depuis 90 jours ou un canal d'acquisition. Test avant lancement, envoi programmable, envoi par lots (tâche planifiée, `bin/queue.php` ou `/cron/run`), reprise des échecs, annulation, et résultat : réservations et chiffre d'affaires venus du lien de la campagne. Variables : `{client} {nom} {entreprise} {telephone} {lien}`. Une mention de désinscription est ajoutée à chaque message ; pour désinscrire un client qui répond STOP, décochez « Accepte de recevoir nos offres » sur sa fiche.
+- **Facebook / Instagram Ads et Google Ads** : l'application ne crée pas les annonces (cela reste dans Meta Ads Manager et Google Ads, qui gardent budget et ciblage). Elle mesure leurs résultats : balise Meta et balise Google (conversion à chaque réservation, Analytics 4 en option), chargées **seulement après l'accord du visiteur** (bandeau), et API Conversions de Meta côté serveur (coordonnées hachées, mêmes identifiants que la balise pour ne pas compter deux fois). La politique de sécurité (CSP) n'autorise les domaines Meta et Google que lorsque le suivi est activé.
+- **Origine de chaque réservation** : les paramètres `utm_*`, `fbclid` et `gclid` sont retenus pour la visite, enregistrés sur la réservation et le prospect, et le canal d'acquisition est déduit (Facebook, Instagram, Google, publicité…). **Marketing → Liens suivis** génère les adresses à coller dans vos annonces, messages et QR codes. Avec les dépenses saisies par canal, « Gestion et résultats » donne coût par client et retour sur investissement.
+- Après mise à jour : `php bin/migrate.php` (migration 011). Droit `marketing.manage` : administrateur et gestionnaire.
+
 ## Limites connues
 
-- Le mode MySQL/MariaDB (optionnel), SMTP réel et API SMS réelle n'ont pas été testés (seuls SQLite et les pilotes `log` l'ont été). SQLite n'admet qu'un écrit à la fois : largement suffisant pour une entreprise, à reconsidérer si le volume de réservations simultanées devient très élevé.
+- Le mode MySQL/MariaDB (optionnel), SMTP réel, API SMS réelle, WhatsApp Cloud API, API Conversions de Meta et balises Google n'ont pas été testés contre les vrais services (seuls SQLite et les pilotes `log` l'ont été ; les appels aux API sont vérifiés par leurs charges utiles, pas en réel). SQLite n'admet qu'un écrit à la fois : largement suffisant pour une entreprise, à reconsidérer si le volume de réservations simultanées devient très élevé.
 - Une prestation par réservation (la table `booking_items` permet le multi-services, pas l'interface).
 - Le planning n'a pas de glisser-déposer : on déplace depuis la fiche réservation, avec créneaux vérifiés.
+- Marketing : pas de création d'annonces, pas de réception des réponses WhatsApp ni de désinscription automatique par STOP, et le consentement n'est pas daté. Faites valider le bandeau cookies et les mentions par un juriste (loi sénégalaise sur les données personnelles).
 - Les textes légaux fournis (CGV, confidentialité) sont indicatifs et à faire valider.
 - Le mode SaaS n'est que préparé : `company_id` existe, mais les tables enfants (formules, options…) se filtrent via leur parent, et il n'y a pas de gestion multi-entreprises.
