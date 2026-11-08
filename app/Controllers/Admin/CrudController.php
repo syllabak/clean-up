@@ -56,6 +56,7 @@ final class CrudController extends Controller
         if (($c['can_create'] ?? true) === false) abort(404);
         [$errors, $data, $pivots] = $this->collect($c, null);
         if ($errors) { $this->withOld(); Session::flash('errors', $errors); redirect("/admin/crud/$type/nouveau" . $this->filterQuery($c, Request::all())); }
+        if ($type === 'customers') $data = \App\Services\ConsentService::stamp($data, null);
         if (!empty($c['company'])) $data['company_id'] = Env::companyId();
         if (DB::hasColumn($c['table'], 'created_at')) $data['created_at'] = now();
         try {
@@ -74,6 +75,7 @@ final class CrudController extends Controller
         $row = $this->row($c, (int) $id);
         [$errors, $data, $pivots] = $this->collect($c, $row);
         if ($errors) { $this->withOld(); Session::flash('errors', $errors); redirect("/admin/crud/$type/$id/modifier"); }
+        if ($type === 'customers') $data = \App\Services\ConsentService::stamp($data, $row);
         if (DB::hasColumn($c['table'], 'updated_at')) $data['updated_at'] = now();
         try {
             DB::transaction(function () use ($c, $id, $data, $pivots) { if ($data) DB::update($c['table'], (int) $id, $data); $this->savePivots($c, (int) $id, $pivots); });

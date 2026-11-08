@@ -380,6 +380,42 @@ T::ok($s === 302 && preg_match('#/admin/marketing/campagnes/(\d+)$#', $loc, $mm)
 T::ok($s === 200 && str_contains($b, 'utm_source=facebook') && str_contains($b, 'utm_medium=paid_social') && str_contains($b, 'utm_campaign=promo-novembre'), 'lien suivi Facebook généré');
 [$s, , $b] = (new Client($port))->get('/cron/run?token=jeton-de-test-123'); T::ok($s === 200 && array_key_exists('campaign_messages', json_decode($b, true) ?? []), 'tâche planifiée : traite aussi les campagnes');
 
+// ------------------------------------------------------------------ Désinscription STOP (webhooks)
+T::group('Webhooks : désinscription STOP par WhatsApp et SMS');
+$wh = new Client($port);
+$cons = \App\Services\CustomerService::class; $cid1 = (new $cons())->findOrCreate('Test', 'Stop', '77 500 00 01', null); $cid2 = (new $cons())->findOrCreate('Test', 'Sms', '77 500 00 02', null);
+\App\Core\Database::exec('UPDATE customers SET marketing_consent = 1 WHERE id IN (?, ?)', [$cid1, $cid2]);
+$st = fn(int $id) => (int) \App\Core\Database::val('SELECT marketing_consent FROM customers WHERE id = ?', [$id]);
+[$s] = $wh->req('POST', '/webhooks/sms', json_encode(['from' => '77 500 00 02', 'text' => 'STOP']), ['Content-Type: application/json']);
+T::eq($s, 403, 'SMS entrant sans jeton configuré ni fourni : refusé (et pas de 419 : pas de CSRF ici)');
+setting_set('mk_sms_inbound_token', 'jeton-sms-123'); setting_set('mk_wa_verify_token', 'verif-123'); setting_set('mk_wa_app_secret', 'secret-app');
+[$s] = $wh->req('POST', '/webhooks/sms', json_encode(['from' => '77 500 00 02', 'text' => 'STOP']), ['Content-Type: application/json', 'X-Webhook-Token: mauvais']);
+T::eq($s, 403, 'SMS entrant avec un mauvais jeton : refusé');
+T::eq($st($cid2), 1, 'client toujours inscrit après les refus');
+[$s] = $wh->req('POST', '/webhooks/sms', json_encode(['from' => '77 500 00 02', 'text' => 'Merci beaucoup']), ['Content-Type: application/json', 'X-Webhook-Token: jeton-sms-123']);
+\App\Core\Database::reset(); T::ok($s === 200 && $st($cid2) === 1, 'SMS entrant ordinaire : aucune désinscription');
+[$s, , $b] = $wh->req('POST', '/webhooks/sms', json_encode(['msisdn' => '221775000002', 'message' => ' stop ']), ['Content-Type: application/json', 'X-Webhook-Token: jeton-sms-123']);
+\App\Core\Database::reset(); T::ok($s === 200 && (json_decode($b, true)['optouts'] ?? 0) === 1 && $st($cid2) === 0, 'SMS « STOP » avec le bon jeton : client désinscrit');
+[$s] = $wh->req('POST', '/webhooks/sms?token=jeton-sms-123', http_build_query(['from' => '77 500 00 02', 'text' => 'STOP']), ['Content-Type: application/x-www-form-urlencoded']); T::eq($s, 200, 'SMS entrant : jeton aussi accepté dans l\'adresse, corps en formulaire');
+
+[$s, , $b] = $wh->get('/webhooks/whatsapp?hub_mode=subscribe&hub_verify_token=verif-123&hub_challenge=987654'); T::ok($s === 200 && trim($b) === '987654', 'WhatsApp : vérification de l\'adresse par Meta');
+[$s] = $wh->get('/webhooks/whatsapp?hub_mode=subscribe&hub_verify_token=faux&hub_challenge=987654'); T::eq($s, 403, 'WhatsApp : mauvais jeton de vérification refusé');
+$payload = json_encode(['entry' => [['changes' => [['value' => ['messages' => [['from' => '221775000001', 'type' => 'text', 'text' => ['body' => 'STOP']]]]]]]]]);
+[$s] = $wh->req('POST', '/webhooks/whatsapp', $payload, ['Content-Type: application/json']); T::eq($s, 403, 'WhatsApp : message sans signature refusé');
+[$s] = $wh->req('POST', '/webhooks/whatsapp', $payload, ['Content-Type: application/json', 'X-Hub-Signature-256: sha256=' . hash_hmac('sha256', $payload, 'mauvaise-cle')]); T::eq($s, 403, 'WhatsApp : mauvaise signature refusée');
+\App\Core\Database::reset(); T::eq($st($cid1), 1, 'client toujours inscrit après les refus');
+[$s, , $b] = $wh->req('POST', '/webhooks/whatsapp', $payload, ['Content-Type: application/json', 'X-Hub-Signature-256: sha256=' . hash_hmac('sha256', $payload, 'secret-app')]);
+\App\Core\Database::reset(); T::ok($s === 200 && $st($cid1) === 0, 'WhatsApp : « STOP » correctement signé, client désinscrit');
+$ev = \App\Core\Database::one('SELECT marketing_optout_at, marketing_consent_source FROM customers WHERE id = ?', [$cid1]);
+T::ok($ev['marketing_optout_at'] && $ev['marketing_consent_source'] === 'whatsapp', 'désinscription datée, source « WhatsApp »');
+[$s, , $b] = $admin->get('/admin/clients/' . $cid1); T::ok($s === 200 && str_contains($b, 'Désinscrit le'), 'fiche client : désinscription visible avec sa date');
+[$s, , $b] = $admin->get('/admin/marketing/canaux'); T::ok(str_contains($b, '/webhooks/whatsapp') && str_contains($b, '/webhooks/sms') && !str_contains($b, 'secret-app') && !str_contains($b, 'jeton-sms-123'), 'adresses des webhooks affichées, secrets jamais réaffichés');
+[$s, , $b] = $admin->get('/admin/marketing/publicites'); T::ok($s === 200 && str_contains($b, 'Par plateforme') && str_contains($b, 'Par annonce'), 'résultats publicitaires : page affichée');
+[$s] = $m->get('/admin/marketing/publicites'); T::eq($s, 200, 'gestionnaire : résultats publicitaires autorisés');
+[$s] = $ag->get('/admin/marketing/publicites'); T::ok($s === 403 || $s === 302, 'agent : résultats publicitaires refusés');
+// Consentement à la réservation : la case apparaît sur le formulaire public
+[, , $b] = (new Client($port))->get('/reserver'); T::ok(str_contains($b, 'id="consent"') && !preg_match('/id="consent"[^>]*checked/', $b), 'formulaire de réservation : case d\'offres présente, décochée par défaut');
+
 // ------------------------------------------------------------------ Cron
 T::group('Tâches planifiées HTTP');
 [$s] = $cl->get('/cron/run'); T::eq($s, 403, 'cron sans jeton → 403');

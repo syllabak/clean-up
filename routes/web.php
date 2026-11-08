@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 use App\Core\Router;
-use App\Controllers\{HomeController, ServiceController, BookingController, AuthController, AgentController, CronController};
+use App\Controllers\{HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
 use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController};
 
 $r = new Router();
@@ -38,6 +38,11 @@ $r->post('/suivi/{ref}/annuler', [BookingController::class, 'trackCancel']);
 $r->get('/connexion', [AuthController::class, 'form']);
 $r->post('/connexion', [AuthController::class, 'login'], ['throttle:login,8,300']);
 $r->post('/deconnexion', [AuthController::class, 'logout']);
+
+// ---- Réponses entrantes des fournisseurs (désinscription STOP) : authentifiées par signature ou jeton, sans session
+$r->get('/webhooks/whatsapp', [WebhookController::class, 'whatsappVerify'], ['throttle:hook,120,60']);
+$r->post('/webhooks/whatsapp', [WebhookController::class, 'whatsappReceive'], ['throttle:hook,300,60']);
+$r->post('/webhooks/sms', [WebhookController::class, 'smsReceive'], ['throttle:hook,300,60']);
 
 // ---- Tâches planifiées (cron HTTP protégé par jeton)
 $r->get('/cron/run', [CronController::class, 'run'], ['throttle:cron,30,300']);
@@ -90,6 +95,7 @@ $r->post('/admin/marketing/campagnes/{id}/annuler', [MarketingController::class,
 $r->post('/admin/marketing/campagnes/{id}/tester', [MarketingController::class, 'campaignTest'], ['perm:marketing.manage', 'throttle:mktest,10,300']);
 $r->get('/admin/marketing/campagnes/{id}/whatsapp', [MarketingController::class, 'whatsapp'], ['perm:marketing.manage']);
 $r->post('/admin/marketing/campagnes/{id}/whatsapp/{mid}', [MarketingController::class, 'whatsappMark'], ['perm:marketing.manage']);
+$r->get('/admin/marketing/publicites', [MarketingController::class, 'ads'], ['perm:marketing.manage']);
 $r->get('/admin/marketing/liens', [MarketingController::class, 'links'], ['perm:marketing.manage']);
 // CRUD générique piloté par config/crud.php (les permissions sont vérifiées dans le contrôleur)
 $r->get('/admin/crud/{type}', [CrudController::class, 'index'], ['auth']);

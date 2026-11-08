@@ -97,7 +97,7 @@ final class CrmController extends Controller
     {
         $c = $this->mustCustomer($id);
         $ch = (new CrmService())->channelId(Request::int('channel_id'));
-        DB::update('customers', (int) $c['id'], ['channel_id' => $ch, 'marketing_consent' => Request::str('marketing_consent') === '1' ? 1 : 0]);
+        DB::update('customers', (int) $c['id'], \App\Services\ConsentService::stamp(['channel_id' => $ch, 'marketing_consent' => Request::str('marketing_consent') === '1' ? 1 : 0], $c));
         $this->ok('Fiche mise à jour.');
         redirect('/admin/clients/' . (int) $id);
     }
