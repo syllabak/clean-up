@@ -41,6 +41,7 @@
           <div class="col-md-6"><label class="form-label" for="last_name">Nom</label><input id="last_name" class="form-control" autocomplete="family-name" maxlength="100"></div>
           <div class="col-md-6"><label class="form-label" for="phone">Téléphone</label><input id="phone" class="form-control" type="tel" inputmode="tel" autocomplete="tel" placeholder="77 123 45 67"></div>
           <div class="col-md-6"><label class="form-label" for="email">Email (facultatif)</label><input id="email" class="form-control" type="email" autocomplete="email" maxlength="190"></div>
+          <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="consent" value="1"><label class="form-check-label small" for="consent">Je veux recevoir les offres de <?= e(setting('company_name', 'Clean Up')) ?> par SMS, WhatsApp ou email (facultatif, désinscription à tout moment en répondant STOP).</label></div></div>
           <?php if (!empty($channels)): ?><div class="col-12"><label class="form-label" for="channel">Comment nous avez-vous connus ? (facultatif)</label><select id="channel" class="form-select"><option value="">—</option>
             <?php foreach ($channels as $ch): ?><option value="<?= (int) $ch['id'] ?>"><?= e($ch['name']) ?></option><?php endforeach ?></select></div><?php endif ?>
           <div class="d-none" aria-hidden="true"><label for="website">Ne pas remplir</label><input id="website" tabindex="-1" autocomplete="off"></div>

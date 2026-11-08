@@ -232,6 +232,59 @@ final class MarketingService
         throw new \RuntimeException('Canal inconnu.');
     }
 
+    /**
+     * Résultats publicitaires d'une période : par plateforme (avec les dépenses saisies) et par annonce ou campagne (source, type, nom).
+     * Une réservation est « publicitaire » dès qu'elle porte une origine (utm, clic Facebook ou Google).
+     * Chiffre d'affaires : réservations terminées (montant saisi, à défaut estimé), comme dans « Gestion et résultats ».
+     */
+    public function adReport(string $from, string $to): array
+    {
+        $cid = Env::companyId();
+        $rev = "COALESCE(b.declared_amount, b.total)";
+        $attr = "(b.utm_source IS NOT NULL OR b.utm_campaign IS NOT NULL OR b.fbclid IS NOT NULL OR b.gclid IS NOT NULL)";
+
+        $platforms = [];
+        foreach (Database::all("SELECT COALESCE(b.channel_id, 0) AS ch, COUNT(*) AS n, SUM(CASE WHEN b.status = 'completed' THEN $rev ELSE 0 END) AS revenue, COUNT(DISTINCT b.customer_id) AS customers
+            FROM bookings b WHERE b.company_id = ? AND b.status <> 'cancelled' AND b.scheduled_date >= ? AND b.scheduled_date <= ? AND $attr GROUP BY COALESCE(b.channel_id, 0)", [$cid, $from, $to]) as $r) {
+            $platforms[(int) $r['ch']] = ['bookings' => (int) $r['n'], 'revenue' => (int) $r['revenue'], 'customers' => (int) $r['customers'], 'spend' => 0];
+        }
+        foreach (Database::all('SELECT channel_id AS ch, SUM(amount) AS spend FROM expenses WHERE company_id = ? AND deleted_at IS NULL AND channel_id IS NOT NULL AND expense_date >= ? AND expense_date <= ? GROUP BY channel_id', [$cid, $from, $to]) as $r) {
+            $platforms[(int) $r['ch']] ??= ['bookings' => 0, 'revenue' => 0, 'customers' => 0, 'spend' => 0];
+            $platforms[(int) $r['ch']]['spend'] = (int) $r['spend'];
+        }
+        $names = array_column(Database::all('SELECT id, name FROM acquisition_channels WHERE company_id = ?', [$cid]), 'name', 'id');
+        $plat = [];
+        foreach ($platforms as $ch => $p) {
+            $p['name'] = $names[$ch] ?? 'Non renseigné';
+            $p['cost_per_booking'] = $p['spend'] > 0 && $p['bookings'] > 0 ? (int) round($p['spend'] / $p['bookings']) : null;
+            $p['roi'] = $p['spend'] > 0 ? (int) round(($p['revenue'] - $p['spend']) / $p['spend'] * 100) : null;
+            $plat[] = $p;
+        }
+        usort($plat, fn($a, $b) => [$b['revenue'], $b['bookings']] <=> [$a['revenue'], $a['bookings']]);
+
+        $ads = [];
+        foreach (Database::all("SELECT COALESCE(b.utm_source, '') AS s, COALESCE(b.utm_medium, '') AS m, COALESCE(b.utm_campaign, '') AS c, COUNT(*) AS n,
+              SUM(CASE WHEN b.status = 'completed' THEN $rev ELSE 0 END) AS revenue, SUM(b.total) AS estimated, MAX(CASE WHEN b.gclid IS NOT NULL THEN 1 ELSE 0 END) AS g, MAX(CASE WHEN b.fbclid IS NOT NULL THEN 1 ELSE 0 END) AS f
+            FROM bookings b WHERE b.company_id = ? AND b.status <> 'cancelled' AND b.scheduled_date >= ? AND b.scheduled_date <= ? AND $attr
+            GROUP BY COALESCE(b.utm_source, ''), COALESCE(b.utm_medium, ''), COALESCE(b.utm_campaign, '')", [$cid, $from, $to]) as $r) {
+            $key = $r['s'] . '|' . $r['m'] . '|' . $r['c'];
+            $ads[$key] = ['source' => $r['s'] !== '' ? $r['s'] : ((int) $r['g'] ? 'google (clic Google Ads)' : ((int) $r['f'] ? 'facebook (clic Meta)' : '—')), 'medium' => $r['m'], 'campaign' => $r['c'],
+                'bookings' => (int) $r['n'], 'revenue' => (int) $r['revenue'], 'estimated' => (int) $r['estimated'], 'leads' => 0, 'internal' => $r['m'] === 'campaign'];
+        }
+        foreach (Database::all("SELECT COALESCE(utm_source, '') AS s, COALESCE(utm_medium, '') AS m, COALESCE(utm_campaign, '') AS c, COUNT(*) AS n FROM leads
+            WHERE company_id = ? AND deleted_at IS NULL AND created_at >= ? AND created_at < ? AND (utm_source IS NOT NULL OR utm_campaign IS NOT NULL OR fbclid IS NOT NULL OR gclid IS NOT NULL)
+            GROUP BY COALESCE(utm_source, ''), COALESCE(utm_medium, ''), COALESCE(utm_campaign, '')", [$cid, $from . ' 00:00:00', date('Y-m-d', strtotime($to . ' +1 day')) . ' 00:00:00']) as $r) {
+            $key = $r['s'] . '|' . $r['m'] . '|' . $r['c'];
+            $ads[$key] ??= ['source' => $r['s'] !== '' ? $r['s'] : '—', 'medium' => $r['m'], 'campaign' => $r['c'], 'bookings' => 0, 'revenue' => 0, 'estimated' => 0, 'leads' => 0, 'internal' => $r['m'] === 'campaign'];
+            $ads[$key]['leads'] = (int) $r['n'];
+        }
+        $ads = array_values($ads);
+        usort($ads, fn($a, $b) => [$b['bookings'], $b['leads']] <=> [$a['bookings'], $a['leads']]);
+
+        $total = ['bookings' => array_sum(array_column($plat, 'bookings')), 'revenue' => array_sum(array_column($plat, 'revenue')), 'spend' => array_sum(array_column($plat, 'spend'))];
+        return ['platforms' => $plat, 'ads' => $ads, 'total' => $total];
+    }
+
     public function counts(int $id): array
     {
         $out = ['pending' => 0, 'manual' => 0, 'sent' => 0, 'failed' => 0, 'skipped' => 0, 'cancelled' => 0];

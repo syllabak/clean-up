@@ -1,5 +1,6 @@
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3"><h1 class="mb-0 me-auto">Marketing</h1>
   <a class="btn btn-primary" href="/admin/marketing/campagnes/nouveau">Nouvelle campagne</a>
+  <a class="btn btn-outline-primary" href="/admin/marketing/publicites">Résultats publicitaires</a>
   <a class="btn btn-outline-primary" href="/admin/marketing/liens">Liens suivis</a>
   <?php if ($can_settings): ?><a class="btn btn-outline-secondary" href="/admin/marketing/canaux">Configurer les canaux</a><?php endif ?></div>
 

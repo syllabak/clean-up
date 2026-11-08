@@ -62,6 +62,7 @@ final class BookingService
 
             $cs = new CustomerService();
             $customerId = $cs->findOrCreate(trim($in['first_name']), trim($in['last_name']), $in['phone'], trim((string) ($in['email'] ?? '')) ?: null);
+            if (filter_var($in['marketing_consent'] ?? false, FILTER_VALIDATE_BOOLEAN)) (new ConsentService())->grant($customerId, 'reservation');   // jamais de retrait par ce chemin
             $addressId = $cs->addAddress($customerId, $nid, trim($in['address_text']), trim((string) ($in['instructions'] ?? '')) ?: null);
 
             $id = Database::insert('bookings', [

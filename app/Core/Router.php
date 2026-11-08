@@ -25,7 +25,7 @@ final class Router
             if ($m !== $method || !preg_match($regex, $path, $match)) continue;
             array_shift($match);
             // CSRF systématique sur toute requête qui modifie l'état
-            if ($method === 'POST' && !Csrf::valid()) abort(419, 'Jeton de sécurité invalide ou expiré. Rechargez la page et recommencez.');
+            if ($method === 'POST' && !str_starts_with($path, '/webhooks/') && !Csrf::valid()) abort(419, 'Jeton de sécurité invalide ou expiré. Rechargez la page et recommencez.');
             foreach ($mw as $spec) $this->middleware($spec);
             [$class, $action] = $handler;
             (new $class())->$action(...array_map(fn($v) => urldecode($v), $match));

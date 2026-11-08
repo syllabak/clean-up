@@ -196,6 +196,13 @@ final class MarketingController extends Controller
         redirect("/admin/marketing/campagnes/$id/whatsapp");
     }
 
+    // ------------------------------------------------------------------ Résultats publicitaires
+    public function ads(): void
+    {
+        [$from, $to] = \App\Services\BusinessReportService::range(Request::str('from') ?: date('Y-m-d', strtotime('-29 days')), Request::str('to'));
+        $this->admin('admin/marketing_ads', ['title' => 'Résultats publicitaires', 'from' => $from, 'to' => $to] + (new MarketingService())->adReport($from, $to));
+    }
+
     // ------------------------------------------------------------------ Liens suivis
     public function links(): void
     {
