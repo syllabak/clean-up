@@ -1,0 +1,50 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Guide administrateur — Clean Up</title><style>
+@page{size:A4;margin:0}
+*{box-sizing:border-box}
+body{margin:0;font:11pt/1.45 Inter,"Helvetica Neue",Arial,sans-serif;color:#17233a}
+.page{width:210mm;height:297mm;padding:16mm 16mm 14mm;position:relative;page-break-after:always;overflow:hidden}
+.page:last-child{page-break-after:auto}
+.cover{background:#0e2442;color:#fff;display:flex;flex-direction:column;justify-content:center;padding:24mm}
+.cover .tag{display:inline-block;background:#ffcf3f;color:#0e2442;font-weight:800;padding:2mm 4mm;border-radius:3mm;font-size:11pt;align-self:flex-start}
+.cover h1{font-size:34pt;line-height:1.1;margin:10mm 0 5mm}
+.cover p{font-size:14pt;color:#c9d6ea;max-width:140mm}
+.cover .meta{position:absolute;left:24mm;bottom:20mm;color:#8ea3c4;font-size:10pt}
+h2{font-size:20pt;margin:0 0 2mm;color:#0e2442}
+.lead{color:#51607a;margin:0 0 6mm}
+.step{display:flex;gap:8mm;align-items:flex-start;margin-bottom:5mm}
+.step .shot{flex:0 0 44mm}
+.step .shot img{width:44mm;height:88mm;object-fit:cover;object-position:top;border-radius:6mm;border:1.4mm solid #17233a;display:block}
+.step .txt{flex:1}
+.step h3{font-size:14pt;margin:1mm 0 3mm;color:#0e2442}
+.step h3 .n{display:inline-block;width:8mm;height:8mm;border-radius:50%;background:#ffcf3f;text-align:center;line-height:8mm;margin-right:2mm;font-size:11pt}
+.leg{list-style:none;padding:0;margin:0 0 3mm}
+.leg li{display:flex;gap:3mm;margin-bottom:2.2mm}
+.leg b.c{flex:0 0 6mm;height:6mm;border-radius:50%;background:#e8453c;color:#fff;font-size:9pt;text-align:center;line-height:6mm;margin-top:.6mm}
+.tip{background:#eef4ff;border-left:1.2mm solid #2f6fdc;padding:2.5mm 3.5mm;border-radius:1.5mm;font-size:10pt;margin-top:3mm}
+.wide{margin-bottom:6mm}
+.wide img{width:102mm;margin:0 auto;border:.3mm solid #cfd7e6;border-radius:2mm;display:block;box-shadow:0 1mm 4mm rgba(14,36,66,.15)}
+.wide h3{font-size:14pt;margin:0 0 2.5mm;color:#0e2442}
+.wide h3 .n{display:inline-block;width:8mm;height:8mm;border-radius:50%;background:#ffcf3f;text-align:center;line-height:8mm;margin-right:2mm;font-size:11pt}
+.cols{display:flex;gap:6mm}.cols>div{flex:1}.cols .wide img{width:100%}
+.foot{position:absolute;left:16mm;right:16mm;bottom:7mm;font-size:8.5pt;color:#8793aa;display:flex;justify-content:space-between;border-top:.2mm solid #dde3ee;padding-top:2mm}
+.stat{display:inline-block;padding:.6mm 2.4mm;border-radius:2mm;font-weight:700;font-size:9.5pt;margin-right:1mm}
+.s1{background:#ffd54a}.s2{background:#2f6fdc;color:#fff}.s3{background:#17233a;color:#fff}.s4{background:#2e9d5b;color:#fff}.s5{background:#d64545;color:#fff}
+table.t{border-collapse:collapse;width:100%;font-size:10pt;margin:2mm 0 5mm}table.t td,table.t th{border:.2mm solid #cfd7e6;padding:2mm 3mm;text-align:left;vertical-align:top}table.t th{background:#eef2f8}
+</style></head><body><section class="page cover"><span class="tag">GUIDE ADMINISTRATEUR</span><h1>Recevoir et gérer une commande</h1><p>Du tableau de bord à la fin de l'intervention : voir la localisation, regarder les photos, changer le statut en un clic, contacter le client.</p><div class="meta">Clean Up · Réservation de nettoyage à domicile · Dakar<br>Captures réalisées sur des données d'exemple (clients fictifs).</div></section><section class="page"><h2>Les cinq statuts</h2><p class="lead">Une commande suit un chemin simple. Chaque changement se fait en un clic.</p>
+    <table class="t"><tr><th>Statut</th><th>Signification</th></tr>
+    <tr><td><span class="stat s1">Nouvelle</span></td><td>Le client vient de commander. Rien n'est encore confirmé.</td></tr>
+    <tr><td><span class="stat s2">Confirmée</span></td><td>Vous avez validé le créneau (affecter une équipe confirme aussi la commande).</td></tr>
+    <tr><td><span class="stat s3">En cours</span></td><td>L'équipe est sur place.</td></tr>
+    <tr><td><span class="stat s4">Terminée</span></td><td>Intervention faite. Statut final.</td></tr>
+    <tr><td><span class="stat s5">Annulée</span></td><td>Commande annulée (le client est prévenu). Statut final, avec demande de confirmation.</td></tr></table>
+    <div class="wide"><h3><span class="n">1</span>Se connecter et lire le tableau de bord</h3><img src="img/a02-tableau-de-bord.jpg"><ul class="leg" style="margin-top:3mm"><li><b class="c">1</b><span>« À faire maintenant » : les nouvelles commandes à confirmer, les interventions du jour. Le statut se change directement depuis cette liste.</span></li><li><b class="c">2</b><span>La recherche (référence, nom, téléphone) est toujours en haut.</span></li><li><b class="c">3</b><span>Le menu : Réservations, Planning, Clients, Marketing, Configuration.</span></li></ul></div><div class="foot"><span>Guide administrateur</span><span>1</span></div></section><section class="page"><h2>Recevoir une commande</h2><p class="lead">La liste réunit tout ce qu'il faut pour décider, sans ouvrir de fiche.</p>
+    <div class="wide"><h3><span class="n">2</span>La liste des commandes</h3><img src="img/a03-liste-commandes.jpg"><ul class="leg" style="margin-top:3mm"><li><b class="c">1</b><span>Contact rapide : « Appeler » ou « WhatsApp » avec un message déjà rédigé.</span></li><li><b class="c">2</b><span>« Voir la position » ouvre la localisation du client.</span></li><li><b class="c">3</b><span>Photos envoyées par le client : touchez une miniature pour les agrandir sans quitter la liste.</span></li><li><b class="c">4</b><span>Le statut : touchez-le pour le changer.</span></li></ul></div>
+    <div class="wide"><h3><span class="n">3</span>Changer le statut en un clic</h3><img src="img/a04-statut-un-clic.jpg"><ul class="leg" style="margin-top:3mm"><li><b class="c">1</b><span>Le menu propose uniquement les statuts possibles à cet instant. Un clic suffit ; seule l'annulation demande une confirmation.</span></li></ul><div class="tip">Le client reçoit automatiquement le message correspondant (si les canaux de messagerie sont configurés).</div></div><div class="foot"><span>Guide administrateur</span><span>2</span></div></section><section class="page"><h2>La fiche d'une commande</h2><p class="lead">Un seul écran : statut, client, adresse, photos, équipe.</p>
+    <div class="wide"><h3><span class="n">4</span>Statut et coordonnées du client</h3><img src="img/a05-fiche-commande.jpg"><ul class="leg" style="margin-top:3mm"><li><b class="c">1</b><span>Les cinq statuts en haut : le statut actuel est surligné, les autres sont cliquables.</span></li><li><b class="c">2</b><span>Le bloc Client : numéro cliquable, boutons Appeler et WhatsApp.</span></li></ul></div>
+    <div class="wide"><h3><span class="n">5</span>Consulter la localisation</h3><img src="img/a06-localisation.jpg"><ul class="leg" style="margin-top:3mm"><li><b class="c">1</b><span>La carte montre l'endroit indiqué par le client (position GPS ou repère déplacé).</span></li><li><b class="c">2</b><span>« Itinéraire » lance la navigation dans Google Maps vers le client.</span></li></ul><div class="tip">Le texte sous la carte précise si la position vient du GPS ou a été placée à la main.</div></div><div class="foot"><span>Guide administrateur</span><span>3</span></div></section><section class="page"><h2>Photos et équipe</h2><p class="lead">Voir l'état des lieux avant d'envoyer quelqu'un.</p>
+    <div class="wide"><h3><span class="n">6</span>Visualiser les photos avant intervention</h3><img src="img/a07-photos.jpg"><ul class="leg" style="margin-top:3mm"><li><b class="c">1</b><span>Toutes les photos de la commande sont sur la même page, avec la mention « Client · avant ».</span></li></ul></div>
+    <div class="cols"><div><div class="wide"><h3><span class="n">7</span>Agrandir</h3><img src="img/a08-visionneuse.jpg"><p class="lead" style="margin-top:2mm">Touchez une photo : elle s'agrandit, les flèches passent à la suivante. Échap ou la croix pour fermer.</p></div></div>
+    <div><div class="wide"><h3><span class="n">8</span>Affecter une équipe</h3><img src="img/a10-affectation.jpg"><p class="lead" style="margin-top:2mm">Choisissez l'équipe puis « Affecter » : la commande passe en Confirmée.</p></div></div></div><div class="foot"><span>Guide administrateur</span><span>4</span></div></section><section class="page"><h2>Retrouver et configurer</h2><p class="lead">Quelques réglages à connaître.</p>
+    <div class="wide"><h3><span class="n">9</span>Rechercher une commande ou un client</h3><img src="img/a11-recherche.jpg"><ul class="leg" style="margin-top:3mm"><li><b class="c">1</b><span>La recherche couvre la référence, le nom et le téléphone.</span></li><li><b class="c">2</b><span>Les résultats sont groupés par type, avec le même menu de statut.</span></li></ul></div>
+    <div class="cols"><div><div class="wide"><h3><span class="n">10</span>Services et tarifs</h3><img src="img/a15-services.jpg"><p class="lead" style="margin-top:2mm">Menu Configuration puis Services : prix, durée, formules et options de chaque service.</p></div></div>
+    <div><div class="wide"><h3><span class="n">11</span>Quartiers de Dakar</h3><img src="img/a14-quartier-coordonnees.jpg"><p class="lead" style="margin-top:2mm">Chaque quartier a des frais de déplacement et des coordonnées GPS ; corrigez-les selon la réalité du terrain.</p></div></div></div><div class="foot"><span>Guide administrateur</span><span>5</span></div></section></body></html>

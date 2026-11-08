@@ -143,3 +143,12 @@ Tout se règle dans l'administration (**Marketing → Canaux marketing**, réser
 - Marketing : pas de création d'annonces. Les clients dont le consentement date d'avant la migration 012 n'ont pas de date de consentement. Faites valider le bandeau cookies et les mentions par un juriste (loi sénégalaise sur les données personnelles).
 - Les textes légaux fournis (CGV, confidentialité) sont indicatifs et à faire valider.
 - Le mode SaaS n'est que préparé : `company_id` existe, mais les tables enfants (formules, options…) se filtrent via leur parent, et il n'y a pas de gestion multi-entreprises.
+
+## Guides d'utilisation (PDF)
+
+Deux guides illustrés, avec captures d'écran de l'application réelle (données d'exemple) :
+
+- `docs/guides/guide-client.pdf` : réserver depuis un téléphone (service, position GPS et carte, photos, récapitulatif, suivi) ;
+- `docs/guides/guide-administrateur.pdf` : recevoir une commande, consulter la position et les photos, changer le statut en un clic.
+
+Pour les régénérer après une évolution de l'interface : `node docs/guides/make-photos.cjs`, puis migrer et charger une base d'exemple (`php bin/migrate.php`, `php bin/seed-dakar.php`, `php docs/guides/seed-demo.php`), lancer le serveur dessus, `node docs/guides/capture.cjs` et enfin `node docs/guides/make-guides.cjs`.
