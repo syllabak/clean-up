@@ -28,6 +28,8 @@ $r->post('/api/availability/days', [BookingController::class, 'days'], ['throttl
 $r->post('/api/availability/slots', [BookingController::class, 'slots'], ['throttle:api,120,60']);
 $r->post('/reservation', [BookingController::class, 'store'], ['throttle:booking,10,600']);
 $r->get('/reservation/confirmation/{ref}', [BookingController::class, 'confirmation']);
+$r->post('/reservation/{ref}/photos', [BookingController::class, 'photoUpload'], ['throttle:photo,60,600']);   // photos « avant » : prises ou importées par le client
+$r->get('/suivi/{ref}/photo/{id}', [BookingController::class, 'trackPhoto']);
 $r->get('/suivi', [BookingController::class, 'trackForm']);
 $r->post('/suivi', [BookingController::class, 'track'], ['throttle:track,10,600']);
 $r->get('/suivi/{ref}', [BookingController::class, 'trackShow']);

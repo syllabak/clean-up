@@ -506,6 +506,31 @@ $by = array_column(OnboardingService::steps(), 'done', 'label');
 T::ok($by["Renseigner les coordonnées de l'entreprise"] && $by['Supprimer ou sécuriser les comptes de démonstration'] && $by["Brancher l'envoi des emails ou des SMS"], 'étapes cochées une fois réglées');
 setting_set('mk_email_driver', '');
 
+// ------------------------------------------------------------------ Position et photos de la commande
+T::group('Position GPS et photos « avant intervention »');
+use App\Services\PhotoService;
+T::eq(BookingService::coords(['lat' => '14.7601', 'lng' => '-17.4402', 'location_source' => 'gps']), [14.7601, -17.4402, 'gps'], 'position valide conservée');
+T::eq(BookingService::coords(['lat' => 14.76, 'lng' => -17.44])[2], 'map', 'source inconnue : « map » par défaut');
+T::eq(BookingService::coords(['lat' => 48.85, 'lng' => 2.35]), [null, null, null], 'position hors du Sénégal ignorée');
+T::eq(BookingService::coords(['lat' => 'abc', 'lng' => 'x']), [null, null, null], 'position illisible ignorée');
+T::eq(BookingService::coords([]), [null, null, null], 'aucune position : la commande reste possible');
+$bkG = $svcB->create(wash_input(next_dow(1, 24), '14:00', 'Unité 15', ['first_name' => 'Gora', 'last_name' => 'Fall', 'phone' => '77 700 10 10', 'lat' => 14.7601, 'lng' => -17.4402, 'location_source' => 'gps']));
+$gp = DB::one('SELECT lat, lng, location_source FROM bookings WHERE id = ?', [$bkG['id']]);
+T::ok(abs((float) $gp['lat'] - 14.7601) < 1e-6 && abs((float) $gp['lng'] + 17.4402) < 1e-6 && $gp['location_source'] === 'gps', 'position enregistrée sur la commande');
+$bkN = $svcB->create(wash_input(next_dow(1, 17), '14:00', 'Unité 15', ['first_name' => 'Sans', 'last_name' => 'Position', 'phone' => '77 700 10 11']));
+T::eq(DB::val('SELECT lat FROM bookings WHERE id = ?', [$bkN['id']]), null, 'sans position : colonnes vides');
+$tmp = sys_get_temp_dir() . '/ph_' . getmypid() . '.png'; file_put_contents($tmp, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
+$img = fn() => ['error' => UPLOAD_ERR_OK, 'tmp_name' => $tmp, 'size' => filesize($tmp), 'name' => 'a.png'];
+$ps = new PhotoService(); $pb = DB::one('SELECT id, status FROM bookings WHERE id = ?', [$bkG['id']]);
+$first = $ps->addFromClient($pb, $img());
+T::ok($first > 0 && $ps->clientCount((int) $bkG['id']) === 1, 'photo du client enregistrée');
+T::eq((int) DB::val('SELECT COUNT(*) FROM booking_photos WHERE id = ? AND kind = \'before\' AND user_id IS NULL', [$first]), 1, 'classée « avant », sans agent');
+for ($i = 1; $i < PhotoService::MAX_CLIENT; $i++) $ps->addFromClient($pb, $img());
+T::throws(fn() => $ps->addFromClient($pb, $img()), RuntimeException::class, 'au-delà de 8 photos : refusé');
+T::throws(fn() => $ps->addFromClient(['id' => $bkN['id'], 'status' => 'completed'], $img()), RuntimeException::class, 'commande terminée : plus de photos');
+T::throws(fn() => $ps->addFromClient(['id' => $bkN['id'], 'status' => 'pending'], ['error' => UPLOAD_ERR_NO_FILE]), RuntimeException::class, 'aucun fichier : message clair');
+@unlink($tmp);
+
 // ------------------------------------------------------------------ Catalogue de Dakar
 T::group('Catalogue de Dakar : chargement, prix du marché, réservation');
 $dkFile = sys_get_temp_dir() . '/dakar_' . getmypid() . '.db';

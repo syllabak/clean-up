@@ -16,13 +16,14 @@ $wa = setting('company_whatsapp', '');
 <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
 <link rel="stylesheet" href="<?= asset('vendor/bootstrap.min.css') ?>">
 <link rel="stylesheet" href="<?= asset('css/app.css') ?>">
+<?php foreach ((array) ($page_css ?? []) as $css): ?><link rel="stylesheet" href="<?= asset($css) ?>"><?php endforeach ?>
 <?php $mkOn = \App\Services\TrackingService::enabled(); if ($mkOn): ?>
 <meta name="mk-config" content="<?= e(json_encode(\App\Services\TrackingService::publicConfig())) ?>">
 <?php if (!empty($mk_event)): ?><meta name="mk-event" content="<?= e(json_encode($mk_event)) ?>"><?php endif ?>
 <script src="<?= asset('js/marketing.js') ?>" defer></script>
 <?php endif ?>
 </head>
-<body class="site<?= ($page_js ?? "") === "booking.js" ? " is-booking" : "" ?>">
+<body class="site<?= in_array('booking.js', (array) ($page_js ?? []), true) ? " is-booking" : "" ?>">
 <a class="skip" href="#main">Aller au contenu</a>
 <header class="site-header">
   <nav class="navbar navbar-expand-lg container">
@@ -73,6 +74,6 @@ $wa = setting('company_whatsapp', '');
 <?php endif ?>
 <script src="<?= asset('vendor/bootstrap.bundle.min.js') ?>"></script>
 <script src="<?= asset('js/app.js') ?>"></script>
-<?php if (!empty($page_js)): ?><script src="<?= asset('js/' . $page_js) ?>"></script><?php endif ?>
+<?php foreach ((array) ($page_js ?? []) as $js): ?><script src="<?= asset(str_contains($js, '/') ? $js : 'js/' . $js) ?>"></script><?php endforeach ?>
 </body>
 </html>

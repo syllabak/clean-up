@@ -142,7 +142,7 @@ $day = $open[1];
 T::ok($s === 200 && count($slots) > 3 && !isset($slots[0]['team_id']), 'créneaux du jour reçus (sans exposer les équipes)');
 $start = $slots[0]['start'];
 
-$book = $pay + ['date' => $day, 'start' => $start, 'first_name' => 'Mariama', 'last_name' => 'Thiam', 'phone' => '77 456 78 90', 'email' => 'mariama@example.com', 'address_text' => 'Villa 24, rue 8, Unité 15', 'instructions' => 'Portail bleu', 'website' => ''];
+$book = $pay + ['date' => $day, 'start' => $start, 'first_name' => 'Mariama', 'last_name' => 'Thiam', 'phone' => '77 456 78 90', 'email' => 'mariama@example.com', 'address_text' => 'Villa 24, rue 8, Unité 15', 'instructions' => 'Portail bleu', 'website' => '', 'lat' => 14.7601, 'lng' => -17.4402, 'location_source' => 'gps'];
 [$s, , $b] = $cl->postJson('/reservation', array_merge($book, ['website' => 'http://spam.example']), $csrf); T::eq($s, 400, 'piège à robots (champ caché rempli) → refusé');
 [$s, , $b] = $cl->postJson('/reservation', $book, $csrf); $r = json_decode($b, true);
 T::ok($s === 201 && str_starts_with($r['reference'], 'CU-'), 'réservation créée : ' . ($r['reference'] ?? $b));
@@ -150,6 +150,24 @@ $ref = $r['reference'];
 $cl2 = new Client($port); $csrf2 = $cl2->token('/reserver');
 [$s, , $b] = $cl2->postJson('/reservation', array_merge($book, ['phone' => '77 111 22 33', 'first_name' => 'Autre']), $csrf2);
 T::ok($s === 409 && json_decode($b, true)['code'] === 'slot_taken', 'même créneau pris par un autre client → 409 « créneau pris »');
+
+// Position et photos « avant intervention »
+\App\Core\Database::reset();
+$row = \App\Core\Database::one('SELECT lat, lng, location_source FROM bookings WHERE reference = ?', [$ref]);
+T::ok($row && abs((float) $row['lat'] - 14.7601) < 0.0001 && abs((float) $row['lng'] + 17.4402) < 0.0001 && $row['location_source'] === 'gps', 'position GPS enregistrée avec la commande');
+[, , $pg] = $cl->get('/reserver'); T::ok(str_contains($pg, 'id="map"') && str_contains($pg, 'leaflet.js') && str_contains($pg, 'id="geo-btn"') && str_contains($pg, 'capture="environment"') && str_contains($pg, 'photos.js'), 'formulaire : carte, bouton de position, prise de photo et import');
+[$s, $hd] = $cl->get('/reserver'); T::ok(str_contains(implode(' ', $hd['content-security-policy'] ?? []), 'blob:'), 'CSP : aperçus de photos autorisés (blob:)');
+[$s, , $b] = $cl->multipart("/reservation/$ref/photos", ['_csrf' => $csrf], 'photo', 'avant.png', $PNG, 'image/png'); $ph = json_decode($b, true);
+T::ok($s === 201 && isset($ph['id']), 'photo « avant » envoyée par le client');
+[$s] = $cl->multipart("/reservation/$ref/photos", ['_csrf' => $csrf], 'photo', 'notes.png', '<?php echo 1;', 'image/png'); T::eq($s, 422, 'fichier qui n\'est pas une image refusé');
+[$s] = $cl2->multipart("/reservation/$ref/photos", ['_csrf' => $csrf2], 'photo', 'avant.png', $PNG, 'image/png'); T::eq($s, 403, 'un autre visiteur ne peut pas ajouter de photo à cette commande');
+[$s] = $cl->post("/reservation/$ref/photos", ['photo' => 'x']); T::eq($s, 419, 'envoi de photo sans jeton CSRF refusé');
+for ($i = 0; $i < 7; $i++) $cl->multipart("/reservation/$ref/photos", ['_csrf' => $csrf], 'photo', "p$i.png", $PNG, 'image/png');
+[$s, , $b] = $cl->multipart("/reservation/$ref/photos", ['_csrf' => $csrf], 'photo', 'trop.png', $PNG, 'image/png'); T::ok($s === 422 && str_contains($b, 'Maximum 8'), 'neuvième photo refusée (maximum 8)');
+[$s, $hd] = $cl->get("/suivi/$ref/photo/{$ph['id']}"); T::ok($s === 200 && str_contains(implode(' ', $hd['content-type'] ?? []), 'image/png'), 'le client revoit sa photo');
+[$s] = $cl2->get("/suivi/$ref/photo/{$ph['id']}"); T::eq($s, 302, 'un autre visiteur ne voit pas la photo');
+[$s] = (new Client($port))->get('/photo/' . $ph['id']); T::eq($s, 302, 'la photo n\'est pas publique (connexion exigée)');
+[$s, , $b] = $cl->get('/reservation/confirmation/' . $ref); T::ok($s === 200 && str_contains($b, 'class="cu-photos"') && str_contains($b, "/suivi/$ref/photo/"), 'confirmation : photos reçues affichées, ajout possible');
 [$s, , $b] = $cl->get($r['redirect']); T::ok($s === 200 && str_contains($b, $ref) && str_contains($b, '4 000'), 'page de confirmation avec référence et total (3000 + 1000 de déplacement)');
 [$s, $h] = $cl2->get($r['redirect']); T::eq($s, 302, 'la confirmation n\'est visible que par le client concerné');
 // Calculs côté serveur : le prix en base est celui du serveur

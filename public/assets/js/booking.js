@@ -1,4 +1,4 @@
-/* Parcours de réservation en 3 écrans (besoin, où et quand, coordonnées). Le prix et les créneaux viennent toujours du serveur ; il est
+/* Parcours de réservation en 3 écrans (besoin, où et quand, coordonnées). Position GPS + carte pour corriger ; photos avant intervention. Le prix et les créneaux viennent toujours du serveur ; il est
    recalculé et revalidé à la soumission : rien de ce qui s'affiche ici n'est pris pour argent comptant. */
 (function () {
   'use strict';
@@ -45,6 +45,7 @@
     $('prev').style.visibility = p === 0 ? 'hidden' : 'visible';
     $('next').textContent = p === 2 ? 'Confirmer la réservation' : 'Continuer';
     $('next').disabled = false;
+    if (p === 1) { initMap(); setTimeout(function () { if (G.map) G.map.invalidateSize(); }, 60); if (!G.asked) { G.asked = true; locate(); } }
     if (p === 1 && S.hood) loadDays();
     if (p === 2) renderRecap();
     window.scrollTo({ top: root.offsetTop - 80, behavior: 'smooth' });
@@ -168,9 +169,48 @@
 
   // ---------------------------------------------------------------- Lieu : un seul choix de quartier, groupé par commune
   var hoodData = [];
+  // ---------------------------------------------------------------- Position : géolocalisation automatique, carte pour corriger
+  var G = { lat: null, lng: null, src: null, map: null, marker: null, asked: false, manual: false, prog: false };
+  var DAKAR = [14.6937, -17.4441], MAX_KM = 15;
+  function setGeo(t, bad) { var s = $('geo-status'); if (s) { s.textContent = t || ''; s.classList.toggle('text-danger', !!bad); } }
+  function km(a, b, c, d) { var r = Math.PI / 180, x = (c - a) * r, y = (d - b) * r, h = Math.sin(x / 2) * Math.sin(x / 2) + Math.cos(a * r) * Math.cos(c * r) * Math.sin(y / 2) * Math.sin(y / 2); return 12742 * Math.asin(Math.sqrt(h)); }
+  function initMap() {
+    if (G.map || !window.L || !$('map')) return;
+    L.Icon.Default.prototype.options.imagePath = BASE + '/assets/vendor/leaflet/images/';
+    G.map = L.map('map', { scrollWheelZoom: false }).setView(DAKAR, 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { subdomains: 'abc', maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(G.map);
+    G.map.on('click', function (e) { place(e.latlng.lat, e.latlng.lng, 'map', false); });
+  }
+  function place(lat, lng, src, zoom) {
+    initMap(); if (!G.map) return;
+    G.lat = lat; G.lng = lng; G.src = src;
+    if (!G.marker) { G.marker = L.marker([lat, lng], { draggable: true }).addTo(G.map); G.marker.on('dragend', function () { var p = G.marker.getLatLng(); place(p.lat, p.lng, 'map', false); }); }
+    else G.marker.setLatLng([lat, lng]);
+    if (zoom) G.map.setView([lat, lng], 16); else G.map.panTo([lat, lng]);
+    detectHood();
+  }
+  /** Quartier le plus proche du repère : sélectionné tout seul tant que le client ne l'a pas choisi lui-même. */
+  function detectHood() {
+    if (G.lat === null || !hoodData.length) return;
+    var best = null;
+    hoodData.forEach(function (h) { if (h.lat === null || h.lat === undefined) return; var d = km(G.lat, G.lng, parseFloat(h.lat), parseFloat(h.lng)); if (!best || d < best.d) best = { h: h, d: d }; });
+    if (!best || best.d > MAX_KM) { setGeo('Cette position est hors des zones desservies. Choisissez votre quartier dans la liste.', true); return; }
+    if (!G.manual) { G.prog = true; $('hood').value = best.h.id; $('hood').dispatchEvent(new Event('change')); G.prog = false; }
+    setGeo((G.src === 'gps' ? 'Position détectée' : 'Repère placé') + ' · quartier : ' + best.h.name + (G.manual ? '' : '. Vous pouvez le modifier.'));
+  }
+  function locate() {
+    if (!navigator.geolocation) { setGeo('Votre appareil ne permet pas la géolocalisation. Touchez la carte pour placer votre adresse.', true); return; }
+    setGeo('Recherche de votre position…');
+    navigator.geolocation.getCurrentPosition(function (p) { place(p.coords.latitude, p.coords.longitude, 'gps', true); },
+      function (err) { setGeo(err.code === 1 ? 'Position refusée. Touchez la carte pour placer votre adresse.' : 'Position introuvable. Touchez la carte pour placer votre adresse.', true); },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+  }
+  if ($('geo-btn')) $('geo-btn').addEventListener('click', function () { G.manual = false; locate(); });
+
   function loadHoods(selectedId) {
     api('/api/geo/all/0').then(function (r) {
       hoodData = Array.isArray(r.data) ? r.data : [];
+      hoodData.forEach(function (h) { h.lat = h.lat === null ? null : parseFloat(h.lat); h.lng = h.lng === null ? null : parseFloat(h.lng); });
       var sel = $('hood'); sel.innerHTML = ''; sel.appendChild(el('option', { value: '', text: hoodData.length ? 'Choisir votre quartier' : 'Aucun quartier desservi pour le moment' }));
       var groups = {}, order = [];
       hoodData.forEach(function (h) { var g = h.commune + (h.city && h.city !== h.commune ? ' · ' + h.city : ''); if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(h); });
@@ -178,10 +218,12 @@
         var parent = order.length > 1 ? sel.appendChild(el('optgroup', { label: g })) : sel;
         groups[g].forEach(function (h) { parent.appendChild(el('option', { value: h.id, text: h.name })); });
       });
-      if (selectedId && hoodData.some(function (h) { return h.id === selectedId; })) { sel.value = selectedId; sel.dispatchEvent(new Event('change')); }
+      if (selectedId && hoodData.some(function (h) { return h.id === selectedId; })) { G.prog = true; sel.value = selectedId; sel.dispatchEvent(new Event('change')); G.prog = false; }
+      if (G.lat !== null) detectHood();
     });
   }
   $('hood').addEventListener('change', function () {
+    if (!G.prog) G.manual = true;   // le client a choisi lui-même : on ne le change plus
     var h = hoodData.filter(function (x) { return String(x.id) === $('hood').value; })[0];
     S.date = S.slot = null;
     if (!h) { S.hood = null; $('hood-info').textContent = ''; updateSide(); return; }
@@ -244,15 +286,23 @@
     (q.details || []).forEach(function (d) { if (d[0] !== 'Formule') row(d[0], d[1]); });
     row('Quand', fmtDay(S.date) + ' à ' + S.slot + ' (≈ ' + dur(q.duration) + ')');
     row('Où', $('address').value.trim() + ' — ' + S.hood.name);
+    if (G.lat !== null) row('Position', G.src === 'gps' ? 'Détectée ✓' : 'Placée sur la carte ✓');
+    if (PH && PH.count()) row('Photos', PH.count() + (PH.count() > 1 ? ' photos jointes' : ' photo jointe'));
     row('Sous-total', money(q.subtotal)); row('Déplacement', q.travel_fee ? money(q.travel_fee) : 'Offert'); row('Total estimé', money(q.total));
   }
   function submit() {
     $('next').disabled = true; $('next').textContent = 'Envoi en cours…';
     var nm = splitName($('full_name').value);
     var body = payload({ date: S.date, start: S.slot, first_name: nm.first, last_name: nm.last, phone: $('phone').value.trim(), email: $('email').value.trim(),
-      address_text: $('address').value.trim(), instructions: $('instructions').value.trim(), website: $('website').value, channel_id: $('channel') ? $('channel').value : '', marketing_consent: $('consent') ? $('consent').checked : false });
+      address_text: $('address').value.trim(), instructions: $('instructions').value.trim(), website: $('website').value, lat: G.lat, lng: G.lng, location_source: G.src, marketing_consent: $('consent') ? $('consent').checked : false });
     api('/reservation', body).then(function (r) {
-      if (r.ok) { saveProfile(); location.href = r.data.redirect; return; }
+      if (r.ok) {
+        saveProfile();
+        if (!PH || !PH.count()) { location.href = r.data.redirect; return; }
+        $('next').textContent = 'Envoi des photos…';   // la commande est créée ; une panne d'envoi ne l'annule pas (réessai possible sur la confirmation)
+        PH.uploadAll(r.data.reference, CSRF, function (d, t) { $('next').textContent = 'Envoi des photos ' + d + '/' + t + '…'; }).then(function () { location.href = r.data.redirect; });
+        return;
+      }
       if (r.status === 409) { S.slot = null; showError(r.data.error); go(1); return; }
       if (r.status === 429) { showError('Trop de tentatives. Patientez quelques minutes.'); } else showError(errText(r.data));
       $('next').disabled = false; $('next').textContent = 'Confirmer la réservation';
@@ -260,6 +310,7 @@
   }
 
   // ---------------------------------------------------------------- Coordonnées retenues sur cet appareil (jamais envoyées ailleurs)
+  var PH = (window.CuPhotos && $('photos')) ? window.CuPhotos.mount($('photos'), { deferred: true, onChange: function () { if (S.step === 2) renderRecap(); } }) : null;
   var PROFILE_KEY = 'cu_profile', PROFILE_FIELDS = ['full_name', 'phone', 'email', 'address', 'instructions'];
   function loadProfile() { try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); } catch (e) { return null; } }
   function saveProfile() {
