@@ -24,7 +24,12 @@ final class Database
 
     public static function sqlitePath(): string
     {
-        $p = Env::get('DB_SQLITE_PATH', 'storage/database/cleanup.db');
+        $p = Env::get('DB_SQLITE_PATH', '');
+        if ($p === '') {
+            // Défaut : cleanup.db ; une installation antérieure sans DB_SQLITE_PATH garde son ancien fichier.
+            $legacy = BASE_PATH . '/storage/database/lavage_test.db';
+            $p = (!is_file(BASE_PATH . '/storage/database/cleanup.db') && is_file($legacy)) ? 'storage/database/lavage_test.db' : 'storage/database/cleanup.db';
+        }
         return ($p[0] === '/' || preg_match('#^[A-Za-z]:[\\\\/]#', $p)) ? $p : BASE_PATH . '/' . $p;
     }
 
