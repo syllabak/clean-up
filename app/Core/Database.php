@@ -6,7 +6,7 @@ use PDO;
 use PDOStatement;
 
 /**
- * Accès aux données unique pour SQLite (dev/tests) et MySQL/MariaDB (production).
+ * Accès aux données unique : SQLite par défaut (aussi en production), MySQL/MariaDB en option.
  * Le code métier n'utilise que cette classe : le moteur se choisit via DB_DRIVER.
  */
 final class Database
@@ -24,7 +24,7 @@ final class Database
 
     public static function sqlitePath(): string
     {
-        $p = Env::get('DB_SQLITE_PATH', 'storage/database/lavage_test.db');
+        $p = Env::get('DB_SQLITE_PATH', 'storage/database/cleanup.db');
         return ($p[0] === '/' || preg_match('#^[A-Za-z]:[\\\\/]#', $p)) ? $p : BASE_PATH . '/' . $p;
     }
 

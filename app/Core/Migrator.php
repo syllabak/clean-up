@@ -37,8 +37,12 @@ final class Migrator
     public static function backup(): ?string
     {
         if (!Database::isSqlite() || !is_file(Database::sqlitePath())) return null;
-        $dest = BASE_PATH . '/storage/backups/' . date('Ymd_His') . '_' . basename(Database::sqlitePath());
-        copy(Database::sqlitePath(), $dest);
+        $dir = BASE_PATH . '/storage/backups';
+        if (!is_dir($dir)) mkdir($dir, 0775, true);
+        $dest = $dir . '/' . date('Ymd_His') . '_' . basename(Database::sqlitePath());
+        for ($i = 2; file_exists($dest); $i++) $dest = $dir . '/' . date('Ymd_His') . "-{$i}_" . basename(Database::sqlitePath());
+        // VACUUM INTO produit une copie cohérente même en mode WAL (un simple copy() peut ignorer les écritures du fichier -wal).
+        Database::pdo()->exec('VACUUM INTO ' . Database::pdo()->quote($dest));
         return $dest;
     }
 
