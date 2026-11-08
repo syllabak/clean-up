@@ -506,6 +506,41 @@ $by = array_column(OnboardingService::steps(), 'done', 'label');
 T::ok($by["Renseigner les coordonnées de l'entreprise"] && $by['Supprimer ou sécuriser les comptes de démonstration'] && $by["Brancher l'envoi des emails ou des SMS"], 'étapes cochées une fois réglées');
 setting_set('mk_email_driver', '');
 
+// ------------------------------------------------------------------ Catalogue de Dakar
+T::group('Catalogue de Dakar : chargement, prix du marché, réservation');
+$dkFile = sys_get_temp_dir() . '/dakar_' . getmypid() . '.db';
+DB::reset(); foreach (['', '-wal', '-shm'] as $sfx) @unlink($dkFile . $sfx);
+putenv('DB_DRIVER=sqlite'); putenv('DB_SQLITE_PATH=' . $dkFile); $GLOBALS['__settings_dirty'] = true;
+\App\Core\Migrator::run();
+require_once BASE_PATH . '/database/seeders/DakarCatalogSeeder.php';
+use Database\Seeders\DakarCatalogSeeder as Dk;
+T::eq(Dk::alreadyLoaded(), false, 'base vide : le catalogue peut se charger');
+T::eq(Dk::run(), ['services' => 9, 'neighborhoods' => 33, 'teams' => 4], '9 services, 33 quartiers, 4 équipes');
+T::eq(Dk::alreadyLoaded(), true, 'catalogue chargé : un second chargement est refusé (pas de doublons)');
+$cat = new \App\Services\CatalogService();
+foreach (DB::all('SELECT id, name FROM services') as $sv) T::eq(array_column(array_filter($cat->readiness((int) $sv['id']), fn($c) => $c[0] === 'bad'), 1), [], $sv['name'] . ' : prêt à être réservé');
+T::eq((int) DB::val('SELECT COUNT(*) FROM neighborhoods WHERE lat IS NOT NULL AND lng IS NOT NULL AND lat BETWEEN 14.5 AND 14.9 AND lng BETWEEN -17.6 AND -17.1'), 33, 'les 33 quartiers ont des coordonnées plausibles (région de Dakar)');
+$pq = new PricingService(); $plateau = nb('Plateau'); $almadies = nb('Almadies');
+$a = svc('lavage-automobile');
+T::eq($pq->quote($a, ['formula_id' => formula($a, 'Express'), 'fields' => ['vehicle' => choice($a, 'vehicle', 'Citadine'), 'count' => 1]], $plateau)['total'], 5000, 'lavage Express citadine = 5 000 (repère marché)');
+T::eq($pq->quote($a, ['formula_id' => formula($a, 'Complet'), 'fields' => ['vehicle' => choice($a, 'vehicle', 'Citadine'), 'count' => 1]], $plateau)['total'], 9000, 'lavage Complet citadine = 9 000');
+T::eq($pq->quote($a, ['formula_id' => formula($a, 'Détaillage'), 'fields' => ['vehicle' => choice($a, 'vehicle', 'Citadine'), 'count' => 1]], $plateau)['total'], 18000, 'lavage Détaillage citadine = 18 000');
+T::eq($pq->quote($a, ['formula_id' => formula($a, 'Complet'), 'fields' => ['vehicle' => choice($a, 'vehicle', 'SUV / 4x4'), 'count' => 2]], $almadies)['total'], 11000 * 2 + 1500, 'Complet SUV x2 à Almadies = 22 000 + 1 500 de déplacement');
+$c = svc('nettoyage-canapes-fauteuils');
+T::eq($pq->quote($c, ['fields' => ['seats' => choice($c, 'seats', 'Canapé 3 places'), 'material' => choice($c, 'material', 'Tissu')]], $plateau)['total'], 15000, 'canapé 3 places = 15 000 (5 000 la place)');
+$m = svc('nettoyage-matelas');
+T::eq($pq->quote($m, ['fields' => ['size' => choice($m, 'size', '2 places (140 cm)'), 'count' => 1]], $plateau)['total'], 20000, 'matelas 2 places = 20 000 (repère marché)');
+$t = svc('nettoyage-tapis-moquettes');
+T::eq($pq->quote($t, ['formula_id' => formula($t, 'Tapis'), 'fields' => ['area' => 10]], $plateau)['total'], 25000, 'tapis 10 m² = 25 000 (2 500 le m²)');
+$vt = svc('nettoyage-vitres');
+T::eq($pq->quote($vt, ['fields' => ['type' => choice($vt, 'type', 'Fenêtre'), 'count' => 4]], $plateau)['total'], 6000, '4 fenêtres = 6 000');
+$rp = svc('repassage-domicile');
+T::eq($pq->quote($rp, ['formula_id' => formula($rp, 'Panier de linge'), 'fields' => ['count' => 2]], $plateau)['total'], 7000, '2 paniers de repassage = 7 000 (3 500 le panier)');
+$bk = (new BookingService())->create(['first_name' => 'Awa', 'last_name' => 'Diop', 'phone' => '77 612 34 56', 'neighborhood_id' => $plateau, 'address_text' => 'Rue 10, près de la poste', 'date' => next_dow(2, 3), 'start' => '09:00',
+    'service_id' => $a, 'formula_id' => formula($a, 'Complet'), 'fields' => ['vehicle' => choice($a, 'vehicle', 'Citadine'), 'count' => 1]]);
+T::ok($bk['status'] === 'pending' && (int) $bk['total'] === 9000, 'une réservation de lavage dans le catalogue de Dakar passe : ' . $bk['reference']);
+DB::reset(); foreach (['', '-wal', '-shm'] as $sfx) @unlink($dkFile . $sfx);
+
 DB::reset();
 foreach (['', '-wal', '-shm'] as $s) @unlink($dbFile . $s);
 exit(T::summary());

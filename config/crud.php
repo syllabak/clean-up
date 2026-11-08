@@ -113,6 +113,8 @@ return [
             'travel_fee' => ['label' => 'Frais de déplacement', 'type' => 'number', 'default' => 0], 'avg_travel_minutes' => ['label' => 'Temps de trajet moyen (min)', 'type' => 'number', 'default' => 20, 'help' => 'Sert à espacer les interventions entre quartiers.'],
             'intervention_days' => ['label' => "Jours d'intervention", 'type' => 'weekdays', 'help' => 'Aucun jour coché = tous les jours.'],
             'slot_start' => ['label' => 'Plage horaire : début', 'type' => 'time', 'empty_string' => true, 'help' => 'Optionnel : limite les créneaux dans ce quartier.'], 'slot_end' => ['label' => 'Plage horaire : fin', 'type' => 'time', 'empty_string' => true],
+            'lat' => ['label' => 'Latitude (position sur la carte)', 'type' => 'coord', 'min' => -90, 'max' => 90, 'nullable' => true, 'help' => 'Ex. 14.6708. Sert à repérer le quartier d\'un client géolocalisé. Clic droit sur Google Maps → copier les coordonnées.'],
+            'lng' => ['label' => 'Longitude', 'type' => 'coord', 'min' => -180, 'max' => 180, 'nullable' => true, 'help' => 'Ex. -17.4380.'],
             'conditions' => ['label' => "Conditions d'accès", 'type' => 'textarea'], 'sort' => $sort, 'active' => $active,
             'teams' => ['label' => 'Équipes desservant ce quartier', 'type' => 'pivot', 'table' => 'neighborhood_teams', 'key' => 'neighborhood_id', 'other' => 'team_id', 'ref' => ['teams', 'name', 'deleted_at IS NULL'], 'help' => 'Aucune équipe cochée = toutes les équipes compétentes.'],
         ],

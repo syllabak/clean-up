@@ -208,6 +208,10 @@ final class CrudController extends Controller
                     $raw = str_replace(',', '.', $raw);
                     if (!preg_match('/^\d{1,4}(\.\d{1,2})?$/', $raw)) { $errors[$k] = "$label n'est pas un nombre valide."; break; }
                     $data[$col] = $raw; break;
+                case 'coord':   // latitude ou longitude : décimale signée, bornée par 'min' / 'max' du champ
+                    $raw = str_replace(',', '.', $raw);
+                    if (!preg_match('/^-?\d{1,3}(\.\d{1,6})?$/', $raw) || (isset($f['min']) && (float) $raw < $f['min']) || (isset($f['max']) && (float) $raw > $f['max'])) { $errors[$k] = "$label : valeur invalide" . (isset($f['min']) ? " (entre {$f['min']} et {$f['max']})." : '.'); break; }
+                    $data[$col] = $raw; break;
                 case 'email':
                     if (!filter_var($raw, FILTER_VALIDATE_EMAIL)) { $errors[$k] = "$label n'est pas un email valide."; break; }
                     $data[$col] = !empty($f['lower']) ? mb_strtolower($raw) : $raw; break;
