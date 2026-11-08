@@ -36,6 +36,7 @@
 
       <section class="wiz-step" data-step="3" aria-labelledby="t3">
         <h2 class="h4" id="t3">Comment vous joindre ?</h2>
+        <p class="small text-muted" id="prefill-note" hidden>Informations reprises de votre dernière réservation, gardées sur cet appareil uniquement. <a href="#" id="prefill-clear">Ce n'est pas vous ? Effacer</a></p>
         <div class="row g-3">
           <div class="col-md-6"><label class="form-label" for="first_name">Prénom</label><input id="first_name" class="form-control" autocomplete="given-name" maxlength="100"></div>
           <div class="col-md-6"><label class="form-label" for="last_name">Nom</label><input id="last_name" class="form-control" autocomplete="family-name" maxlength="100"></div>
