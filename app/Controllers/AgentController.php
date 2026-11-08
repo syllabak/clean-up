@@ -79,7 +79,7 @@ final class AgentController extends Controller
         $ph = DB::one('SELECT * FROM booking_photos WHERE id = ?', [(int) $id]) ?? abort(404);
         $allowed = Auth::can('bookings.view') || (Auth::can('agent.missions') && (new AssignmentService())->staffCanAccess(Auth::staffId(), (int) $ph['booking_id']));
         if (!$allowed) abort(403);
-        \App\Services\PhotoService::send($ph);
+        \App\Services\PhotoService::send($ph, Request::int('w') ?: null);
     }
 
     private function staffId(): int

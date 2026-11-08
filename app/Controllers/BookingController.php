@@ -118,7 +118,7 @@ final class BookingController extends Controller
     {
         $b = $this->owned(strtoupper($ref));
         $ph = Database::one('SELECT * FROM booking_photos WHERE id = ? AND booking_id = ? AND user_id IS NULL', [(int) $id, (int) $b['id']]) ?? abort(404);
-        \App\Services\PhotoService::send($ph);
+        \App\Services\PhotoService::send($ph, Request::int('w') ?: null);
     }
 
     public function confirmation(string $ref): void

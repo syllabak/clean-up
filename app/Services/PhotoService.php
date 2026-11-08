@@ -34,16 +34,46 @@ final class PhotoService
         return $id;
     }
 
-    /** Envoie le fichier de la photo au navigateur. L'appelant a déjà vérifié le droit d'accès. */
-    public static function send(array $photo): never
+    private const THUMBS = [160, 480];   // largeurs de vignettes autorisées
+
+    /**
+     * Envoie la photo au navigateur, en vignette si $width vaut 160 ou 480 (mise en cache ; l'original si GD est absent).
+     * L'appelant a déjà vérifié le droit d'accès.
+     */
+    public static function send(array $photo, ?int $width = null): never
     {
         $file = self::dir() . '/' . basename((string) $photo['path']);
         if (!is_file($file)) abort(404);
+        if ($width !== null && in_array($width, self::THUMBS, true) && function_exists('imagecreatefromstring')) {
+            $thumb = BASE_PATH . '/storage/cache/thumbs/' . (int) $photo['id'] . '_' . $width . '.jpg';
+            if (!is_file($thumb) && !self::makeThumb($file, $thumb, $width)) $thumb = null;
+            if ($thumb) { self::out($thumb, 'image/jpeg'); }
+        }
         $info = getimagesize($file);
-        header('Content-Type: ' . ($info['mime'] ?? 'application/octet-stream'));
+        self::out($file, $info['mime'] ?? 'application/octet-stream');
+    }
+
+    private static function out(string $file, string $mime): never
+    {
+        header('Content-Type: ' . $mime);
         header('Cache-Control: private, max-age=3600');
         header('X-Content-Type-Options: nosniff');
         readfile($file);
         exit;
+    }
+
+    private static function makeThumb(string $src, string $dest, int $w): bool
+    {
+        $img = @imagecreatefromstring((string) file_get_contents($src));
+        if (!$img) return false;
+        $sw = imagesx($img); $sh = imagesy($img);
+        if ($sw <= $w) { imagedestroy($img); return false; }   // déjà plus petite que la vignette : on sert l'original
+        $h = max(1, (int) round($sh * $w / $sw));
+        $out = imagecreatetruecolor($w, $h);
+        imagecopyresampled($out, $img, 0, 0, 0, 0, $w, $h, $sw, $sh);
+        if (!is_dir(dirname($dest))) mkdir(dirname($dest), 0775, true);
+        $ok = imagejpeg($out, $dest, 80);
+        imagedestroy($img); imagedestroy($out);
+        return $ok;
     }
 }

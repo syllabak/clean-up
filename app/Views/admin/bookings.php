@@ -9,16 +9,16 @@
   <div class="col-6 col-md-2"><label class="form-label small" for="to">Au</label><input class="form-control form-control-sm" type="date" id="to" name="to" value="<?= e($f['to'] ?? '') ?>"></div>
   <div class="col-12 col-md-auto"><button class="btn btn-sm btn-primary">Filtrer</button> <a class="btn btn-sm btn-outline-secondary" href="/admin/reservations">Réinitialiser</a></div>
 </form>
-<div class="panel p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
-  <thead><tr><th>Référence</th><th>Quand</th><th>Client</th><th>Service</th><th>Quartier</th><th>Équipe / agent</th><th>Total</th><th>Statut</th><th>Actions</th></tr></thead><tbody>
-  <?php foreach ($rows as $b): ?><tr>
-    <td><a href="/admin/reservations/<?= (int) $b['id'] ?>"><?= e($b['reference']) ?></a></td>
-    <td class="text-nowrap"><?= e(date('d/m/Y', strtotime($b['scheduled_date']))) ?> <?= e($b['start_time']) ?></td>
-    <td><?= e($b['customer_first_name'] . ' ' . $b['customer_last_name']) ?><br><span class="small text-muted"><?= e(phone_fmt($b['customer_phone'])) ?></span></td>
-    <td><?= e($b['service_name']) ?></td><td><?= e($b['neighborhood_name']) ?></td>
-    <td><?= e($b['team_name'] ?? '—') ?><?= $b['staff_name'] ? '<br><span class="small text-muted">' . e($b['staff_name']) . '</span>' : '' ?></td>
-    <td class="text-nowrap"><?= money((int) $b['total']) ?></td><td><?= status_badge($b['status']) ?></td>
-    <td class="text-nowrap"><?= confirm_button($b) ?> <?= contact_buttons($b['customer_phone'], booking_message($b)) ?></td></tr>
-  <?php endforeach; if (!$rows): ?><tr><td colspan="9" class="text-center text-muted py-4">Aucune réservation.</td></tr><?php endif ?>
+<div class="panel p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0 orders">
+  <thead><tr><th>Commande</th><th>Client</th><th>Service et lieu</th><th>Photos</th><th>Statut</th></tr></thead><tbody>
+  <?php foreach ($rows as $b): $hasPos = $b['lat'] !== null; $ids = implode(',', $b['photo_ids']); ?><tr>
+    <td><a class="fw-bold" href="/admin/reservations/<?= (int) $b['id'] ?>"><?= e($b['reference']) ?></a><br><span class="small"><?= e(date('d/m', strtotime($b['scheduled_date']))) ?> à <?= e($b['start_time']) ?></span><br><span class="small text-muted"><?= money((int) $b['total']) ?></span></td>
+    <td><strong><?= e($b['customer_first_name'] . ' ' . $b['customer_last_name']) ?></strong><br><span class="small text-muted"><?= e(phone_fmt($b['customer_phone'])) ?></span><div class="mt-1"><?= contact_buttons($b['customer_phone'], booking_message($b)) ?></div></td>
+    <td><?= e($b['service_name']) ?><br><span class="small text-muted"><?= e($b['neighborhood_name']) ?> · <?= e(mb_strimwidth((string) $b['address_text'], 0, 38, '…')) ?></span><br>
+      <a class="small loc <?= $hasPos ? '' : 'text-muted' ?>" href="/admin/reservations/<?= (int) $b['id'] ?>#carte" title="<?= $hasPos ? 'Position GPS partagée' : 'Adresse écrite seulement' ?>"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg> <?= $hasPos ? 'Voir la position' : 'Adresse seulement' ?></a></td>
+    <td><?php if ($b['photo_ids']): ?><div class="ph-row"><?php foreach (array_slice($b['photo_ids'], 0, 3) as $i => $pid): ?><button type="button" class="ph-thumb" data-ids="<?= e($ids) ?>" data-i="<?= $i ?>" aria-label="Agrandir la photo <?= $i + 1 ?>"><img src="/photo/<?= (int) $pid ?>?w=160" alt="" loading="lazy"></button><?php endforeach ?>
+      <?php if (count($b['photo_ids']) > 3): ?><button type="button" class="ph-more" data-ids="<?= e($ids) ?>" data-i="3">+<?= count($b['photo_ids']) - 3 ?></button><?php endif ?></div><?php else: ?><span class="text-muted small">—</span><?php endif ?></td>
+    <td><?= status_menu($b) ?></td></tr>
+  <?php endforeach; if (!$rows): ?><tr><td colspan="5" class="text-center text-muted py-4">Aucune réservation.</td></tr><?php endif ?>
 </tbody></table></div></div>
 <?= \App\Core\View::partial('partials/pagination', ['page' => $page, 'pages' => $pages]) ?>

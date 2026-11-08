@@ -152,6 +152,7 @@ $cl2 = new Client($port); $csrf2 = $cl2->token('/reserver');
 T::ok($s === 409 && json_decode($b, true)['code'] === 'slot_taken', 'même créneau pris par un autre client → 409 « créneau pris »');
 
 // Position et photos « avant intervention »
+$refGeo = $ref;   // commande qui porte la position et les photos, réutilisée par les tests d'administration
 \App\Core\Database::reset();
 $row = \App\Core\Database::one('SELECT lat, lng, location_source FROM bookings WHERE reference = ?', [$ref]);
 T::ok($row && abs((float) $row['lat'] - 14.7601) < 0.0001 && abs((float) $row['lng'] + 17.4402) < 0.0001 && $row['location_source'] === 'gps', 'position GPS enregistrée avec la commande');
@@ -480,6 +481,47 @@ if ($pend) {
     \App\Core\Database::reset();
     T::ok($s === 302 && str_ends_with($h['location'][0], '/admin/reservations') && \App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$pend]) === 'confirmed', 'Confirmer en un clic : statut changé, retour sur la liste');
 } else T::ok(true, 'aucune réservation en attente à confirmer dans ce jeu d\'essai');
+
+// ------------------------------------------------------------------ Administration : photos, localisation, statut en un clic
+T::group('Administration : liste avec photos et localisation, statut en un clic, visionneuse');
+\App\Core\Database::reset();
+$refId = (int) \App\Core\Database::val('SELECT id FROM bookings WHERE reference = ?', [$refGeo]);
+[$s, , $b] = $admin->get('/admin/reservations?q=' . $refGeo);
+T::ok($s === 200 && str_contains($b, 'class="ph-thumb"') && str_contains($b, '?w=160') && str_contains($b, 'Voir la position') && str_contains($b, 'data-ids='), 'liste : vignettes de photos, localisation et visionneuse');
+T::ok(str_contains($b, '+5') && substr_count($b, 'class="ph-thumb"') === 3, 'liste : trois vignettes et « +5 » quand il y a 8 photos');
+T::ok(str_contains($b, 'wa.me/') && str_contains($b, 'tel:+'), 'liste : appeler et WhatsApp directement');
+T::ok(!str_contains($b, '<th>Équipe / agent</th>') && substr_count($b, '<th>') === 5, 'liste : cinq colonnes utiles seulement');
+[$s, , $b] = $admin->get("/admin/reservations/$refId");
+T::ok($s === 200 && str_contains($b, 'class="seg-status') && preg_match_all('/class="seg [^"]*"/', $b) >= 4 && str_contains($b, 'Nouvelle') && str_contains($b, 'Confirmée') && str_contains($b, 'En cours') && str_contains($b, 'Terminée') && str_contains($b, 'Annulée'), 'fiche : les cinq statuts en boutons');
+T::ok(str_contains($b, 'id="order-map"') && str_contains($b, 'data-lat="14.7601"') && str_contains($b, 'Itinéraire') && str_contains($b, 'google.com/maps/dir'), 'fiche : carte, position et itinéraire');
+T::ok(substr_count($b, 'ph-thumb ph-lg') === 8 && str_contains($b, 'Client · avant') && str_contains($b, 'leaflet.js') && str_contains($b, 'admin-orders.js'), 'fiche : les 8 photos du client, agrandissables');
+T::ok(!str_contains($b, 'Montant encaissé') && !str_contains($b, 'id="resched"'), 'fiche : champs inutiles masqués (montant avant intervention, déplacement d\'une commande annulée)');
+[$s] = $m->get("/admin/reservations/$refId"); T::eq($s, 200, 'gestionnaire : fiche accessible');
+
+// un clic pour changer de statut, depuis la liste
+$pend = (int) \App\Core\Database::val("SELECT id FROM bookings WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
+if ($pend) {
+    [, , $b] = $admin->get('/admin/reservations?status=pending'); T::ok(str_contains($b, 'class="stmenu"') && str_contains($b, 'value="in_progress"') && str_contains($b, 'data-confirm="Annuler'), 'liste : menu de statut en un clic (annulation avec confirmation)');
+    $tt = $admin->token('/admin/reservations');
+    foreach (['in_progress', 'confirmed', 'completed'] as $to) {
+        [$s, $h] = $admin->req('POST', "/admin/reservations/$pend/statut", ['_csrf' => $tt, 'to' => $to, 'back' => '1'], ['Referer: http://127.0.0.1:' . $port . '/admin/reservations']); \App\Core\Database::reset();
+        T::ok($s === 302 && str_ends_with($h['location'][0], '/admin/reservations') && \App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$pend]) === $to, "un clic : statut → $to");
+    }
+    $admin->post("/admin/reservations/$pend/statut", ['_csrf' => $tt, 'to' => 'pending']); \App\Core\Database::reset();
+    T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$pend]), 'completed', 'terminée : définitive, aucun retour en arrière');
+}
+[$s] = $m->post("/admin/reservations/$refId/statut", ['_csrf' => $m->token('/admin/reservations'), 'to' => 'pending']); T::ok($s === 302, 'gestionnaire : le changement de statut passe par les mêmes règles');
+$ag2 = new Client($port); [$s] = $ag2->get("/admin/reservations/$refId"); T::eq($s, 302, 'anonyme : fiche réservation protégée');
+
+// vignettes réelles
+$gd = imagecreatetruecolor(900, 600); imagefilledrectangle($gd, 0, 0, 900, 600, imagecolorallocate($gd, 40, 120, 200)); ob_start(); imagepng($gd); $big = ob_get_clean();
+$fn = bin2hex(random_bytes(8)) . '.png'; file_put_contents(BASE_PATH . '/storage/uploads/missions/' . $fn, $big);
+$pid = \App\Core\Database::insert('booking_photos', ['booking_id' => $refId, 'user_id' => null, 'kind' => 'before', 'path' => $fn, 'created_at' => now()]);
+[$s, $h, $body] = $admin->get("/photo/$pid?w=160"); $info = @getimagesizefromstring($body);
+T::ok($s === 200 && $info && $info[0] === 160 && str_contains(implode(' ', $h['content-type'] ?? []), 'image/jpeg') && strlen($body) < strlen($big), 'vignette 160 px générée en JPEG, plus légère que l\'original');
+[$s, , $body] = $admin->get("/photo/$pid?w=999"); $info = @getimagesizefromstring($body); T::ok($s === 200 && $info[0] === 900, 'largeur non prévue : l\'original est servi (pas de redimensionnement arbitraire)');
+[$s, , $body] = $admin->get("/photo/$pid"); T::ok($s === 200 && @getimagesizefromstring($body)[0] === 900, 'sans paramètre : photo en grand');
+@unlink(BASE_PATH . '/storage/uploads/missions/' . $fn); @unlink(BASE_PATH . '/storage/cache/thumbs/' . $pid . '_160.jpg'); \App\Core\Database::exec('DELETE FROM booking_photos WHERE id = ?', [$pid]);
 
 // ------------------------------------------------------------------ Cron
 T::group('Tâches planifiées HTTP');

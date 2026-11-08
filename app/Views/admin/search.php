@@ -4,7 +4,7 @@
 <?php elseif (!$bookings && !$customers && !$leads): ?><p class="text-muted">Aucun résultat pour « <?= e($q) ?> ».</p><?php endif ?>
 <?php if ($bookings): ?><div class="panel"><h2>Réservations</h2><div class="table-responsive"><table class="table table-sm align-middle mb-0"><tbody>
   <?php foreach ($bookings as $b): ?><tr><td><a href="/admin/reservations/<?= (int) $b['id'] ?>"><?= e($b['reference']) ?></a></td><td class="text-nowrap"><?= e(date('d/m/Y', strtotime($b['scheduled_date']))) ?> <?= e($b['start_time']) ?></td>
-    <td><?= e($b['customer_first_name'] . ' ' . $b['customer_last_name']) ?></td><td><?= e($b['service_name']) ?></td><td><?= status_badge($b['status']) ?></td><td class="text-nowrap text-end"><?= confirm_button($b) ?> <?= contact_buttons($b['customer_phone'], booking_message($b)) ?></td></tr><?php endforeach ?>
+    <td><?= e($b['customer_first_name'] . ' ' . $b['customer_last_name']) ?></td><td><?= e($b['service_name']) ?></td><td><?= status_menu($b) ?></td><td class="text-nowrap text-end"><?= contact_buttons($b['customer_phone'], booking_message($b)) ?></td></tr><?php endforeach ?>
 </tbody></table></div></div><?php endif ?>
 <?php if ($customers): ?><div class="panel"><h2>Clients</h2><div class="table-responsive"><table class="table table-sm align-middle mb-0"><tbody>
   <?php foreach ($customers as $c): ?><tr><td><a href="/admin/clients/<?= (int) $c['id'] ?>"><?= e($c['first_name'] . ' ' . $c['last_name']) ?></a></td><td><?= e(phone_fmt($c['phone'])) ?></td><td><?= e((string) $c['email']) ?></td><td class="text-nowrap text-end"><?= contact_buttons($c['phone']) ?></td></tr><?php endforeach ?>

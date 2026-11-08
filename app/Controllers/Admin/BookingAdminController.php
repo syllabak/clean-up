@@ -21,8 +21,13 @@ final class BookingAdminController extends Controller
         $page = max(1, Request::int('page', 1));
         $total = $repo->count($f);
         $cid = Env::companyId();
-        $this->admin('admin/bookings', [
-            'title' => 'Réservations', 'rows' => $repo->search($f, self::PER_PAGE, ($page - 1) * self::PER_PAGE), 'total' => $total, 'page' => $page, 'pages' => max(1, (int) ceil($total / self::PER_PAGE)), 'f' => $f,
+        $rows = $repo->search($f, self::PER_PAGE, ($page - 1) * self::PER_PAGE);
+        $photoIds = [];
+        if ($rows) foreach (DB::all('SELECT booking_id, id FROM booking_photos WHERE booking_id IN (' . implode(',', array_map(fn($r) => (int) $r['id'], $rows)) . ') ORDER BY id') as $p) $photoIds[(int) $p['booking_id']][] = (int) $p['id'];
+        foreach ($rows as &$r) $r['photo_ids'] = $photoIds[(int) $r['id']] ?? [];
+        unset($r);
+        $this->admin('admin/bookings', ['page_js' => 'admin-orders.js',
+            'title' => 'Réservations', 'rows' => $rows, 'total' => $total, 'page' => $page, 'pages' => max(1, (int) ceil($total / self::PER_PAGE)), 'f' => $f,
             'teams' => DB::all('SELECT id, name FROM teams WHERE company_id = ? AND deleted_at IS NULL ORDER BY name', [$cid]),
             'services' => DB::all('SELECT id, name FROM services WHERE company_id = ? AND deleted_at IS NULL ORDER BY name', [$cid]),
             'hoods' => DB::all('SELECT id, name FROM neighborhoods WHERE company_id = ? AND deleted_at IS NULL ORDER BY name', [$cid]),
@@ -35,7 +40,7 @@ final class BookingAdminController extends Controller
         $b = $repo->find((int) $id) ?? abort(404);
         $cid = Env::companyId();
         $this->admin('admin/booking', [
-            'title' => 'Réservation ' . $b['reference'], 'page_js' => 'admin-booking.js', 'b' => $b, 'items' => $repo->items((int) $id), 'history' => $repo->history((int) $id), 'notes' => $repo->notes((int) $id), 'photos' => $repo->photos((int) $id),
+            'title' => 'Réservation ' . $b['reference'], 'page_js' => ['vendor/leaflet/leaflet.js', 'admin-orders.js', 'admin-booking.js'], 'page_css' => ['vendor/leaflet/leaflet.css'], 'b' => $b, 'items' => $repo->items((int) $id), 'history' => $repo->history((int) $id), 'notes' => $repo->notes((int) $id), 'photos' => $repo->photos((int) $id),
             'next' => BookingService::TRANSITIONS[$b['status']] ?? [],
             'teams' => DB::all("SELECT id, name FROM teams WHERE company_id = ? AND deleted_at IS NULL AND status = 'active' ORDER BY name", [$cid]),
             'staff' => DB::all("SELECT s.id, s.name, s.team_id, t.name AS team_name FROM staff s LEFT JOIN teams t ON t.id = s.team_id WHERE s.company_id = ? AND s.deleted_at IS NULL AND s.status = 'active' ORDER BY t.name, s.name", [$cid]),
