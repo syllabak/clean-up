@@ -1,0 +1,5 @@
+out/
+audio/*.mp3
+audio/*.m4a
+audio/*.wav
+audio/vo_timing_estime.json

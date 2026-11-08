@@ -13,7 +13,7 @@ final class BookingController extends Controller
     {
         $services = Database::all("SELECT id, name, slug, short_description, billing_unit FROM services WHERE company_id = ? AND active = 1 AND deleted_at IS NULL AND availability_status = 'available' ORDER BY sort", [Env::companyId()]);
         foreach ($services as &$s) $s['from_price'] = ServiceController::fromPrice(Database::one('SELECT * FROM services WHERE id = ?', [$s['id']]));
-        $this->view('public/booking', ['title' => 'Réserver une prestation', 'services' => $services, 'preselect' => Request::str('service'), 'preformula' => Request::int('formula'), 'channels' => Database::all('SELECT id, name FROM acquisition_channels WHERE company_id = ? AND active = 1 AND public = 1 AND deleted_at IS NULL ORDER BY sort, name', [Env::companyId()]), 'currency' => setting('currency', 'FCFA'), 'noindex' => true, 'page_js' => 'booking.js']);
+        $this->view('public/booking', ['title' => 'Réserver une prestation', 'services' => $services, 'preselect' => Request::str('service'), 'preformula' => Request::int('formula'), 'page_js' => ['vendor/leaflet/leaflet.js', 'photos.js', 'booking.js'], 'page_css' => ['vendor/leaflet/leaflet.css'], 'channels' => Database::all('SELECT id, name FROM acquisition_channels WHERE company_id = ? AND active = 1 AND public = 1 AND deleted_at IS NULL ORDER BY sort, name', [Env::companyId()]), 'currency' => setting('currency', 'FCFA'), 'noindex' => true]);
     }
 
     public function formDef(string $id): void
@@ -51,7 +51,7 @@ final class BookingController extends Controller
             'communes' => Database::all('SELECT id, name FROM communes WHERE city_id = ? AND active = 1 AND deleted_at IS NULL ORDER BY name', [$id]),
             'neighborhoods' => array_map($days, Database::all('SELECT id, name, travel_fee, intervention_days, conditions FROM neighborhoods WHERE commune_id = ? AND active = 1 AND deleted_at IS NULL ORDER BY sort, name', [$id])),
             // Tous les quartiers desservis en une liste, groupés par commune : un seul choix pour le client.
-            'all' => array_map($days, Database::all('SELECT n.id, n.name, n.travel_fee, n.intervention_days, n.conditions, c.name AS commune, ci.name AS city
+            'all' => array_map($days, Database::all('SELECT n.id, n.name, n.travel_fee, n.intervention_days, n.conditions, n.lat, n.lng, c.name AS commune, ci.name AS city
                 FROM neighborhoods n JOIN communes c ON c.id = n.commune_id AND c.active = 1 AND c.deleted_at IS NULL
                 JOIN cities ci ON ci.id = c.city_id AND ci.active = 1 AND ci.deleted_at IS NULL JOIN regions r ON r.id = ci.region_id AND r.active = 1 AND r.deleted_at IS NULL
                 WHERE n.company_id = ? AND n.active = 1 AND n.deleted_at IS NULL ORDER BY ci.name, c.name, n.sort, n.name', [$cid])),
@@ -102,13 +102,33 @@ final class BookingController extends Controller
         json_response(['reference' => $b['reference'], 'redirect' => with_base('/reservation/confirmation/' . $b['reference'])], 201);
     }
 
+    /** Photo « avant intervention » envoyée par le client. Réservé à celui qui vient de commander ou qui a ouvert son suivi. */
+    public function photoUpload(string $ref): void
+    {
+        $b = (new BookingRepository())->findByReference(strtoupper($ref)) ?? abort(404);
+        if (empty(Session::get('track_ok', [])[$b['reference']])) json_response(['error' => 'Ouvrez d\'abord le suivi de votre commande.'], 403);
+        $svc = new \App\Services\PhotoService();
+        try { $id = $svc->addFromClient($b, $_FILES['photo'] ?? ['error' => UPLOAD_ERR_NO_FILE]); }
+        catch (\RuntimeException $e) { json_response(['error' => $e->getMessage()], 422); }
+        json_response(['id' => $id, 'count' => $svc->clientCount((int) $b['id'])], 201);
+    }
+
+    /** Le client revoit ses propres photos (lien de suivi ou référence + téléphone). */
+    public function trackPhoto(string $ref, string $id): void
+    {
+        $b = $this->owned(strtoupper($ref));
+        $ph = Database::one('SELECT * FROM booking_photos WHERE id = ? AND booking_id = ? AND user_id IS NULL', [(int) $id, (int) $b['id']]) ?? abort(404);
+        \App\Services\PhotoService::send($ph, Request::int('w') ?: null);
+    }
+
     public function confirmation(string $ref): void
     {
         $b = (new BookingRepository())->findByReference($ref);
         if (!$b || Session::get('last_booking') !== $ref) redirect('/suivi');
         $this->view('public/confirmation', ['title' => 'Réservation enregistrée', 'b' => $b, 'items' => (new BookingRepository())->items((int) $b['id']), 'noindex' => true,
             'mk_event' => ['name' => 'booking', 'id' => $b['reference'], 'value' => (int) $b['total'],],
-            'track_link' => url('/suivi/' . $b['reference'] . '/' . $b['track_token'])]);
+            'track_link' => url('/suivi/' . $b['reference'] . '/' . $b['track_token']),
+            'photos' => array_values(array_filter((new \App\Services\PhotoService())->forBooking((int) $b['id']), fn($p) => $p['user_id'] === null)), 'page_js' => 'photos.js', 'csrf' => \App\Core\Csrf::token()]);
     }
 
     // ------------------------------------------------------------ Suivi par le client (référence + téléphone)
@@ -148,7 +168,8 @@ final class BookingController extends Controller
         $b = $this->owned($ref);
         $repo = new BookingRepository();
         $this->view('public/track_show', ['title' => 'Réservation ' . $ref, 'b' => $b, 'items' => $repo->items((int) $b['id']), 'history' => $repo->history((int) $b['id']),
-            'can_cancel' => $this->canCancel($b), 'noindex' => true,
+            'can_cancel' => $this->canCancel($b), 'noindex' => true, 'page_js' => 'photos.js', 'csrf' => \App\Core\Csrf::token(),
+            'photos' => array_values(array_filter((new \App\Services\PhotoService())->forBooking((int) $b['id']), fn($p) => $p['user_id'] === null)),
             'rebook' => in_array($b['status'], ['completed', 'cancelled'], true) ? '/reserver?service=' . rawurlencode((string) $b['service_slug']) : null]);
     }
 

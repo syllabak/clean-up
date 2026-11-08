@@ -89,7 +89,7 @@ final class NotificationService
     {
         $hours = (int) setting('reminder_hours_before', '24');
         $limit = date('Y-m-d H:i', time() + $hours * 3600);
-        $rows = Database::all("SELECT id, scheduled_date, start_time FROM bookings WHERE status IN ('pending','confirmed','assigned') AND reminder_sent_at IS NULL AND scheduled_date >= ? AND scheduled_date <= ?", [date('Y-m-d'), date('Y-m-d', time() + $hours * 3600)]);
+        $rows = Database::all("SELECT id, scheduled_date, start_time FROM bookings WHERE status IN ('pending','confirmed') AND reminder_sent_at IS NULL AND scheduled_date >= ? AND scheduled_date <= ?", [date('Y-m-d'), date('Y-m-d', time() + $hours * 3600)]);
         $n = 0;
         foreach ($rows as $r) {
             $when = $r['scheduled_date'] . ' ' . $r['start_time'];

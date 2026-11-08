@@ -109,12 +109,10 @@ function abort(int $code, string $msg = ''): never
 
 const DAYS_FR = [1 => 'Lundi', 2 => 'Mardi', 3 => 'Mercredi', 4 => 'Jeudi', 5 => 'Vendredi', 6 => 'Samedi', 7 => 'Dimanche'];
 
-const BOOKING_STATUSES = [
-    'pending' => ['En attente', 'warning'],
+const BOOKING_STATUSES = [   // cinq statuts seulement : l'équipe affectée se voit à part, ce n'est pas une étape
+    'pending' => ['Nouvelle', 'warning'],
     'confirmed' => ['Confirmée', 'primary'],
-    'assigned' => ['Affectée', 'info'],
-    'en_route' => ['En route', 'secondary'],
-    'in_progress' => ['En intervention', 'dark'],
+    'in_progress' => ['En cours', 'dark'],
     'completed' => ['Terminée', 'success'],
     'cancelled' => ['Annulée', 'danger'],
 ];
@@ -158,16 +156,22 @@ function contact_buttons(string $phone, string $text = ''): string
     return '<a class="btn btn-sm btn-outline-secondary" href="tel:+' . e(preg_replace('/\D/', '', $phone)) . '">Appeler</a> '
         . '<a class="btn btn-sm btn-outline-success" target="_blank" rel="noopener" href="' . e(wa_link($phone, $text)) . '">WhatsApp</a>';
 }
-/** Bouton « Confirmer » en un clic pour une réservation en attente (revient sur la page d'origine). */
-function confirm_button(array $b): string
-{
-    if ($b['status'] !== 'pending' || !can('bookings.manage')) return '';
-    return '<form method="post" action="/admin/reservations/' . (int) $b['id'] . '/statut" class="d-inline">' . csrf_field()
-        . '<input type="hidden" name="to" value="confirmed"><input type="hidden" name="back" value="1"><button class="btn btn-sm btn-primary">Confirmer</button></form>';
-}
 /** Message WhatsApp prérempli au sujet d'une réservation. */
 function booking_message(array $b): string
 {
     return 'Bonjour ' . $b['customer_first_name'] . ', ici ' . setting('company_name', '') . ' au sujet de votre réservation ' . $b['reference']
         . ' du ' . fmt_date($b['scheduled_date']) . ' à ' . $b['start_time'] . '. ';
+}
+
+/** Statut d'une commande avec, en un clic, le passage à un autre statut (liste, tableau de bord, recherche). */
+function status_menu(array $b): string
+{
+    $to = \App\Services\BookingService::TRANSITIONS[$b['status']] ?? [];
+    if (!$to || !can('bookings.manage')) return status_badge($b['status']);
+    $h = '<details class="stmenu"><summary>' . status_badge($b['status']) . ' <span class="caret" aria-hidden="true">▾</span></summary><div class="stmenu-list">';
+    foreach ($to as $s) {
+        $confirm = $s === 'cancelled' ? ' data-confirm="Annuler cette commande ? Cette action est définitive."' : '';
+        $h .= '<form method="post" action="/admin/reservations/' . (int) $b['id'] . '/statut"' . $confirm . '>' . csrf_field() . '<input type="hidden" name="to" value="' . e($s) . '"><input type="hidden" name="back" value="1"><button>' . e(status_label($s)) . '</button></form>';
+    }
+    return $h . '</div></details>';
 }

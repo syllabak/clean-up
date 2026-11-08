@@ -33,6 +33,7 @@ $u = Auth::user();
 <title><?= e($title ?? 'Administration') ?> — <?= e(setting('company_name')) ?></title>
 <link rel="icon" type="image/png" href="/assets/icons/icon-192.png">
 <link rel="stylesheet" href="<?= asset('vendor/bootstrap.min.css') ?>"><link rel="stylesheet" href="<?= asset('css/app.css') ?>">
+<?php foreach ((array) ($page_css ?? []) as $css): ?><link rel="stylesheet" href="<?= asset($css) ?>"><?php endforeach ?>
 </head>
 <body class="admin">
 <div class="admin-shell">
@@ -61,5 +62,5 @@ $u = Auth::user();
 </div>
 <script src="<?= asset('vendor/bootstrap.bundle.min.js') ?>"></script>
 <script src="<?= asset('js/app.js') ?>"></script>
-<?php if (!empty($page_js)): ?><script src="<?= asset('js/' . $page_js) ?>"></script><?php endif ?>
+<?php foreach ((array) ($page_js ?? []) as $js): ?><script src="<?= asset(str_contains($js, '/') ? $js : 'js/' . $js) ?>"></script><?php endforeach ?>
 </body></html>

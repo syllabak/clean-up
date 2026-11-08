@@ -28,7 +28,7 @@ final class DashboardController extends Controller
         }
         $byStatus = array_column(DB::all("SELECT status, COUNT(*) AS n FROM bookings WHERE company_id = ? AND scheduled_date >= ? GROUP BY status", [$cid, $monthStart]), 'n', 'status');
         $repo = new \App\Repositories\BookingRepository();
-        $unassigned = array_values(array_filter($repo->between($today, date('Y-m-d', strtotime('+3 day'))), fn($b) => in_array($b['status'], ['pending', 'confirmed'], true)));
+        $unassigned = array_values(array_filter($repo->between($today, date('Y-m-d', strtotime('+3 day'))), fn($b) => in_array($b['status'], ['pending', 'confirmed'], true) && !DB::val('SELECT 1 FROM booking_assignments WHERE booking_id = ? AND active = 1', [(int) $b['id']])));
         $todo = [];
         $add = function (int $n, string $perm, string $singular, string $plural, string $href, string $cta) use (&$todo) { if ($n > 0 && can($perm)) $todo[] = [$n, $n > 1 ? $plural : $singular, $href, $cta]; };
         $add($stats['pending'], 'bookings.view', 'réservation à confirmer', 'réservations à confirmer', '/admin/reservations?status=pending', 'Confirmer');

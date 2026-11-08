@@ -28,7 +28,7 @@ L'application tourne sur **SQLite**, y compris en production : un seul fichier, 
 1. Dans `.env` : `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://votre-domaine`, SMTP, SMS, un `CRON_TOKEN` long et aléatoire. Laissez `DB_DRIVER=sqlite`.
 2. Faites pointer le serveur web sur `public/` (sinon le `.htaccess` racine redirige vers `public/`). `storage/` (donc la base) et `.env` ne doivent jamais être exposés. Le dossier `storage/` doit être accessible en écriture par PHP.
 3. `php bin/migrate.php` (sans `--seed`, qui est de toute façon refusé en production), puis `php bin/create-admin.php vous@domaine.sn "Votre nom"`.
-4. Saisissez vos vraies données dans l'administration : services, zones, équipes, horaires.
+4. **Catalogue de départ pour Dakar** (recommandé sur une base vide) : `php bin/seed-dakar.php` charge 9 services avec leurs tarifs, 33 quartiers avec coordonnées, 4 équipes et leurs horaires (voir « Catalogue de Dakar » ci-dessous). Sinon, saisissez vos données dans l'administration : services, zones, équipes, horaires.
 5. Passez le site en HTTPS (les cookies de session deviennent `Secure`, HSTS est envoyé).
 
 **Sauvegardes SQLite** : `php bin/backup.php [nombre]` fait une copie cohérente dans `storage/backups/` (14 conservées par défaut). À planifier chaque nuit (`0 2 * * * php /chemin/du/projet/bin/backup.php`) et à copier régulièrement hors du serveur. Une copie est aussi faite avant chaque migration.
@@ -85,6 +85,24 @@ php tests/smoke.php   # parcours HTTP complet sur un serveur temporaire (CSRF, d
 - **Droits** : `crm.manage` (administrateur et gestionnaire), `finance.manage` (administrateur seul).
 - Après mise à jour d'une installation existante : `php bin/migrate.php` (migrations 008 et 009).
 
+## Catalogue de Dakar
+
+`php bin/seed-dakar.php` (une seule fois, sur une base vide ; refuse de s'exécuter si un catalogue existe déjà, sauf `--force`) charge :
+
+| Service | Tarifs de départ (FCFA) |
+|---|---|
+| Lavage automobile à domicile | Express 5 000 · Complet 9 000 · Détaillage 18 000, selon le véhicule (+0 à +4 000) |
+| Canapés et fauteuils | 5 000 la place (fauteuil 5 000, canapé 3 places 15 000, angle 25 000) |
+| Matelas | 1 place 15 000 · 2 places 20 000 · grand lit 25 000 |
+| Tapis et moquettes | Tapis 2 500 le m² · moquette 2 000 le m² |
+| Ménage à domicile | Standard 8 000 · Approfondi 16 000 · Remise en état 30 000, selon le logement |
+| Vitres | Fenêtre 1 500 · baie vitrée 5 000 · vitrine 7 000 |
+| Bureaux et commerces | 300 le m² (ponctuel) · 500 le m² (approfondi) |
+| Nettoyage après travaux | 1 000 le m² · 1 500 le m² (approfondi) |
+| Repassage à domicile | 3 500 le panier |
+
+Les tarifs du lavage auto, des canapés, matelas, tapis et du repassage s'alignent sur des prix relevés chez des prestataires de Dakar ; les autres (ménage, vitres, bureaux, après travaux) sont des estimations cohérentes avec ces repères, **à valider avec vos coûts réels**. Les 33 quartiers (Plateau, Médina, Fann, Mermoz, Almadies, Pikine, Rufisque…) ont des frais de déplacement par zone (0 à 3 500) et des coordonnées approximatives, modifiables dans Configuration → Quartiers desservis. Chaque équipe reçoit deux agents « modèles » à renommer : sans agent, aucun créneau n'est proposé.
+
 ## Parcours simplifiés
 
 **Pour le client**
@@ -125,3 +143,12 @@ Tout se règle dans l'administration (**Marketing → Canaux marketing**, réser
 - Marketing : pas de création d'annonces. Les clients dont le consentement date d'avant la migration 012 n'ont pas de date de consentement. Faites valider le bandeau cookies et les mentions par un juriste (loi sénégalaise sur les données personnelles).
 - Les textes légaux fournis (CGV, confidentialité) sont indicatifs et à faire valider.
 - Le mode SaaS n'est que préparé : `company_id` existe, mais les tables enfants (formules, options…) se filtrent via leur parent, et il n'y a pas de gestion multi-entreprises.
+
+## Guides d'utilisation (PDF)
+
+Deux guides illustrés, avec captures d'écran de l'application réelle (données d'exemple) :
+
+- `docs/guides/guide-client.pdf` : réserver depuis un téléphone (service, position GPS et carte, photos, récapitulatif, suivi) ;
+- `docs/guides/guide-administrateur.pdf` : recevoir une commande, consulter la position et les photos, changer le statut en un clic.
+
+Pour les régénérer après une évolution de l'interface : `node docs/guides/make-photos.cjs`, puis migrer et charger une base d'exemple (`php bin/migrate.php`, `php bin/seed-dakar.php`, `php docs/guides/seed-demo.php`), lancer le serveur dessus, `node docs/guides/capture.cjs` et enfin `node docs/guides/make-guides.cjs`.

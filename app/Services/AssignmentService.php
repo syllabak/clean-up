@@ -51,9 +51,9 @@ final class AssignmentService
             Database::exec('UPDATE booking_assignments SET active = 0 WHERE booking_id = ?', [$bookingId]);
             Database::insert('booking_assignments', ['booking_id' => $bookingId, 'team_id' => $teamId, 'staff_id' => $staffId, 'assigned_by' => $userId, 'active' => 1, 'created_at' => now()]);
             $upd = ['team_id' => $teamId, 'updated_at' => now()];
-            if (in_array($b['status'], ['pending', 'confirmed'], true)) {
-                $upd['status'] = 'assigned';
-                (new BookingService())->history($bookingId, $b['status'], 'assigned', $userId, 'Affectation');
+            if ($b['status'] === 'pending') {   // affecter une équipe vaut confirmation
+                $upd['status'] = 'confirmed';
+                (new BookingService())->history($bookingId, 'pending', 'confirmed', $userId, 'Équipe affectée');
             }
             Database::update('bookings', $bookingId, $upd);
         });
@@ -96,7 +96,7 @@ final class AssignmentService
     {
         $me = Database::one('SELECT team_id FROM staff WHERE id = ?', [$staffId]);
         $ids = Database::all("SELECT b.id FROM bookings b JOIN booking_assignments ba ON ba.booking_id = b.id AND ba.active = 1
-            WHERE b.scheduled_date >= ? AND b.scheduled_date <= ? AND b.status IN ('assigned','en_route','in_progress','completed')
+            WHERE b.scheduled_date >= ? AND b.scheduled_date <= ? AND b.status IN ('confirmed','in_progress','completed')
               AND (ba.staff_id = ? OR (ba.staff_id IS NULL AND ba.team_id = ?)) ORDER BY b.scheduled_date, b.start_time", [$from, $to, $staffId, $me['team_id'] ?? 0]);
         return array_values(array_filter(array_map(fn($r) => $this->repo->find((int) $r['id']), $ids)));
     }

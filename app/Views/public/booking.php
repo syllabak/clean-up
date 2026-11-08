@@ -23,9 +23,12 @@
 
       <section class="wiz-step" data-step="2" aria-labelledby="t2">
         <h2 class="h4" id="t2">Où intervenons-nous ?</h2>
+        <div class="geo-bar"><button type="button" id="geo-btn" class="btn btn-outline-primary btn-sm"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg> Utiliser ma position</button><span id="geo-status" class="small text-muted" role="status"></span></div>
+        <div id="map" class="geo-map" role="application" aria-label="Carte : touchez pour placer votre adresse"></div>
+        <p class="small text-muted mt-1 mb-3">Touchez la carte ou déplacez le repère pour corriger l'endroit exact.</p>
         <div class="row g-3">
           <div class="col-md-6"><label class="form-label" for="hood">Votre quartier</label><select id="hood" class="form-select"><option value="">Chargement…</option></select></div>
-          <div class="col-md-6"><label class="form-label" for="address">Adresse précise</label><input id="address" class="form-control" maxlength="500" autocomplete="street-address" placeholder="Rue, villa, repère connu…"></div>
+          <div class="col-md-6"><label class="form-label" for="address">Adresse ou repère</label><input id="address" class="form-control" maxlength="500" autocomplete="street-address" placeholder="Rue, villa, près de la pharmacie…"></div>
           <div class="col-12"><p id="hood-info" class="small text-muted mb-0"></p></div>
           <div class="col-12"><details><summary class="small text-primary">Ajouter des instructions d'accès (code portail, étage…)</summary><textarea id="instructions" class="form-control mt-2" rows="2" maxlength="1000" placeholder="Code portail, étage, où se garer…"></textarea></details></div>
         </div>
@@ -39,10 +42,11 @@
           <div class="col-md-6"><label class="form-label" for="phone">Téléphone</label><input id="phone" class="form-control" type="tel" inputmode="tel" autocomplete="tel" placeholder="77 123 45 67"></div>
           <div class="col-12"><details><summary class="small text-primary">Email ou autres précisions (facultatif)</summary><div class="row g-3 mt-0">
             <div class="col-md-6"><label class="form-label" for="email">Email</label><input id="email" class="form-control" type="email" autocomplete="email" maxlength="190"></div>
-            <?php if (!empty($channels)): ?><div class="col-md-6"><label class="form-label" for="channel">Comment nous avez-vous connus ?</label><select id="channel" class="form-select"><option value="">—</option>
-              <?php foreach ($channels as $ch): ?><option value="<?= (int) $ch['id'] ?>"><?= e($ch['name']) ?></option><?php endforeach ?></select></div><?php endif ?>
           </div></details></div>
           <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="consent" value="1"><label class="form-check-label small" for="consent">Je veux recevoir les offres de <?= e(setting('company_name', 'Clean Up')) ?> par SMS, WhatsApp ou email (facultatif, désinscription à tout moment en répondant STOP).</label></div></div>
+          <div class="col-12"><h3 class="h6 mb-1">Photos avant l'intervention <span class="text-muted fw-normal">(facultatif)</span></h3>
+            <p class="small text-muted mb-2">Montrez-nous ce qui sera nettoyé : le prix est plus juste et l'équipe arrive préparée.</p>
+            <?= \App\Core\View::partial('partials/photos_widget', ['id' => 'photos', 'ref' => '', 'photos' => [], 'editable' => true]) ?></div>
           <div class="d-none" aria-hidden="true"><label for="website">Ne pas remplir</label><input id="website" tabindex="-1" autocomplete="off"></div>
         </div>
       </section>

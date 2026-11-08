@@ -142,7 +142,7 @@ $day = $open[1];
 T::ok($s === 200 && count($slots) > 3 && !isset($slots[0]['team_id']), 'créneaux du jour reçus (sans exposer les équipes)');
 $start = $slots[0]['start'];
 
-$book = $pay + ['date' => $day, 'start' => $start, 'first_name' => 'Mariama', 'last_name' => 'Thiam', 'phone' => '77 456 78 90', 'email' => 'mariama@example.com', 'address_text' => 'Villa 24, rue 8, Unité 15', 'instructions' => 'Portail bleu', 'website' => ''];
+$book = $pay + ['date' => $day, 'start' => $start, 'first_name' => 'Mariama', 'last_name' => 'Thiam', 'phone' => '77 456 78 90', 'email' => 'mariama@example.com', 'address_text' => 'Villa 24, rue 8, Unité 15', 'instructions' => 'Portail bleu', 'website' => '', 'lat' => 14.7601, 'lng' => -17.4402, 'location_source' => 'gps'];
 [$s, , $b] = $cl->postJson('/reservation', array_merge($book, ['website' => 'http://spam.example']), $csrf); T::eq($s, 400, 'piège à robots (champ caché rempli) → refusé');
 [$s, , $b] = $cl->postJson('/reservation', $book, $csrf); $r = json_decode($b, true);
 T::ok($s === 201 && str_starts_with($r['reference'], 'CU-'), 'réservation créée : ' . ($r['reference'] ?? $b));
@@ -150,6 +150,25 @@ $ref = $r['reference'];
 $cl2 = new Client($port); $csrf2 = $cl2->token('/reserver');
 [$s, , $b] = $cl2->postJson('/reservation', array_merge($book, ['phone' => '77 111 22 33', 'first_name' => 'Autre']), $csrf2);
 T::ok($s === 409 && json_decode($b, true)['code'] === 'slot_taken', 'même créneau pris par un autre client → 409 « créneau pris »');
+
+// Position et photos « avant intervention »
+$refGeo = $ref;   // commande qui porte la position et les photos, réutilisée par les tests d'administration
+\App\Core\Database::reset();
+$row = \App\Core\Database::one('SELECT lat, lng, location_source FROM bookings WHERE reference = ?', [$ref]);
+T::ok($row && abs((float) $row['lat'] - 14.7601) < 0.0001 && abs((float) $row['lng'] + 17.4402) < 0.0001 && $row['location_source'] === 'gps', 'position GPS enregistrée avec la commande');
+[, , $pg] = $cl->get('/reserver'); T::ok(str_contains($pg, 'id="map"') && str_contains($pg, 'leaflet.js') && str_contains($pg, 'id="geo-btn"') && str_contains($pg, 'capture="environment"') && str_contains($pg, 'photos.js'), 'formulaire : carte, bouton de position, prise de photo et import');
+[$s, $hd] = $cl->get('/reserver'); T::ok(str_contains(implode(' ', $hd['content-security-policy'] ?? []), 'blob:'), 'CSP : aperçus de photos autorisés (blob:)');
+[$s, , $b] = $cl->multipart("/reservation/$ref/photos", ['_csrf' => $csrf], 'photo', 'avant.png', $PNG, 'image/png'); $ph = json_decode($b, true);
+T::ok($s === 201 && isset($ph['id']), 'photo « avant » envoyée par le client');
+[$s] = $cl->multipart("/reservation/$ref/photos", ['_csrf' => $csrf], 'photo', 'notes.png', '<?php echo 1;', 'image/png'); T::eq($s, 422, 'fichier qui n\'est pas une image refusé');
+[$s] = $cl2->multipart("/reservation/$ref/photos", ['_csrf' => $csrf2], 'photo', 'avant.png', $PNG, 'image/png'); T::eq($s, 403, 'un autre visiteur ne peut pas ajouter de photo à cette commande');
+[$s] = $cl->post("/reservation/$ref/photos", ['photo' => 'x']); T::eq($s, 419, 'envoi de photo sans jeton CSRF refusé');
+for ($i = 0; $i < 7; $i++) $cl->multipart("/reservation/$ref/photos", ['_csrf' => $csrf], 'photo', "p$i.png", $PNG, 'image/png');
+[$s, , $b] = $cl->multipart("/reservation/$ref/photos", ['_csrf' => $csrf], 'photo', 'trop.png', $PNG, 'image/png'); T::ok($s === 422 && str_contains($b, 'Maximum 8'), 'neuvième photo refusée (maximum 8)');
+[$s, $hd] = $cl->get("/suivi/$ref/photo/{$ph['id']}"); T::ok($s === 200 && str_contains(implode(' ', $hd['content-type'] ?? []), 'image/png'), 'le client revoit sa photo');
+[$s] = $cl2->get("/suivi/$ref/photo/{$ph['id']}"); T::eq($s, 302, 'un autre visiteur ne voit pas la photo');
+[$s] = (new Client($port))->get('/photo/' . $ph['id']); T::eq($s, 302, 'la photo n\'est pas publique (connexion exigée)');
+[$s, , $b] = $cl->get('/reservation/confirmation/' . $ref); T::ok($s === 200 && str_contains($b, 'class="cu-photos"') && str_contains($b, "/suivi/$ref/photo/"), 'confirmation : photos reçues affichées, ajout possible');
 [$s, , $b] = $cl->get($r['redirect']); T::ok($s === 200 && str_contains($b, $ref) && str_contains($b, '4 000'), 'page de confirmation avec référence et total (3000 + 1000 de déplacement)');
 [$s, $h] = $cl2->get($r['redirect']); T::eq($s, 302, 'la confirmation n\'est visible que par le client concerné');
 // Calculs côté serveur : le prix en base est celui du serveur
@@ -182,12 +201,12 @@ $bid = (int) $b2['id'];
 $at = $admin->token("/admin/reservations/$bid");
 [$s] = $admin->post("/admin/reservations/$bid/statut", ['_csrf' => $at, 'to' => 'confirmed']); \App\Core\Database::reset();
 T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$bid]), 'confirmed', 'confirmation depuis l\'admin');
-[$s] = $admin->post("/admin/reservations/$bid/statut", ['_csrf' => $at, 'to' => 'completed']); \App\Core\Database::reset();
-T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$bid]), 'confirmed', 'transition interdite refusée côté serveur');
+[$s] = $admin->post("/admin/reservations/$bid/statut", ['_csrf' => $at, 'to' => 'assigned']); \App\Core\Database::reset();
+T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$bid]), 'confirmed', 'statut inconnu refusé côté serveur');
 [$s, , $b] = $admin->req('POST', '/admin/api/creneaux', ['booking_id' => $bid, 'date' => next_dow(5)], ['X-CSRF-Token: ' . $at], true); T::ok($s === 200 && count(json_decode($b, true)['slots']) > 3, 'API des créneaux pour déplacement');
 $moussaStaff = (int) \App\Core\Database::val("SELECT id FROM staff WHERE name = 'Moussa Diop'");
 [$s] = $admin->post("/admin/reservations/$bid/affecter", ['_csrf' => $at, 'staff_id' => $moussaStaff]); \App\Core\Database::reset();
-T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$bid]), 'assigned', 'affectation à Moussa depuis l\'admin');
+T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$bid]), 'confirmed', 'affectation à Moussa depuis l\'admin (commande confirmée)');
 [$s] = $admin->post("/admin/reservations/$bid/montant", ['_csrf' => $at, 'declared_amount' => '4000', 'payment_note' => 'Espèces']); \App\Core\Database::reset();
 T::eq((int) \App\Core\Database::val('SELECT declared_amount FROM bookings WHERE id = ?', [$bid]), 4000, 'montant encaissé saisi manuellement');
 [$s, , $b] = $admin->get('/admin/planning?date=' . next_dow(3)); T::ok($s === 200 && str_contains($b, 'Équipe Auto') && str_contains($b, 'libre'), 'planning du jour avec charge des équipes');
@@ -233,16 +252,16 @@ $ag = new Client($port); T::eq($ag->login('moussa@cleanup.test', 'Agent#2026'), 
 [$s] = $ag->get('/admin/crud/services'); T::eq($s, 403, 'agent : CRUD interdit (403)');
 [$s] = $ag->get('/admin/reservations'); T::eq($s, 403, 'agent : réservations (admin) interdites');
 [$s, , $b] = $ag->get('/agent'); T::ok($s === 200 && str_contains($b, 'Bonjour Moussa'), 'tableau de bord agent');
-[$s, , $b] = $ag->get("/agent/mission/$bid"); T::ok($s === 200 && str_contains($b, 'tel:') && str_contains($b, 'google.com/maps') && str_contains($b, 'Je suis en route'), 'mission affectée : téléphone cliquable, itinéraire, bouton d\'étape');
+[$s, , $b] = $ag->get("/agent/mission/$bid"); T::ok($s === 200 && str_contains($b, 'tel:') && str_contains($b, 'google.com/maps') && str_contains($b, 'Je commence'), 'mission affectée : téléphone cliquable, itinéraire, bouton d\'étape');
 $otherAgent = new Client($port); $otherAgent->login('awa@cleanup.test', 'Agent#2026');
 [$s] = $otherAgent->get("/agent/mission/$bid"); T::eq($s, 404, 'autre agent : mission d\'un collègue introuvable (404)');
-[$s] = $otherAgent->post("/agent/mission/$bid/statut", ['_csrf' => $otherAgent->token('/agent'), 'to' => 'en_route']); \App\Core\Database::reset();
-T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$bid]), 'assigned', 'autre agent : changement de statut refusé');
+[$s] = $otherAgent->post("/agent/mission/$bid/statut", ['_csrf' => $otherAgent->token('/agent'), 'to' => 'in_progress']); \App\Core\Database::reset();
+T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$bid]), 'confirmed', 'autre agent : changement de statut refusé');
 $at = $ag->token("/agent/mission/$bid");
 [$s] = $ag->post("/agent/mission/$bid/statut", ['_csrf' => $at, 'to' => 'completed']); \App\Core\Database::reset();
-T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$bid]), 'assigned', 'agent : impossible de sauter des étapes');
-$ag->post("/agent/mission/$bid/statut", ['_csrf' => $at, 'to' => 'en_route']); \App\Core\Database::reset();
-T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$bid]), 'en_route', 'agent : en route');
+T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$bid]), 'confirmed', 'agent : impossible de sauter des étapes');
+$ag->post("/agent/mission/$bid/statut", ['_csrf' => $at, 'to' => 'in_progress']); \App\Core\Database::reset();
+T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$bid]), 'in_progress', 'agent : intervention en cours');
 $at = $ag->token("/agent/mission/$bid"); $ag->post("/agent/mission/$bid/statut", ['_csrf' => $at, 'to' => 'in_progress']);
 $ag->post("/agent/mission/$bid/note", ['_csrf' => $ag->token("/agent/mission/$bid"), 'note' => 'Rayure existante sur la portière gauche']); \App\Core\Database::reset();
 T::eq((int) \App\Core\Database::val('SELECT COUNT(*) FROM booking_notes WHERE booking_id = ? AND note LIKE ?', [$bid, '%Rayure%']), 1, 'agent : note ajoutée');
@@ -462,6 +481,47 @@ if ($pend) {
     \App\Core\Database::reset();
     T::ok($s === 302 && str_ends_with($h['location'][0], '/admin/reservations') && \App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$pend]) === 'confirmed', 'Confirmer en un clic : statut changé, retour sur la liste');
 } else T::ok(true, 'aucune réservation en attente à confirmer dans ce jeu d\'essai');
+
+// ------------------------------------------------------------------ Administration : photos, localisation, statut en un clic
+T::group('Administration : liste avec photos et localisation, statut en un clic, visionneuse');
+\App\Core\Database::reset();
+$refId = (int) \App\Core\Database::val('SELECT id FROM bookings WHERE reference = ?', [$refGeo]);
+[$s, , $b] = $admin->get('/admin/reservations?q=' . $refGeo);
+T::ok($s === 200 && str_contains($b, 'class="ph-thumb"') && str_contains($b, '?w=160') && str_contains($b, 'Voir la position') && str_contains($b, 'data-ids='), 'liste : vignettes de photos, localisation et visionneuse');
+T::ok(str_contains($b, '+5') && substr_count($b, 'class="ph-thumb"') === 3, 'liste : trois vignettes et « +5 » quand il y a 8 photos');
+T::ok(str_contains($b, 'wa.me/') && str_contains($b, 'tel:+'), 'liste : appeler et WhatsApp directement');
+T::ok(!str_contains($b, '<th>Équipe / agent</th>') && substr_count($b, '<th>') === 5, 'liste : cinq colonnes utiles seulement');
+[$s, , $b] = $admin->get("/admin/reservations/$refId");
+T::ok($s === 200 && str_contains($b, 'class="seg-status') && preg_match_all('/class="seg [^"]*"/', $b) >= 4 && str_contains($b, 'Nouvelle') && str_contains($b, 'Confirmée') && str_contains($b, 'En cours') && str_contains($b, 'Terminée') && str_contains($b, 'Annulée'), 'fiche : les cinq statuts en boutons');
+T::ok(str_contains($b, 'id="order-map"') && str_contains($b, 'data-lat="14.7601"') && str_contains($b, 'Itinéraire') && str_contains($b, 'google.com/maps/dir'), 'fiche : carte, position et itinéraire');
+T::ok(substr_count($b, 'ph-thumb ph-lg') === 8 && str_contains($b, 'Client · avant') && str_contains($b, 'leaflet.js') && str_contains($b, 'admin-orders.js'), 'fiche : les 8 photos du client, agrandissables');
+T::ok(!str_contains($b, 'Montant encaissé') && !str_contains($b, 'id="resched"'), 'fiche : champs inutiles masqués (montant avant intervention, déplacement d\'une commande annulée)');
+[$s] = $m->get("/admin/reservations/$refId"); T::eq($s, 200, 'gestionnaire : fiche accessible');
+
+// un clic pour changer de statut, depuis la liste
+$pend = (int) \App\Core\Database::val("SELECT id FROM bookings WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
+if ($pend) {
+    [, , $b] = $admin->get('/admin/reservations?status=pending'); T::ok(str_contains($b, 'class="stmenu"') && str_contains($b, 'value="in_progress"') && str_contains($b, 'data-confirm="Annuler'), 'liste : menu de statut en un clic (annulation avec confirmation)');
+    $tt = $admin->token('/admin/reservations');
+    foreach (['in_progress', 'confirmed', 'completed'] as $to) {
+        [$s, $h] = $admin->req('POST', "/admin/reservations/$pend/statut", ['_csrf' => $tt, 'to' => $to, 'back' => '1'], ['Referer: http://127.0.0.1:' . $port . '/admin/reservations']); \App\Core\Database::reset();
+        T::ok($s === 302 && str_ends_with($h['location'][0], '/admin/reservations') && \App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$pend]) === $to, "un clic : statut → $to");
+    }
+    $admin->post("/admin/reservations/$pend/statut", ['_csrf' => $tt, 'to' => 'pending']); \App\Core\Database::reset();
+    T::eq(\App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$pend]), 'completed', 'terminée : définitive, aucun retour en arrière');
+}
+[$s] = $m->post("/admin/reservations/$refId/statut", ['_csrf' => $m->token('/admin/reservations'), 'to' => 'pending']); T::ok($s === 302, 'gestionnaire : le changement de statut passe par les mêmes règles');
+$ag2 = new Client($port); [$s] = $ag2->get("/admin/reservations/$refId"); T::eq($s, 302, 'anonyme : fiche réservation protégée');
+
+// vignettes réelles
+$gd = imagecreatetruecolor(900, 600); imagefilledrectangle($gd, 0, 0, 900, 600, imagecolorallocate($gd, 40, 120, 200)); ob_start(); imagepng($gd); $big = ob_get_clean();
+$fn = bin2hex(random_bytes(8)) . '.png'; file_put_contents(BASE_PATH . '/storage/uploads/missions/' . $fn, $big);
+$pid = \App\Core\Database::insert('booking_photos', ['booking_id' => $refId, 'user_id' => null, 'kind' => 'before', 'path' => $fn, 'created_at' => now()]);
+[$s, $h, $body] = $admin->get("/photo/$pid?w=160"); $info = @getimagesizefromstring($body);
+T::ok($s === 200 && $info && $info[0] === 160 && str_contains(implode(' ', $h['content-type'] ?? []), 'image/jpeg') && strlen($body) < strlen($big), 'vignette 160 px générée en JPEG, plus légère que l\'original');
+[$s, , $body] = $admin->get("/photo/$pid?w=999"); $info = @getimagesizefromstring($body); T::ok($s === 200 && $info[0] === 900, 'largeur non prévue : l\'original est servi (pas de redimensionnement arbitraire)');
+[$s, , $body] = $admin->get("/photo/$pid"); T::ok($s === 200 && @getimagesizefromstring($body)[0] === 900, 'sans paramètre : photo en grand');
+@unlink(BASE_PATH . '/storage/uploads/missions/' . $fn); @unlink(BASE_PATH . '/storage/cache/thumbs/' . $pid . '_160.jpg'); \App\Core\Database::exec('DELETE FROM booking_photos WHERE id = ?', [$pid]);
 
 // ------------------------------------------------------------------ Cron
 T::group('Tâches planifiées HTTP');

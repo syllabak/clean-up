@@ -10,8 +10,8 @@ use App\Services\{AssignmentService, BookingService};
 final class AgentController extends Controller
 {
     /** Étapes que l'agent peut déclencher lui-même. */
-    private const AGENT_FLOW = ['assigned' => 'en_route', 'en_route' => 'in_progress', 'in_progress' => 'completed'];
-    private const FLOW_LABEL = ['en_route' => 'Je suis en route', 'in_progress' => "Je commence l'intervention", 'completed' => "J'ai terminé"];
+    private const AGENT_FLOW = ['confirmed' => 'in_progress', 'in_progress' => 'completed'];
+    private const FLOW_LABEL = ['in_progress' => "Je commence l'intervention", 'completed' => "J'ai terminé"];
 
     public function index(): void
     {
@@ -79,14 +79,7 @@ final class AgentController extends Controller
         $ph = DB::one('SELECT * FROM booking_photos WHERE id = ?', [(int) $id]) ?? abort(404);
         $allowed = Auth::can('bookings.view') || (Auth::can('agent.missions') && (new AssignmentService())->staffCanAccess(Auth::staffId(), (int) $ph['booking_id']));
         if (!$allowed) abort(403);
-        $file = BASE_PATH . '/storage/uploads/missions/' . basename($ph['path']);
-        if (!is_file($file)) abort(404);
-        $info = getimagesize($file);
-        header('Content-Type: ' . ($info['mime'] ?? 'application/octet-stream'));
-        header('Cache-Control: private, max-age=3600');
-        header('X-Content-Type-Options: nosniff');
-        readfile($file);
-        exit;
+        \App\Services\PhotoService::send($ph, Request::int('w') ?: null);
     }
 
     private function staffId(): int

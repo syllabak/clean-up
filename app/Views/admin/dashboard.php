@@ -11,7 +11,7 @@
 </div>
 <?php if ($today_list): ?><div class="panel"><h2>Aujourd'hui (<?= count($today_list) ?>)</h2><div class="table-responsive"><table class="table table-sm align-middle mb-0"><tbody>
   <?php foreach ($today_list as $b): ?><tr><td class="text-nowrap"><strong><?= e($b['start_time']) ?></strong></td><td><a href="/admin/reservations/<?= (int) $b['id'] ?>"><?= e($b['customer_first_name'] . ' ' . $b['customer_last_name']) ?></a><br><span class="small text-muted"><?= e($b['service_name']) ?> · <?= e($b['neighborhood_name']) ?></span></td>
-    <td><?= e($b['team_name'] ?? '—') ?></td><td><?= status_badge($b['status']) ?></td><td class="text-nowrap text-end"><?= confirm_button($b) ?> <?= contact_buttons($b['customer_phone'], booking_message($b)) ?></td></tr><?php endforeach ?>
+    <td><?= e($b['team_name'] ?? '—') ?></td><td><?= status_menu($b) ?></td><td class="text-nowrap text-end"><?= contact_buttons($b['customer_phone'], booking_message($b)) ?></td></tr><?php endforeach ?>
 </tbody></table></div></div><?php endif ?>
 <div class="row g-3 mb-3">
   <div class="col-6 col-lg-3"><div class="kpi"><div class="n"><?= $stats['today'] ?></div><div class="l">interventions aujourd'hui</div></div></div>

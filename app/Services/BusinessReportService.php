@@ -55,7 +55,7 @@ final class BusinessReportService
     {
         $cid = Env::companyId();
         $revenue = (int) DB::val("SELECT COALESCE(SUM(" . self::REVENUE . "),0) FROM bookings b WHERE b.company_id = ? AND b.status = 'completed' AND b.scheduled_date >= ? AND b.scheduled_date <= ?", [$cid, $from, $to]);
-        $pipeline = (int) DB::val("SELECT COALESCE(SUM(total),0) FROM bookings WHERE company_id = ? AND status IN ('pending','confirmed','assigned','en_route','in_progress') AND scheduled_date >= ? AND scheduled_date <= ?", [$cid, $from, $to]);
+        $pipeline = (int) DB::val("SELECT COALESCE(SUM(total),0) FROM bookings WHERE company_id = ? AND status IN ('pending','confirmed','in_progress') AND scheduled_date >= ? AND scheduled_date <= ?", [$cid, $from, $to]);
         $byCat = array_column(DB::all('SELECT category, SUM(amount) AS n FROM expenses WHERE company_id = ? AND deleted_at IS NULL AND expense_date >= ? AND expense_date <= ? GROUP BY category', [$cid, $from, $to]), 'n', 'category');
         $expenses = (int) array_sum($byCat);
         return ['revenue' => $revenue, 'to_come' => $pipeline, 'expenses' => $expenses, 'profit' => $revenue - $expenses, 'margin' => $revenue > 0 ? (int) round(($revenue - $expenses) / $revenue * 100) : null, 'by_category' => array_map('intval', $byCat)];

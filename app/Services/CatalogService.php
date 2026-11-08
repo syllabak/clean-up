@@ -40,8 +40,10 @@ final class CatalogService
         $s = DB::one('SELECT * FROM services WHERE id = ?', [$id]);
         $out = [];
         $formulas = (int) DB::val('SELECT COUNT(*) FROM service_prices WHERE service_id = ? AND active = 1 AND deleted_at IS NULL', [$id]);
-        $priced = $formulas > 0 || (int) $s['base_price'] > 0;
-        $out[] = $priced ? ['ok', $formulas ? "$formulas formule(s) active(s)" : 'Prix de base défini', null] : ['bad', "Aucun prix : ajoutez au moins une formule ou un prix de base.", 'formules'];
+        // Un prix peut aussi venir des choix d'une liste (ex. canapé : 2 places = 10 000, 3 places = 15 000).
+        $choicePriced = (int) DB::val("SELECT COUNT(*) FROM service_field_choices c JOIN service_fields f ON f.id = c.field_id WHERE f.service_id = ? AND f.active = 1 AND f.deleted_at IS NULL AND c.active = 1 AND c.deleted_at IS NULL AND c.price_delta > 0", [$id]);
+        $priced = $formulas > 0 || (int) $s['base_price'] > 0 || $choicePriced > 0;
+        $out[] = $priced ? ['ok', $formulas ? "$formulas formule(s) active(s)" : ((int) $s['base_price'] > 0 ? 'Prix de base défini' : 'Prix défini par les choix du formulaire'), null] : ['bad', "Aucun prix : ajoutez au moins une formule, un prix de base ou des choix avec un prix.", 'formules'];
         $teams = DB::all("SELECT t.id FROM teams t JOIN team_services ts ON ts.team_id = t.id WHERE ts.service_id = ? AND t.deleted_at IS NULL AND t.status = 'active'", [$id]);
         if (!$teams) {
             $out[] = ['bad', "Aucune équipe n'assure ce service : aucun créneau ne sera proposé. Cochez-le dans la fiche d'une équipe.", '/admin/crud/teams'];

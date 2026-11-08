@@ -22,7 +22,7 @@
         <?php foreach (DAYS_FR as $n => $dl): ?><div class="form-check"><input class="form-check-input" type="checkbox" id="<?= $id . $n ?>" name="<?= e($k) ?>[]" value="<?= $n ?>" <?= in_array((string) $n, array_map('strval', is_array($v) ? $v : ($v === '' ? [] : explode(',', (string) $v))), true) ? 'checked' : '' ?>><label class="form-check-label" for="<?= $id . $n ?>"><?= e($dl) ?></label></div><?php endforeach ?></div>
       <?php elseif ($t === 'image'): ?><?php if ($v): ?><div class="mb-1"><img src="<?= e($v) ?>" alt="" style="max-height:70px;border-radius:8px"></div><?php endif ?><input class="form-control" type="file" id="<?= $id ?>" name="<?= e($k) ?>" accept="image/jpeg,image/png,image/webp">
       <?php else:
-          $itype = ['number' => 'number', 'email' => 'email', 'tel' => 'tel', 'time' => 'time', 'date' => 'date', 'password' => 'password', 'decimal' => 'text'][$t] ?? 'text'; ?>
+          $itype = ['number' => 'number', 'email' => 'email', 'tel' => 'tel', 'time' => 'time', 'date' => 'date', 'password' => 'password', 'decimal' => 'text', 'coord' => 'text'][$t] ?? 'text'; ?>
         <input class="<?= $cls ?>" id="<?= $id ?>" name="<?= e($k) ?>" type="<?= $itype ?>" value="<?= $t === 'password' ? '' : e($v) ?>" <?= isset($f['min']) ? 'min="' . (int) $f['min'] . '"' : '' ?> <?= isset($f['max']) ? 'max="' . (int) $f['max'] . '"' : '' ?> <?= $t === 'password' ? 'autocomplete="new-password"' : '' ?> <?= $ro ? 'readonly' : '' ?>>
       <?php endif ?>
     <?php endif ?>
