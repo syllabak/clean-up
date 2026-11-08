@@ -9,13 +9,13 @@ Vidéo verticale (Reels, TikTok, WhatsApp Status) qui raconte la réservation en
 | 0,3 – 4,8 s | Canapé taché, voiture poussiéreuse, horloge | « Un canapé taché. Une voiture poussiéreuse. Et pas une minute à perdre ? » |
 | 5,2 – 7,5 s | Cercle marine, logo, trois écrans | « Chez Clean Up, tout se réserve en trois écrans. » |
 | 7,9 – 12,9 s | **Écran 1** : service, formule, prix en direct | « Premier écran : vous choisissez votre service. Le prix s'affiche tout de suite, sans devis. » |
-| 12,9 – 18,0 s | **Écran 2** : quartier, adresse, créneaux | « Deuxième écran : votre quartier, puis l'heure qui vous arrange. Les créneaux libres apparaissent aussitôt. » |
-| 18,3 – 22,5 s | **Écran 3** : nom, téléphone, confirmation | « Troisième écran : votre nom, votre numéro. Un clic, et c'est confirmé. » |
+| 12,9 – 18,0 s | **Écran 2** : position détectée (GPS), carte, quartier trouvé, créneaux | « Deuxième écran : votre quartier, puis l'heure qui vous arrange. Les créneaux libres apparaissent aussitôt. » |
+| 18,3 – 22,5 s | **Écran 3** : nom, téléphone, photos avant, confirmation | « Troisième écran : votre nom, votre numéro. Un clic, et c'est confirmé. » |
 | 22,8 – 27,4 s | SMS avec lien de suivi, page de suivi | « Vous recevez un lien de suivi par message. Un clic, et vous savez où en est votre réservation. » |
 | 27,7 – 31,6 s | Camionnette, puis avant / après | « Notre équipe arrive chez vous, avec son matériel. Et le résultat, le voilà. » |
 | 31,9 – 40 s | Appel à l'action | « Clean Up. Réservez dès maintenant. » |
 
-Les écrans du téléphone reprennent le vrai parcours de l'application (3 écrans, un seul choix de quartier, prix en direct, lien de suivi personnel).
+Les écrans du téléphone reprennent le vrai parcours de l'application (position GPS et carte, photos avant intervention, récapitulatif, prix en direct, lien de suivi personnel). La voix off date de la version précédente : elle dit encore « votre quartier » et « votre nom, votre numéro » ; à régénérer pour citer la position et les photos (texte prévu dans `audio/align.py`).
 
 ## Fichiers
 

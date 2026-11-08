@@ -89,7 +89,7 @@
   // ----- 2. marque et trois écrans
   const brand = L();
   const logo = mk('div', 'logo', `<div class="drop">${DROP}</div><div class="word">Clean Up</div>`, brand, 'left:150px;top:300px;width:780px;justify-content:center');
-  const chips = [['1', 'Votre besoin'], ['2', 'Où et quand'], ['3', 'Vos coordonnées']].map(([n, tx], i) => mk('div', 'chip', `<b>${n}</b>${tx}`, brand, `top:${690 + i * 170}px`));
+  const chips = [['1', 'Votre besoin'], ['2', 'Où et quand'], ['3', 'Contact et photos']].map(([n, tx], i) => mk('div', 'chip', `<b>${n}</b>${tx}`, brand, `top:${690 + i * 170}px`));
   const tag = mk('div', 'cap', 'Tout se réserve en <em>3&nbsp;écrans</em>', brand, 'top:520px;font-size:70px');
   on((t) => {
     const a = c.brand.a; win(brand, t, a - 0.2, c.p1.a + 0.2);
@@ -104,28 +104,38 @@
   const caption = [
     mk('div', 'cap', '<em>1</em> · Votre besoin', phoneL, 'top:120px;font-size:78px'),
     mk('div', 'cap', '<em>2</em> · Où et quand', phoneL, 'top:120px;font-size:78px'),
-    mk('div', 'cap', '<em>3</em> · Vos coordonnées', phoneL, 'top:120px;font-size:78px'),
+    mk('div', 'cap', '<em>3</em> · Contact et photos', phoneL, 'top:120px;font-size:78px'),
     mk('div', 'cap', 'Un <em>lien de suivi</em>, un clic', phoneL, 'top:120px;font-size:70px'),
   ];
   const phone = mk('div', '', '', phoneL); phone.id = 'phone';
   const screen = mk('div', '', '', phone); screen.id = 'screen';
   mk('div', 'notch', '', screen); mk('div', 'sbar', '<span>9:41</span><span>●●● 5G ▮</span>', screen);
   mk('div', 'apphead', '<i></i>Clean Up<span style="margin-left:auto;font-size:17px;color:#6b7b8c;font-weight:700">Réserver</span>', screen);
-  const stepsEl = mk('div', 'steps', '<div>1 Besoin</div><div>2 Où et quand</div><div>3 Contact</div>', screen);
+  const stepsEl = mk('div', 'steps', '<div>1 Besoin</div><div>2 Où et quand</div><div>3 Photos</div>', screen);
   const content = mk('div', 'content', '', screen);
   const scr1 = mk('div', 'scr', `<h3>Quel service ?</h3>
     <div class="opt sel0" id="o1">Lavage automobile<small>dès 3 000 FCFA</small></div><div class="opt">Canapés et fauteuils<small>dès 5 000 FCFA</small></div><div class="opt">Matelas<small>dès 6 000 FCFA</small></div>
     <div id="forms" style="margin-top:6px"><div style="font-size:14px;font-weight:800;color:#6b7b8c;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Formule</div>
     <div class="row3"><div class="opt" id="f1">Simple</div><div class="opt" id="f2">Complet</div><div class="opt" id="f3">Premium</div></div></div>`, content);
+  const MAP = `<svg viewBox="0 0 440 190" width="100%" height="100%"><rect width="440" height="190" fill="#e9efe2"/><rect x="250" y="12" width="150" height="70" rx="12" fill="#cfe6c4"/><rect x="24" y="112" width="110" height="60" rx="10" fill="#cfe6c4"/>
+    <path d="M-10 128L450 60" stroke="#f7d36b" stroke-width="16"/><path d="M-10 128L450 60" stroke="#fff" stroke-width="3" stroke-dasharray="14 12" opacity=".7"/><path d="M180 -10V200M330 -10V200" stroke="#fff" stroke-width="10"/><path d="M-10 40H450M-10 168H450" stroke="#fff" stroke-width="8"/>
+    <path d="M60 -10L140 200" stroke="#fff" stroke-width="7"/><path d="M-10 90H190" stroke="#fff" stroke-width="6"/></svg>`;
   const scr2 = mk('div', 'scr', `<h3>Où et quand ?</h3>
-    <div class="field" id="fhood"><label>Votre quartier</label><span id="hoodTx" style="color:#8a99a8">Choisir…</span></div>
-    <div class="field" id="faddr"><label>Adresse précise</label><span id="addrTx"></span></div>
+    <div class="opt" id="geoBtn" style="display:flex;align-items:center;gap:12px;padding:12px 18px;margin-bottom:12px"><span style="font-size:24px">📍</span><span id="geoTx">Me localiser</span></div>
+    <div id="mapBox" style="position:relative;height:190px;border-radius:20px;overflow:hidden;border:3px solid #d9e4ee;margin-bottom:12px">${MAP}
+      <div id="pin" style="position:absolute;left:196px;top:62px;width:48px;height:62px;opacity:0"><svg viewBox="0 0 24 32" width="48" height="62"><path d="M12 31C5 21 3 16 3 11a9 9 0 0 1 18 0c0 5-2 10-9 20z" fill="#e8453c"/><circle cx="12" cy="11" r="4" fill="#fff"/></svg></div>
+      <div id="halo" style="position:absolute;left:182px;top:96px;width:76px;height:76px;border-radius:50%;background:rgba(29,127,214,.22);border:3px solid rgba(29,127,214,.5);opacity:0"></div></div>
+    <div class="field" id="fhood" style="margin-bottom:12px;padding:8px 18px;min-height:0"><label>Votre quartier</label><span id="hoodTx" style="color:#8a99a8">…</span></div>
     <div id="dayz"><div class="days"><div class="day sel">lun.<strong>9</strong>nov.</div><div class="day">mar.<strong>10</strong>nov.</div><div class="day">mer.<strong>11</strong>nov.</div><div class="day">jeu.<strong>12</strong>nov.</div></div>
-    <div class="slots"><div class="slot">08:00</div><div class="slot">08:30</div><div class="slot" id="s2">09:00</div><div class="slot">09:30</div><div class="slot">10:00</div><div class="slot">10:30</div><div class="slot">11:00</div><div class="slot">11:30</div></div></div>
-    <div class="dd" id="dd" style="top:166px"><div>Almadies</div><div class="hot" id="ddPl">Plateau</div><div>Mermoz</div><div>Ouakam</div></div>`, content);
-  const scr3 = mk('div', 'scr', `<h3>Vos coordonnées</h3>
-    <div class="field" id="fname"><label>Votre nom</label><span id="nameTx"></span></div><div class="field" id="fphone"><label>Téléphone</label><span id="phoneTx"></span></div>
-    <div id="recap" class="opt" style="margin-top:6px;border-color:#cfe0f0">Lavage automobile · Complet<small>lun. 9 nov. à 09:00 · Plateau</small><small style="margin-top:6px;color:#0B2545;font-weight:900;font-size:19px">Total estimé 6 500 FCFA</small></div>`, content);
+    <div class="slots"><div class="slot">08:00</div><div class="slot">08:30</div><div class="slot" id="s2">09:00</div><div class="slot">09:30</div><div class="slot">10:00</div><div class="slot">10:30</div><div class="slot">11:00</div><div class="slot">11:30</div></div></div>`, content);
+  const scr3 = mk('div', 'scr', `<h3>Contact et photos</h3>
+    <div class="field" id="fname" style="margin-bottom:10px"><label>Votre nom</label><span id="nameTx"></span></div><div class="field" id="fphone" style="margin-bottom:10px"><label>Téléphone</label><span id="phoneTx"></span></div>
+    <div style="font-size:14px;font-weight:800;color:#6b7b8c;text-transform:uppercase;letter-spacing:.4px;margin:6px 0 8px">Photos avant (facultatif)</div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+      <div id="ph1" style="width:92px;height:92px;border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#c9cfd6,#aab2bb);padding:6px">${armchair(true)}</div>
+      <div id="ph2" style="width:92px;height:92px;border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#cfdbe6,#b7c3cf);padding:8px 4px">${CAR(true)}</div>
+      <div class="opt" id="camBtn" style="margin:0;flex:1;text-align:center;padding:14px 6px;font-size:18px">📷 Prendre une photo</div></div>
+    <div id="recap" class="opt" style="margin-top:2px;border-color:#cfe0f0">Lavage automobile · Complet<small>lun. 9 nov. à 09:00 · Plateau · 2 photos jointes ✓</small><small style="margin-top:6px;color:#0B2545;font-weight:900;font-size:19px">Total estimé 6 500 FCFA</small></div>`, content);
   const scrOk = mk('div', 'scr', `<div style="text-align:center;padding-top:70px"><div id="okc" style="width:150px;height:150px;border-radius:50%;background:#8EE3C8;margin:0 auto 26px;display:grid;place-items:center"><svg viewBox="0 0 24 24" width="84" height="84"><path id="okp" d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#0B2545" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="20" stroke-dashoffset="20"/></svg></div>
     <div style="font-size:30px;font-weight:900;letter-spacing:-.5px">Réservation enregistrée</div><div style="display:inline-block;margin-top:16px;background:#0B2545;color:#fff;font-weight:900;font-size:21px;border-radius:14px;padding:9px 20px;letter-spacing:1px">CU-261108-K7QD</div>
     <div style="margin-top:18px;font-size:17px;font-weight:600;color:#5b6b7b;line-height:1.4">Votre lien de suivi<br>vous est envoyé par message.</div></div>`, content);
@@ -143,11 +153,11 @@
   // positions des cibles du doigt, mesurées une fois à l'état neutre
   const ctr = (id) => { const k = stage.getBoundingClientRect().width / 1080, sr = screen.getBoundingClientRect(), r = document.getElementById(id).getBoundingClientRect();
     return { x: (r.left - sr.left + r.width / 2) / k, y: (r.top - sr.top + r.height / 2) / k }; };
-  const taps = [[c.p1.a + 0.95, 'o1'], [c.p1.a + 1.95, 'f2'], [tr1 - 0.2, 'cont'], [c.p2.a + 0.45, 'fhood'], [c.p2.a + 1.15, 'ddPl'], [c.slots.a + 1.35, 's2'], [tr2 - 0.2, 'cont'], [c.ok.a + 0.8, 'btnConf'], [c.track.a + 0.3, 'smsLink']];
+  const taps = [[c.p1.a + 0.95, 'o1'], [c.p1.a + 1.95, 'f2'], [tr1 - 0.2, 'cont'], [c.p2.a + 0.45, 'geoBtn'], [c.p2.a + 1.5, 'mapBox'], [c.slots.a + 1.35, 's2'], [tr2 - 0.2, 'cont'], [c.ok.a + 0.8, 'btnConf'], [c.track.a + 0.3, 'smsLink'], [c.p3.a + 2.0, 'camBtn']];
   let tapPos = null;
   const setBtn = (id, show) => { document.getElementById(id).style.display = show ? '' : 'none'; };
   const doc = (id) => document.getElementById(id);
-  const hoods = doc('hoodTx'), addr = doc('addrTx'), nameTx = doc('nameTx'), phoneTx = doc('phoneTx'), tot = doc('tot');
+  const hoods = doc('hoodTx'), nameTx = doc('nameTx'), phoneTx = doc('phoneTx'), tot = doc('tot');
 
   on((t) => {
     const a = c.p1.a - 0.5, end = c.team.a - 0.15;
@@ -175,19 +185,22 @@
     const price = seg(t, c.price.a, 1.0, eo) * 6000; const fee = t >= tapPos[4].t + 0.15 ? 500 : 0;
     tot.textContent = t < c.price.a ? (sel2 ? '…' : '—') : money(price + (t > tr1 ? fee : 0));
     const pb = pop(t, c.price.b - 0.9); set(badge, { o: pb.o * (1 - seg(t, tr1 - 0.1, 0.2)), s: pb.s });
-    // écran 2
-    const open = t >= tapPos[3].t + 0.1 && t < tapPos[4].t + 0.18;
-    set(doc('dd'), { o: seg(t, tapPos[3].t + 0.1, 0.12) * (open ? 1 : 0), y: lerp(-10, 0, seg(t, tapPos[3].t + 0.1, 0.2)) });
-    doc('fhood').classList.toggle('sel', open);
-    hoods.textContent = t >= tapPos[4].t + 0.15 ? 'Plateau' : 'Choisir…'; hoods.style.color = t >= tapPos[4].t + 0.15 ? '#0B2545' : '#8a99a8';
-    addr.innerHTML = typed('Villa 12, rue des Palmiers', t, c.p2.a + 1.55, 1.0) + caret(t, t > c.p2.a + 1.5 && t < c.p2.a + 2.9); doc('faddr').classList.toggle('sel', t > c.p2.a + 1.5 && t < c.p2.a + 2.7);
+    // écran 2 : position détectée, repère déplacé du doigt, quartier trouvé
+    const g0 = tapPos[3].t + 0.15, g1 = tapPos[4].t + 0.1;
+    doc('geoBtn').classList.toggle('sel', t >= g0); doc('geoTx').textContent = t >= g0 ? 'Position détectée ✓' : 'Me localiser';
+    const drop = seg(t, g0, 0.45, (x) => eb(x, 1.2)), mv = seg(t, g1, 0.4, eio);
+    set(doc('pin'), { o: seg(t, g0, 0.1), y: lerp(-70, 0, drop) + lerp(0, 8, mv), x: lerp(0, 52, mv) });
+    set(doc('halo'), { o: seg(t, g0 + 0.2, 0.3) * (0.6 + 0.4 * Math.sin(t * 6)) * (1 - 0.4 * mv), s: lerp(0.5, 1.15, seg(t, g0 + 0.2, 0.6)), x: lerp(0, 52, mv), y: lerp(0, 8, mv) });
+    const hoodOn = t >= g0 + 0.5; hoods.textContent = hoodOn ? 'Plateau' : '…'; hoods.style.color = hoodOn ? '#0B2545' : '#8a99a8'; doc('fhood').classList.toggle('sel', hoodOn && t < g1 + 0.8);
     set(doc('dayz'), { o: seg(t, c.slots.a - 0.1, 0.3), y: lerp(30, 0, eo(seg(t, c.slots.a - 0.1, 0.45))) });
     [...document.querySelectorAll('.slot')].forEach((s, i) => { const p = pop(t, c.slots.a + 0.25 + i * 0.07, 0.3); set(s, { o: p.o, s: p.s }); });
     doc('s2').classList.toggle('sel', t >= tapPos[5].t);
     // écran 3
     nameTx.innerHTML = typed('Awa Diop', t, c.p3.a + 0.3, 0.7) + caret(t, t > c.p3.a + 0.2 && t < c.p3.a + 1.1); doc('fname').classList.toggle('sel', t > c.p3.a + 0.2 && t < c.p3.a + 1.1);
     phoneTx.innerHTML = typed('77 612 34 56', t, c.p3.a + 1.15, 0.85) + caret(t, t > c.p3.a + 1.1 && t < c.p3.a + 2.1); doc('fphone').classList.toggle('sel', t > c.p3.a + 1.1 && t < c.p3.a + 2.0);
-    const pr = pop(t, c.ok.a - 0.15); set(doc('recap'), { o: pr.o, s: pr.s });
+    const cb = tapPos[9].t; doc('camBtn').classList.toggle('sel', t >= cb && t < cb + 0.5);
+    [['ph1', 0.15], ['ph2', 0.5]].forEach(([id, d]) => { const p = pop(t, cb + d, 0.4); set(doc(id), { o: p.o, s: p.s }); });
+    const pr = pop(t, Math.max(c.ok.a - 0.15, cb + 0.95)); set(doc('recap'), { o: pr.o, s: pr.s });
     // bouton : Continuer → Confirmer
     setBtn('cont', t < tr2 + 0.05 || t > trOk); setBtn('btnConf', t >= tr2 + 0.05 && t <= trOk);
     const done = t >= tapPos[7].t; const bc = doc('btnConf'); bc.textContent = done ? 'Confirmée ✓' : 'Confirmer'; bc.style.transform = done ? `scale(${1 + 0.08 * Math.sin(seg(t, tapPos[7].t, 0.4) * Math.PI)})` : '';
@@ -245,7 +258,7 @@
   const logo2 = mk('div', 'logo', `<div class="drop">${DROP}</div><div class="word">Clean Up</div>`, cta, 'left:150px;top:300px;width:780px;justify-content:center');
   const head = mk('div', 'kin big', 'Réservez <em>dès maintenant</em>', cta, 'top:560px');
   const url = mk('div', 'url', '<span>cleanup.sn</span>', cta, 'top:900px');
-  const pts = ['Prix affiché tout de suite', 'Paiement après l’intervention', 'Confirmation et suivi par SMS'].map((tx, i) => mk('div', 'chip', `<b>✓</b>${tx}`, cta, `top:${1090 + i * 130}px;height:100px;font-size:42px;left:120px;width:840px`));
+  const pts = ['Prix affiché tout de suite', 'Paiement après l’intervention', 'Position et photos en un geste'].map((tx, i) => mk('div', 'chip', `<b>✓</b>${tx}`, cta, `top:${1090 + i * 130}px;height:100px;font-size:42px;left:120px;width:840px`));
   on((t) => {
     if (!win(cta, t, c.cta1.a - 0.2, D + 1)) return;
     const l = pop(t, c.cta1.a - 0.1, 0.55); set(logo2, { o: l.o, s: l.s });
