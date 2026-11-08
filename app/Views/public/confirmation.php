@@ -20,4 +20,9 @@
     <a class="btn btn-outline-primary" href="/suivi/<?= e($b['reference']) ?>/calendrier">Ajouter à mon agenda</a>
     <?php if ($wa): ?><a class="btn btn-outline-secondary" target="_blank" rel="noopener" href="https://wa.me/<?= e($wa) ?>?text=<?= rawurlencode('Bonjour, ma réservation ' . $b['reference']) ?>">Écrire sur WhatsApp</a><?php endif ?>
     <a class="btn btn-outline-secondary" href="/">Retour à l'accueil</a></p>
+  <?php if (!empty($track_link)): ?>
+  <div class="panel small"><strong>Votre lien de suivi personnel</strong> : vous le recevez aussi par message. Gardez-le : il vous évite de retaper la référence et le téléphone.
+    <div class="mt-1"><code class="text-break"><?= e($track_link) ?></code></div>
+    <a class="d-inline-block mt-2" target="_blank" rel="noopener" href="https://wa.me/<?= e(preg_replace('/\D/', '', (string) $b['customer_phone'])) ?>?text=<?= rawurlencode('Mon suivi ' . $b['reference'] . ' : ' . $track_link) ?>">Me l'envoyer sur WhatsApp</a></div>
+  <?php endif ?>
 </div>

@@ -255,12 +255,30 @@
     var body = payload({ date: S.date, start: S.slot, first_name: $('first_name').value.trim(), last_name: $('last_name').value.trim(), phone: $('phone').value.trim(), email: $('email').value.trim(),
       address_text: $('address').value.trim(), instructions: $('instructions').value.trim(), website: $('website').value, channel_id: $('channel') ? $('channel').value : '', marketing_consent: $('consent') ? $('consent').checked : false });
     api('/reservation', body).then(function (r) {
-      if (r.ok) { location.href = r.data.redirect; return; }
+      if (r.ok) { saveProfile(); location.href = r.data.redirect; return; }
       if (r.status === 409) { S.slot = null; showError(r.data.error); go(4); return; }
       if (r.status === 429) { showError('Trop de tentatives. Patientez quelques minutes.'); } else showError(errText(r.data));
       $('next').disabled = false; $('next').textContent = 'Confirmer la réservation';
     }).catch(function () { showError('Connexion impossible. Vérifiez votre réseau puis réessayez : votre réservation n\'a pas été enregistrée.'); $('next').disabled = false; $('next').textContent = 'Confirmer la réservation'; });
   }
+
+  // ---------------------------------------------------------------- Coordonnées retenues sur cet appareil (jamais envoyées ailleurs)
+  var PROFILE_KEY = 'cu_profile', PROFILE_FIELDS = ['first_name', 'last_name', 'phone', 'email', 'address', 'instructions'];
+  function loadProfile() { try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); } catch (e) { return null; } }
+  function saveProfile() {
+    try { var p = {}; PROFILE_FIELDS.forEach(function (f) { p[f] = $(f).value.trim(); }); localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch (e) { /* navigation privée : on ne retient rien */ }
+  }
+  var prof = loadProfile();
+  if (prof && prof.first_name) {
+    PROFILE_FIELDS.forEach(function (f) { if ($(f) && !$(f).value && prof[f]) $(f).value = prof[f]; });
+    if ($('prefill-note')) $('prefill-note').hidden = false;
+  }
+  if ($('prefill-clear')) $('prefill-clear').addEventListener('click', function (e) {
+    e.preventDefault();
+    try { localStorage.removeItem(PROFILE_KEY); } catch (x) { /* rien */ }
+    PROFILE_FIELDS.forEach(function (f) { if ($(f)) $(f).value = ''; });
+    $('prefill-note').hidden = true;
+  });
 
   // ---------------------------------------------------------------- Démarrage
   renderServices();
