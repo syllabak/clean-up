@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Génère les affiches Clean Up (HTML A3 portrait) à partir de contact.json.
-Usage : python3 build.py && node render.cjs      (nécessite : pip install segno)
+Usage : python3 build.py && node render.cjs      (nécessite : pip install segno)\nPhotos réelles : déposez photos/avant.jpg et photos/apres.jpg (affiche 03) ; sans elles, une illustration est utilisée.
 Les coordonnées se modifient dans contact.json, puis on relance les deux commandes.
 """
 import html, io, json, pathlib
@@ -69,6 +69,10 @@ h1 em { font-style: normal; color: var(--lemon) }
 .dense h1 { font-size: 21mm; margin-top: 4mm } .dense .kicker { margin-top: 12mm } .dense .lead { margin-top: 6mm; font-size: 7mm }
 .dense .ba { margin-top: 8mm } .dense .ba figure { height: 82mm } .dense .cards { margin-top: 6mm; padding-bottom: 0; gap: 4mm } .dense .card { padding: 5mm 6mm 6mm }
 .dense .card h3 { font-size: 7mm } .dense .card p { margin-top: 2mm; font-size: 4.8mm } .dense .cta { margin-top: 6mm; padding-top: 9mm; padding-bottom: 10mm } .dense .cta h2 { font-size: 11.5mm }
+.ba.photos { gap: 3mm } .ba.photos figure { background: #ddd }
+.ba.photos img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover }
+.ba.photos figcaption { top: auto; bottom: 0; left: 0; border-radius: 0 3mm 0 0; padding: 3mm 7mm; font-size: 6.5mm; background: #2b2320; color: #fff }
+.ba.photos .after figcaption { left: auto; right: 0; border-radius: 3mm 0 0 0; background: #2b2320; color: #fff }
 .strip { position: relative; z-index: 2; margin: 0 -20mm; background: var(--water); color: #fff; text-align: center; padding: 4.5mm; font-size: 4.6mm; font-weight: 700; letter-spacing: .3mm }
 """
 
@@ -108,7 +112,19 @@ def armchair(dirty: bool) -> str:
     return f'<svg viewBox="0 0 300 260" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">{"".join(parts)}</svg>'
 
 
+def photo(kind: str):
+    """Chemin relatif (depuis html/) d'une vraie photo photos/avant.* ou photos/apres.*, si elle existe."""
+    for ext in ("jpg", "jpeg", "png", "webp"):
+        if (ROOT / "photos" / f"{kind}.{ext}").exists():
+            return f"../photos/{kind}.{ext}"
+    return None
+
+
 def before_after() -> str:
+    a, b = photo("avant"), photo("apres")
+    if a and b:   # vraies photos : même présentation que les avant / après de terrain
+        return ('<div class="ba photos"><figure class="before"><img src="' + a + '" alt=""><figcaption>Avant</figcaption></figure>'
+                '<figure class="after"><img src="' + b + '" alt=""><figcaption>Après</figcaption></figure></div>')
     return ('<div class="ba"><figure class="before"><figcaption>Avant</figcaption>' + armchair(True) + '</figure>'
             '<figure class="after"><figcaption>Après</figcaption>' + armchair(False) + '</figure><div class="arrow">→</div></div>')
 
