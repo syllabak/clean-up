@@ -432,7 +432,16 @@ $bad = new Client($port);
 [, , $b] = (new Client($port))->get('/reserver'); T::ok(str_contains($b, 'id="prefill-note"') && str_contains($b, 'id="prefill-clear"'), 'formulaire de réservation : mémoire des coordonnées (avec « effacer »)');
 
 [$s, , $b] = $admin->get('/admin'); T::ok($s === 200 && str_contains($b, 'À faire maintenant') && str_contains($b, 'Premiers pas'), 'tableau de bord : « À faire maintenant » et « Premiers pas »');
-T::ok(str_contains($b, 'side-group') && str_contains($b, 'name="q"') && str_contains($b, '/admin/recherche'), 'menu regroupé et barre de recherche présents');
+T::eq(substr_count($b, 'class="side-link'), 8, 'menu d\'administration : 8 entrées seulement');
+T::ok(str_contains($b, 'href="/admin/configuration"') && str_contains($b, 'name="q"') && str_contains($b, '/admin/recherche'), 'entrée « Configuration » et barre de recherche présentes');
+foreach (['/admin/configuration' => 'Configuration', '/admin/crud/services' => 'Configuration', '/admin/parametres' => 'Configuration', '/admin/crud/customers' => 'Clients', '/admin/crud/expenses' => 'Gestion', '/admin/crud/acquisition_channels' => 'Marketing', '/admin/marketing/campagnes' => 'Marketing'] as $u => $lab) {
+    [, , $pg] = $admin->get($u); preg_match('#class="side-link active"[^>]*>([^<]+)<#', $pg, $mm); T::eq($mm[1] ?? null, $lab, "menu : « $u » garde « $lab » actif");
+}
+[$s, , $b] = $admin->get('/admin/configuration'); T::ok($s === 200 && str_contains($b, 'Services et tarifs') && str_contains($b, 'Quartiers desservis') && str_contains($b, 'Utilisateurs'), 'Configuration : tous les réglages rangés sur une page');
+[$s, , $b] = $m->get('/admin/configuration'); T::ok($s === 200 && str_contains($b, 'Services et tarifs') && !str_contains($b, 'Utilisateurs') && !str_contains($b, 'Paramètres'), 'Configuration : le gestionnaire ne voit que ce qui lui est permis');
+[$s] = $ag->get('/admin/configuration'); T::ok($s === 403 || $s === 302, 'Configuration : agent refusé');
+[$s, , $b] = (new Client($port))->get('/api/geo/all/0'); $hoods = json_decode($b, true); T::ok($s === 200 && count($hoods) > 5 && isset($hoods[0]['commune'], $hoods[0]['travel_fee']), 'une seule liste de quartiers pour le client : ' . count($hoods) . ' quartiers');
+[, , $b] = (new Client($port))->get('/reserver'); T::ok(!str_contains($b, 'id="region"') && !str_contains($b, 'id="commune"') && str_contains($b, 'id="full_name"') && substr_count($b, 'data-step="') === 6, 'formulaire : plus de listes en cascade, un seul champ pour le nom');
 [$s, , $b] = $m->get('/admin'); T::ok($s === 200 && !str_contains($b, 'Premiers pas'), 'gestionnaire : pas de « Premiers pas » (réservé à l\'administrateur)');
 [$s] = (new Client($port))->get('/admin/recherche?q=test'); T::eq($s, 302, 'recherche : visiteur anonyme redirigé');
 [$s] = $ag->get('/admin/recherche?q=test'); T::ok($s === 403 || $s === 302, 'recherche : agent refusé');

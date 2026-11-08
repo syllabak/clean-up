@@ -40,15 +40,21 @@ final class BookingController extends Controller
     public function geo(string $type, string $id): void
     {
         $cid = Env::companyId(); $id = (int) $id;
+        $days = function ($n) {
+            $n['days'] = $n['intervention_days'] === '' ? '' : implode(', ', array_map(fn($d) => mb_strtolower(DAYS_FR[(int) $d] ?? ''), explode(',', $n['intervention_days'])));
+            unset($n['intervention_days']);
+            return $n;
+        };
         $rows = match ($type) {
             'regions' => Database::all('SELECT id, name FROM regions WHERE company_id = ? AND active = 1 AND deleted_at IS NULL ORDER BY name', [$cid]),
             'cities' => Database::all('SELECT id, name FROM cities WHERE region_id = ? AND active = 1 AND deleted_at IS NULL ORDER BY name', [$id]),
             'communes' => Database::all('SELECT id, name FROM communes WHERE city_id = ? AND active = 1 AND deleted_at IS NULL ORDER BY name', [$id]),
-            'neighborhoods' => array_map(function ($n) {
-                $n['days'] = $n['intervention_days'] === '' ? '' : implode(', ', array_map(fn($d) => mb_strtolower(DAYS_FR[(int) $d] ?? ''), explode(',', $n['intervention_days'])));
-                unset($n['intervention_days']);
-                return $n;
-            }, Database::all('SELECT id, name, travel_fee, intervention_days, conditions FROM neighborhoods WHERE commune_id = ? AND active = 1 AND deleted_at IS NULL ORDER BY sort, name', [$id])),
+            'neighborhoods' => array_map($days, Database::all('SELECT id, name, travel_fee, intervention_days, conditions FROM neighborhoods WHERE commune_id = ? AND active = 1 AND deleted_at IS NULL ORDER BY sort, name', [$id])),
+            // Tous les quartiers desservis en une liste, groupés par commune : un seul choix pour le client.
+            'all' => array_map($days, Database::all('SELECT n.id, n.name, n.travel_fee, n.intervention_days, n.conditions, c.name AS commune, ci.name AS city
+                FROM neighborhoods n JOIN communes c ON c.id = n.commune_id AND c.active = 1 AND c.deleted_at IS NULL
+                JOIN cities ci ON ci.id = c.city_id AND ci.active = 1 AND ci.deleted_at IS NULL JOIN regions r ON r.id = ci.region_id AND r.active = 1 AND r.deleted_at IS NULL
+                WHERE n.company_id = ? AND n.active = 1 AND n.deleted_at IS NULL ORDER BY ci.name, c.name, n.sort, n.name', [$cid])),
             default => abort(404),
         };
         json_response($rows);

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 use App\Core\Router;
 use App\Controllers\{HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
-use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController};
+use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
 
 $r = new Router();
 
@@ -51,6 +51,7 @@ $r->get('/cron/install', [CronController::class, 'install']);   // usage unique,
 
 // ---- Administration
 $r->get('/admin', [DashboardController::class, 'index'], ['perm:dashboard.view']);
+$r->get('/admin/configuration', [ConfigController::class, 'index'], ['perm:dashboard.view']);
 $r->get('/admin/recherche', [SearchController::class, 'index'], ['perm:dashboard.view']);
 $r->get('/admin/reservations', [BookingAdminController::class, 'index'], ['perm:bookings.view']);
 $r->get('/admin/reservations/{id}', [BookingAdminController::class, 'show'], ['perm:bookings.view']);
