@@ -19,10 +19,10 @@
   </div></div>
   <?php endforeach ?>
   <div class="panel"><h2>Notifications automatiques</h2>
-    <p class="small text-muted">Cochez les envois à activer. Le contenu des messages se modifie dans « Modèles de messages ».</p>
-    <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Événement</th><th class="text-center">Email</th><th class="text-center">SMS</th></tr></thead><tbody>
+    <p class="small text-muted">Cochez les envois à activer. Le contenu des messages se modifie dans « Modèles de messages ». Les envois WhatsApp automatiques demandent le mode « API » (Marketing → Canaux).</p>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Événement</th><th class="text-center">Email</th><th class="text-center">SMS</th><th class="text-center">WhatsApp</th></tr></thead><tbody>
       <?php foreach ($events as $ev => $label): ?><tr><td><?= e($label) ?></td>
-        <?php foreach (['email', 'sms'] as $ch): $k = \App\Services\NotificationService::toggleKey($ev, $ch); ?>
+        <?php foreach (['email', 'sms', 'whatsapp'] as $ch): $k = \App\Services\NotificationService::toggleKey($ev, $ch); ?>
         <td class="text-center"><input type="hidden" name="<?= e($k) ?>" value="0"><input class="form-check-input" type="checkbox" name="<?= e($k) ?>" value="1" <?= setting($k, '1') === '1' ? 'checked' : '' ?> aria-label="<?= e($label . ' — ' . $ch) ?>"></td><?php endforeach ?></tr><?php endforeach ?>
     </tbody></table></div>
   </div>

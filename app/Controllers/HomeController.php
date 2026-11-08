@@ -47,7 +47,8 @@ final class HomeController extends Controller
         Audit::log('contact.message', 'contact_message', $id, [], null);
         try {   // le message devient aussi un prospect à suivre dans le CRM
             $crm = new \App\Services\CrmService();
-            $crm->createLead(['name' => Request::str('name'), 'phone' => Request::str('phone'), 'email' => Request::str('email'), 'notes' => Request::str('message'), 'channel_id' => $crm->channelByCode('contact')]);
+            $crm->createLead(['name' => Request::str('name'), 'phone' => Request::str('phone'), 'email' => Request::str('email'), 'notes' => Request::str('message'), 'channel_id' => \App\Services\TrackingService::channelId() ?? $crm->channelByCode('contact'), 'attr' => \App\Services\TrackingService::attribution()]);
+            \App\Services\TrackingService::sendMeta('Lead', 'contact-' . $id, ['phone' => Request::str('phone'), 'email' => Request::str('email'), 'first_name' => Request::str('name')]);
         } catch (\Throwable $e) { error_log('CRM contact: ' . $e->getMessage()); }
         try {   // simple copie email vers l'entreprise ; aucune incidence si ça échoue
             $to = setting('admin_notification_email', '');

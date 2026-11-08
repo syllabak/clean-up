@@ -213,7 +213,7 @@ return [
         'fields' => [
             'event' => ['label' => 'Événement', 'type' => 'select', 'options' => \App\Services\NotificationService::EVENTS, 'required' => true],
             'audience' => ['label' => 'Destinataire', 'type' => 'select', 'options' => ['client' => 'Client', 'admin' => "Administration"], 'default' => 'client'],
-            'channel' => ['label' => 'Canal', 'type' => 'select', 'options' => ['email' => 'Email', 'sms' => 'SMS'], 'required' => true],
+            'channel' => ['label' => 'Canal', 'type' => 'select', 'options' => ['email' => 'Email', 'sms' => 'SMS', 'whatsapp' => 'WhatsApp'], 'required' => true],
             'subject' => ['label' => 'Objet (email)', 'type' => 'text'],
             'body' => ['label' => 'Message', 'type' => 'textarea', 'required' => true, 'help' => 'Variables : {client} {reference} {service} {date} {heure} {adresse} {total} {equipe} {statut} {entreprise} {telephone} {telephone_client}'],
             'active' => $active,

@@ -34,7 +34,7 @@ final class SettingsController extends Controller
             }
         }
         foreach (array_keys(NotificationService::EVENTS) as $ev) {
-            foreach (['email', 'sms'] as $ch) {
+            foreach (['email', 'sms', 'whatsapp'] as $ch) {
                 $k = NotificationService::toggleKey($ev, $ch);
                 $v = Request::str($k) === '1' ? '1' : '0';
                 if (setting($k, '1') !== $v) $changed[] = $k;
