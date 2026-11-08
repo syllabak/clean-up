@@ -71,7 +71,7 @@ final class BookingService
                 'instructions' => trim((string) ($in['instructions'] ?? '')) ?: null, 'scheduled_date' => $in['date'], 'start_time' => $slot['start'],
                 'end_time' => $slot['end'], 'duration_minutes' => $quote['duration'], 'team_id' => $slot['team_id'], 'status' => 'pending',
                 'subtotal' => $quote['subtotal'], 'travel_fee' => $quote['travel_fee'], 'total' => $quote['total'],
-                'source' => $in['source'] ?? 'web', 'created_at' => now(),
+                'source' => $in['source'] ?? 'web', 'created_at' => now(), 'track_token' => bin2hex(random_bytes(16)),
             ] + TrackingService::columns((array) ($in['attr'] ?? [])));
             Database::insert('booking_items', [
                 'booking_id' => $id, 'service_id' => $serviceId, 'name' => $quote['service']['name'], 'formula_name' => $quote['formula']['name'] ?? null,

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 use App\Core\Router;
 use App\Controllers\{HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
-use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController};
+use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
 
 $r = new Router();
 
@@ -33,6 +33,7 @@ $r->post('/suivi', [BookingController::class, 'track'], ['throttle:track,10,600'
 $r->get('/suivi/{ref}', [BookingController::class, 'trackShow']);
 $r->get('/suivi/{ref}/calendrier', [BookingController::class, 'calendar']);
 $r->post('/suivi/{ref}/annuler', [BookingController::class, 'trackCancel']);
+$r->get('/suivi/{ref}/{key}', [BookingController::class, 'trackLink'], ['throttle:track,30,600']);   // lien personnel reçu par message : un clic suffit
 
 // ---- Authentification
 $r->get('/connexion', [AuthController::class, 'form']);
@@ -50,6 +51,8 @@ $r->get('/cron/install', [CronController::class, 'install']);   // usage unique,
 
 // ---- Administration
 $r->get('/admin', [DashboardController::class, 'index'], ['perm:dashboard.view']);
+$r->get('/admin/configuration', [ConfigController::class, 'index'], ['perm:dashboard.view']);
+$r->get('/admin/recherche', [SearchController::class, 'index'], ['perm:dashboard.view']);
 $r->get('/admin/reservations', [BookingAdminController::class, 'index'], ['perm:bookings.view']);
 $r->get('/admin/reservations/{id}', [BookingAdminController::class, 'show'], ['perm:bookings.view']);
 $r->post('/admin/reservations/{id}/statut', [BookingAdminController::class, 'status'], ['perm:bookings.manage']);

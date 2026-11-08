@@ -146,3 +146,28 @@ function phone_fmt(?string $p): string
     if (strlen($d) === 12 && str_starts_with($d, '221')) return '+221 ' . substr($d, 3, 2) . ' ' . substr($d, 5, 3) . ' ' . substr($d, 8, 2) . ' ' . substr($d, 10, 2);
     return $d === '' ? '' : '+' . $d;
 }
+
+/** Lien WhatsApp « cliquer pour écrire », message prérempli facultatif. */
+function wa_link(string $phone, string $text = ''): string
+{
+    return 'https://wa.me/' . preg_replace('/\D/', '', $phone) . ($text !== '' ? '?text=' . rawurlencode($text) : '');
+}
+/** Boutons Appeler et WhatsApp pour joindre un client en un geste. */
+function contact_buttons(string $phone, string $text = ''): string
+{
+    return '<a class="btn btn-sm btn-outline-secondary" href="tel:+' . e(preg_replace('/\D/', '', $phone)) . '">Appeler</a> '
+        . '<a class="btn btn-sm btn-outline-success" target="_blank" rel="noopener" href="' . e(wa_link($phone, $text)) . '">WhatsApp</a>';
+}
+/** Bouton « Confirmer » en un clic pour une réservation en attente (revient sur la page d'origine). */
+function confirm_button(array $b): string
+{
+    if ($b['status'] !== 'pending' || !can('bookings.manage')) return '';
+    return '<form method="post" action="/admin/reservations/' . (int) $b['id'] . '/statut" class="d-inline">' . csrf_field()
+        . '<input type="hidden" name="to" value="confirmed"><input type="hidden" name="back" value="1"><button class="btn btn-sm btn-primary">Confirmer</button></form>';
+}
+/** Message WhatsApp prérempli au sujet d'une réservation. */
+function booking_message(array $b): string
+{
+    return 'Bonjour ' . $b['customer_first_name'] . ', ici ' . setting('company_name', '') . ' au sujet de votre réservation ' . $b['reference']
+        . ' du ' . fmt_date($b['scheduled_date']) . ' à ' . $b['start_time'] . '. ';
+}
