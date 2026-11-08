@@ -21,6 +21,10 @@
         <div class="col-12"><select class="form-select form-select-sm" name="channel_id" aria-label="Canal d'acquisition"><option value="">Non renseigné</option>
           <?php foreach ($channels as $ch): ?><option value="<?= (int) $ch['id'] ?>" <?= (int) $c['channel_id'] === (int) $ch['id'] ? 'selected' : '' ?>><?= e($ch['name']) ?></option><?php endforeach ?></select></div>
         <div class="col-12 form-check ms-2"><input class="form-check-input" type="checkbox" id="mc" name="marketing_consent" value="1" <?= $c['marketing_consent'] ? 'checked' : '' ?>><label class="form-check-label" for="mc">Accepte de recevoir nos offres</label></div>
+        <?php if (!empty($c['marketing_consent_source']) || !empty($c['marketing_consent_at']) || !empty($c['marketing_optout_at'])): ?><div class="col-12 small text-muted ms-2"><?php
+          $src = \App\Services\ConsentService::SOURCES[$c['marketing_consent_source'] ?? ''] ?? ($c['marketing_consent_source'] ?? '');
+          if ($c['marketing_consent']) echo 'Consentement' . ($c['marketing_consent_at'] ? ' donné le ' . e(date('d/m/Y H:i', strtotime($c['marketing_consent_at'] . ' UTC'))) : ' (date inconnue)') . ($src ? ' · ' . e($src) : '');
+          elseif ($c['marketing_optout_at']) echo 'Désinscrit le ' . e(date('d/m/Y H:i', strtotime($c['marketing_optout_at'] . ' UTC'))) . ($src ? ' · ' . e($src) : ''); ?></div><?php endif ?>
         <div class="col-12"><button class="btn btn-sm btn-primary">Enregistrer</button></div>
       </form>
     </div>

@@ -4,6 +4,7 @@
 <form method="post" action="/admin/marketing/canaux/<?= e($sec) ?>" class="panel" id="<?= e($sec) ?>" autocomplete="off">
   <?= csrf_field() ?>
   <h2><?= e($def['title']) ?></h2><p class="small text-muted"><?= e($def['intro']) ?></p>
+  <?php if (!empty($def['webhook'])): ?><p class="small mb-3"><strong>Désinscription automatique (STOP)</strong> : donnez cette adresse à votre fournisseur pour les messages reçus : <code><?= e(url($def['webhook'])) ?></code></p><?php endif ?>
   <div class="row g-3">
   <?php $ph = ['optout_text' => 'Répondez STOP pour ne plus recevoir nos offres.', 'batch_size' => '50', 'email_port' => '587', 'wa_version' => 'v21.0', 'wa_template_lang' => 'fr', 'wa_template_params' => '{client}'];
   foreach ($def['fields'] as $key => $f): [$label, $type] = $f; $help = $f[2] ?? ''; $opts = $f[3] ?? []; $v = (string) setting('mk_' . $key, ''); ?>

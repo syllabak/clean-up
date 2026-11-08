@@ -442,6 +442,46 @@ T::ok(in_array('https://www.googletagmanager.com', TrackingService::cspExtra()['
 foreach (['mk_meta_enabled', 'mk_meta_pixel_id', 'mk_google_enabled', 'mk_google_ads_id', 'mk_google_label_booking', 'mk_google_ga4_id'] as $k) setting_set($k, '');
 T::eq(TrackingService::enabled(), false, 'suivi désactivé de nouveau');
 
+// ------------------------------------------------------------------ Consentement, STOP, résultats publicitaires
+T::group('Consentement daté, désinscription STOP, résultats publicitaires');
+use App\Services\ConsentService;
+foreach (['STOP', 'stop', ' Stop. ', 'ARRÊT', 'Arrêt', 'désabonner', 'unsubscribe'] as $w) T::ok(ConsentService::isStop($w), "« $w » retire le consentement");
+foreach (['stopper la fuite', 'merci', 'oui', 'je veux un devis', ''] as $w) T::ok(!ConsentService::isStop($w), "« $w » n'est pas une désinscription");
+$cons = new ConsentService();
+$k1 = $cs->findOrCreate('Ndeye', 'Gueye', '77 400 00 01', null);
+$cons->grant($k1, 'reservation');
+$row = DB::one('SELECT marketing_consent, marketing_consent_at, marketing_optout_at, marketing_consent_source FROM customers WHERE id = ?', [$k1]);
+T::ok($row['marketing_consent'] == 1 && $row['marketing_consent_at'] && $row['marketing_optout_at'] === null && $row['marketing_consent_source'] === 'reservation', 'consentement daté avec sa source');
+T::eq((int) DB::val("SELECT COUNT(*) FROM interactions WHERE customer_id = ? AND summary LIKE 'Consentement aux offres donné%'", [$k1]), 1, 'consentement tracé dans l\'historique du client');
+$at = $row['marketing_consent_at']; $cons->grant($k1, 'admin');
+T::eq(DB::val('SELECT marketing_consent_at FROM customers WHERE id = ?', [$k1]), $at, 'redonner un consentement existant ne change pas sa date');
+T::eq($cons->optOutByPhone('+221 77 400 00 01', 'whatsapp'), 1, 'STOP : le client est désinscrit par son numéro');
+$row = DB::one('SELECT marketing_consent, marketing_optout_at, marketing_consent_source FROM customers WHERE id = ?', [$k1]);
+T::ok($row['marketing_consent'] == 0 && $row['marketing_optout_at'] && $row['marketing_consent_source'] === 'whatsapp', 'désinscription datée avec sa source');
+T::eq($cons->optOutByPhone('77 400 00 01', 'sms'), 0, 'déjà désinscrit : rien à faire');
+T::eq($cons->optOutByPhone('12', 'sms'), 0, 'numéro invalide ignoré');
+T::eq(ConsentService::stamp(['marketing_consent' => 1], ['marketing_consent' => 0])['marketing_consent_source'], 'admin', 'saisie par l\'équipe : horodatage ajouté');
+T::eq(array_keys(ConsentService::stamp(['marketing_consent' => 1], ['marketing_consent' => 1])), ['marketing_consent'], 'case inchangée : aucun horodatage');
+$bkC = $svcB->create(wash_input(next_dow(1, 17), '15:00', 'Unité 15', ['first_name' => 'Rama', 'last_name' => 'Thiam', 'phone' => '77 400 00 02', 'marketing_consent' => true]));
+$cr = DB::one('SELECT marketing_consent, marketing_consent_source FROM customers WHERE id = ?', [$bkC['customer_id']]);
+T::ok($cr['marketing_consent'] == 1 && $cr['marketing_consent_source'] === 'reservation', 'case cochée à la réservation : consentement enregistré');
+$bkN = $svcB->create(wash_input(next_dow(1, 17), '11:00', 'Unité 15', ['first_name' => 'Pape', 'last_name' => 'Sarr', 'phone' => '77 400 00 03']));
+T::eq((int) DB::val('SELECT marketing_consent FROM customers WHERE id = ?', [$bkN['customer_id']]), 0, 'case non cochée : aucun consentement');
+$cons->grant((int) $bkN['customer_id'], 'admin'); $svcB->create(wash_input(next_dow(1, 10), '11:00', 'Unité 15', ['first_name' => 'Pape', 'last_name' => 'Sarr', 'phone' => '77 400 00 03']));
+T::eq((int) DB::val('SELECT marketing_consent FROM customers WHERE id = ?', [$bkN['customer_id']]), 1, 'une réservation sans la case ne retire jamais un consentement');
+
+DB::update('bookings', (int) $bkAd['id'], ['channel_id' => $fbc]);
+DB::insert('expenses', ['company_id' => 1, 'expense_date' => date('Y-m-d'), 'category' => 'marketing', 'label' => 'Facebook Ads', 'amount' => 10000, 'channel_id' => $fbc, 'created_at' => now()]);
+DB::insert('expenses', ['company_id' => 1, 'expense_date' => date('Y-m-d'), 'category' => 'marketing', 'label' => 'Google Ads', 'amount' => 5000, 'channel_id' => $g, 'created_at' => now()]);
+$rep = $mk->adReport(date('Y-m-d', strtotime('-1 day')), date('Y-m-d', strtotime('+90 days')));
+$pf = array_column($rep['platforms'], null, 'name');
+T::ok(isset($pf['Facebook']) && $pf['Facebook']['bookings'] === 1 && $pf['Facebook']['spend'] === 10000 && $pf['Facebook']['cost_per_booking'] === 10000, 'plateforme Facebook : réservation, dépense et coût par réservation');
+T::ok(isset($pf['Google (Ads, recherche)']) && $pf['Google (Ads, recherche)']['bookings'] === 0 && $pf['Google (Ads, recherche)']['roi'] === -100, 'plateforme sans réservation : dépense visible, ROI de -100 %');
+$adRow = array_values(array_filter($rep['ads'], fn($a) => $a['campaign'] === 'promo'))[0] ?? null;
+T::ok($adRow && $adRow['source'] === 'facebook' && $adRow['medium'] === 'paid_social' && $adRow['bookings'] === 1 && !$adRow['internal'], 'annonce « promo » : source, type et réservation');
+T::eq($rep['total']['spend'], (int) DB::val('SELECT SUM(amount) FROM expenses WHERE channel_id IS NOT NULL AND deleted_at IS NULL AND expense_date >= ? AND expense_date <= ?', [date('Y-m-d', strtotime('-1 day')), date('Y-m-d', strtotime('+90 days'))]), 'total dépensé = toutes les dépenses rattachées à un canal sur la période');
+T::eq($mk->adReport('2000-01-01', '2000-01-31')['platforms'], [], 'période sans données : rien');
+
 DB::reset();
 foreach (['', '-wal', '-shm'] as $s) @unlink($dbFile . $s);
 exit(T::summary());
