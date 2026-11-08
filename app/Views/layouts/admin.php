@@ -1,17 +1,19 @@
 <?php
 use App\Core\Auth;
 $path = \App\Core\Request::path();
-$nav = [
-  ['Tableau de bord', '/admin', 'dashboard.view'], ['Réservations', '/admin/reservations', 'bookings.view'], ['Planning', '/admin/planning', 'planning.view'],
-  ['Services', '/admin/crud/services', 'catalog.manage'], ['Catégories', '/admin/crud/service_categories', 'catalog.manage'],
-  ['Zones : quartiers', '/admin/crud/neighborhoods', 'geo.manage'], ['Zones : régions', '/admin/crud/regions', 'geo.manage'],
-  ['Équipes', '/admin/crud/teams', 'staff.manage'], ['Agents', '/admin/crud/staff', 'staff.manage'], ['Compétences', '/admin/crud/skills', 'staff.manage'], ['Congés et fermetures', '/admin/crud/time_off', 'staff.manage'],
-  ['Clients', '/admin/crud/customers', 'customers.manage'], ['Prospects (CRM)', '/admin/crm', 'crm.manage'], ['Canaux d\'acquisition', '/admin/crud/acquisition_channels', 'crm.manage'],
-  ['Marketing', '/admin/marketing', 'marketing.manage'], ['Campagnes', '/admin/marketing/campagnes', 'marketing.manage'], ['Résultats publicitaires', '/admin/marketing/publicites', 'marketing.manage'], ['Liens suivis', '/admin/marketing/liens', 'marketing.manage'], ['Canaux marketing', '/admin/marketing/canaux', 'settings.manage'],
-  ['Gestion et résultats', '/admin/gestion', 'finance.manage'], ['Dépenses', '/admin/crud/expenses', 'finance.manage'],
-  ['Journal des envois', '/admin/notifications', 'notifications.manage'], ['Modèles de messages', '/admin/crud/notifications', 'notifications.manage'],
-  ['Messages reçus', '/admin/crud/contact_messages', 'cms.manage'], ['Pages', '/admin/crud/pages', 'cms.manage'], ['FAQ', '/admin/crud/faq', 'cms.manage'], ['Témoignages', '/admin/crud/testimonials', 'cms.manage'],
-  ['Utilisateurs', '/admin/crud/users', 'users.manage'], ["Journal d'audit", '/admin/audit', 'users.manage'], ['Paramètres', '/admin/parametres', 'settings.manage'],
+$nav = [   // titre de section => entrées [libellé, adresse, droit]
+  '' => [['Tableau de bord', '/admin', 'dashboard.view']],
+  'Activité' => [['Réservations', '/admin/reservations', 'bookings.view'], ['Planning', '/admin/planning', 'planning.view']],
+  'Clients' => [['Clients', '/admin/crud/customers', 'customers.manage'], ['Prospects (CRM)', '/admin/crm', 'crm.manage'], ['Canaux d\'acquisition', '/admin/crud/acquisition_channels', 'crm.manage']],
+  'Marketing' => [['Marketing', '/admin/marketing', 'marketing.manage'], ['Campagnes', '/admin/marketing/campagnes', 'marketing.manage'], ['Résultats publicitaires', '/admin/marketing/publicites', 'marketing.manage'],
+    ['Liens suivis', '/admin/marketing/liens', 'marketing.manage'], ['Canaux marketing', '/admin/marketing/canaux', 'settings.manage']],
+  'Catalogue' => [['Services', '/admin/crud/services', 'catalog.manage'], ['Catégories', '/admin/crud/service_categories', 'catalog.manage']],
+  'Équipes et zones' => [['Équipes', '/admin/crud/teams', 'staff.manage'], ['Agents', '/admin/crud/staff', 'staff.manage'], ['Compétences', '/admin/crud/skills', 'staff.manage'], ['Congés et fermetures', '/admin/crud/time_off', 'staff.manage'],
+    ['Zones : quartiers', '/admin/crud/neighborhoods', 'geo.manage'], ['Zones : régions', '/admin/crud/regions', 'geo.manage']],
+  'Argent' => [['Gestion et résultats', '/admin/gestion', 'finance.manage'], ['Dépenses', '/admin/crud/expenses', 'finance.manage']],
+  'Messages' => [['Journal des envois', '/admin/notifications', 'notifications.manage'], ['Modèles de messages', '/admin/crud/notifications', 'notifications.manage'], ['Messages reçus', '/admin/crud/contact_messages', 'cms.manage']],
+  'Site web' => [['Pages', '/admin/crud/pages', 'cms.manage'], ['FAQ', '/admin/crud/faq', 'cms.manage'], ['Témoignages', '/admin/crud/testimonials', 'cms.manage']],
+  'Administration' => [['Utilisateurs', '/admin/crud/users', 'users.manage'], ["Journal d'audit", '/admin/audit', 'users.manage'], ['Paramètres', '/admin/parametres', 'settings.manage']],
 ];
 $u = Auth::user();
 ?><!doctype html>
@@ -27,15 +29,18 @@ $u = Auth::user();
   <aside class="admin-side" id="side">
     <a class="brand brand-admin" href="/admin"><span class="brand-drop" aria-hidden="true"></span><?= e(setting('company_name')) ?></a>
     <nav aria-label="Navigation principale">
-      <?php foreach ($nav as [$label, $href, $perm]): if (!Auth::can($perm)) continue;
-        $active = in_array($href, ['/admin', '/admin/marketing'], true) ? $path === $href : str_starts_with($path, $href); ?>
+      <?php foreach ($nav as $group => $items): $items = array_filter($items, fn($i) => Auth::can($i[2])); if (!$items) continue; ?>
+        <?php if ($group !== ''): ?><div class="side-group"><?= e($group) ?></div><?php endif ?>
+        <?php foreach ($items as [$label, $href]): $active = in_array($href, ['/admin', '/admin/marketing'], true) ? $path === $href : str_starts_with($path, $href); ?>
         <a class="side-link <?= $active ? 'active' : '' ?>" href="<?= e($href) ?>" <?= $active ? 'aria-current="page"' : '' ?>><?= e($label) ?></a>
+        <?php endforeach ?>
       <?php endforeach ?>
     </nav>
   </aside>
   <div class="admin-main">
     <header class="admin-top">
       <button class="btn btn-sm btn-outline-secondary d-lg-none" type="button" data-toggle-side aria-controls="side">Menu</button>
+      <?php if (Auth::can('dashboard.view')): ?><form method="get" action="/admin/recherche" class="admin-search" role="search"><input class="form-control form-control-sm" type="search" name="q" placeholder="Rechercher : référence, nom, téléphone…" aria-label="Rechercher" value="<?= e(\App\Core\Request::str('q')) ?>"></form><?php endif ?>
       <span class="ms-auto small text-muted"><?= e($u['name'] ?? '') ?> · <?= e($u['role_name'] ?? '') ?></span>
       <a class="btn btn-sm btn-outline-secondary" href="/" target="_blank" rel="noopener">Voir le site</a>
       <form method="post" action="/deconnexion" class="d-inline"><?= csrf_field() ?><button class="btn btn-sm btn-outline-danger">Déconnexion</button></form>

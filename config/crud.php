@@ -215,7 +215,7 @@ return [
             'audience' => ['label' => 'Destinataire', 'type' => 'select', 'options' => ['client' => 'Client', 'admin' => "Administration"], 'default' => 'client'],
             'channel' => ['label' => 'Canal', 'type' => 'select', 'options' => ['email' => 'Email', 'sms' => 'SMS', 'whatsapp' => 'WhatsApp'], 'required' => true],
             'subject' => ['label' => 'Objet (email)', 'type' => 'text'],
-            'body' => ['label' => 'Message', 'type' => 'textarea', 'required' => true, 'help' => 'Variables : {client} {reference} {service} {date} {heure} {adresse} {total} {equipe} {statut} {entreprise} {telephone} {telephone_client}'],
+            'body' => ['label' => 'Message', 'type' => 'textarea', 'required' => true, 'help' => 'Variables : {client} {reference} {service} {date} {heure} {adresse} {total} {equipe} {statut} {entreprise} {telephone} {telephone_client} {lien_suivi}'],
             'active' => $active,
         ],
     ],

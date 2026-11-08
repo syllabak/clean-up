@@ -126,6 +126,7 @@ final class NotificationService
             '{adresse}' => trim($b['address_text'] . ' (' . $b['neighborhood_name'] . ')'), '{total}' => money((int) $b['total']),
             '{equipe}' => $b['team_name'] ?? 'notre équipe', '{statut}' => status_label($b['status']),
             '{entreprise}' => setting('company_name', ''), '{telephone}' => setting('company_phone', ''),
+            '{lien_suivi}' => url('/suivi' . (!empty($b['track_token']) ? '/' . $b['reference'] . '/' . $b['track_token'] : '')),
         ];
     }
 }

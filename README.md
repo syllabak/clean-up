@@ -85,6 +85,20 @@ php tests/smoke.php   # parcours HTTP complet sur un serveur temporaire (CSRF, d
 - **Droits** : `crm.manage` (administrateur et gestionnaire), `finance.manage` (administrateur seul).
 - Après mise à jour d'une installation existante : `php bin/migrate.php` (migrations 008 et 009).
 
+## Parcours simplifiés
+
+**Pour le client**
+- **Lien de suivi personnel** : chaque réservation a un lien secret (`/suivi/RÉFÉRENCE/JETON`) envoyé dans les messages « réservation enregistrée » et « confirmée » (variable `{lien_suivi}` des modèles) et affiché sur la page de confirmation. Un clic ouvre le suivi, sans retaper la référence ni le téléphone (qui restent possibles). La migration 013 ajoute ce lien aux modèles existants qui ne l'ont pas encore.
+- **Coordonnées retenues sur l'appareil** : à la réservation suivante, nom, téléphone, email et adresse sont préremplis (stockés dans le navigateur uniquement, avec un lien « Ce n'est pas vous ? Effacer »).
+- **Réserver à nouveau** : bouton sur le suivi d'une réservation terminée ou annulée, qui rouvre le même service.
+
+**Pour la gestion**
+- **Tableau de bord** : « À faire maintenant » (réservations à confirmer, interventions à affecter, prospects à contacter ou relancer, messages du site, envois en échec, chacun avec son bouton), liste des interventions du jour, et « Premiers pas » (administrateur) qui indique ce qu'il reste à régler : coordonnées, service prêt, zones, équipe et horaires, envoi des messages, comptes de démonstration.
+- **Recherche unique** (barre en haut de l'administration) : référence, nom, morceau de numéro ou email retrouvent réservations, clients et prospects. Une référence exacte ouvre directement la réservation.
+- **Actions rapides** : « Confirmer », « Appeler » et « WhatsApp » (message déjà écrit) directement dans la liste des réservations, le tableau de bord, la recherche et la fiche réservation.
+- **Menu regroupé** par thème (Activité, Clients, Marketing, Catalogue, Équipes et zones, Argent, Messages, Site web, Administration) : chacun ne voit que les sections auxquelles il a droit.
+- Après mise à jour : `php bin/migrate.php` (migration 013).
+
 ## Marketing et publicité
 
 Tout se règle dans l'administration (**Marketing → Canaux marketing**, réservé à l'administrateur) : aucun fichier à modifier sur le serveur. Les valeurs saisies l'emportent sur le `.env`, qui reste le repli. Les clés et mots de passe ne sont jamais réaffichés (laissez le champ vide pour les garder). Ils sont enregistrés dans la base : protégez-la comme le `.env`.

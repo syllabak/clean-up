@@ -29,7 +29,17 @@ final class DashboardController extends Controller
         $byStatus = array_column(DB::all("SELECT status, COUNT(*) AS n FROM bookings WHERE company_id = ? AND scheduled_date >= ? GROUP BY status", [$cid, $monthStart]), 'n', 'status');
         $repo = new \App\Repositories\BookingRepository();
         $unassigned = array_values(array_filter($repo->between($today, date('Y-m-d', strtotime('+3 day'))), fn($b) => in_array($b['status'], ['pending', 'confirmed'], true)));
-        $this->admin('admin/dashboard', ['title' => 'Tableau de bord', 'stats' => $stats, 'by_status' => $byStatus, 'unassigned' => $unassigned,
+        $todo = [];
+        $add = function (int $n, string $perm, string $singular, string $plural, string $href, string $cta) use (&$todo) { if ($n > 0 && can($perm)) $todo[] = [$n, $n > 1 ? $plural : $singular, $href, $cta]; };
+        $add($stats['pending'], 'bookings.view', 'réservation à confirmer', 'réservations à confirmer', '/admin/reservations?status=pending', 'Confirmer');
+        $add(count($unassigned), 'bookings.manage', 'intervention à affecter (3 jours)', 'interventions à affecter (3 jours)', '#affecter', 'Affecter');
+        $add($stats['leads_new'] ?? 0, 'crm.manage', 'nouveau prospect à contacter', 'nouveaux prospects à contacter', '/admin/crm', 'Contacter');
+        $add($stats['leads_due'] ?? 0, 'crm.manage', 'prospect à relancer', 'prospects à relancer', '/admin/crm', 'Relancer');
+        $add($stats['messages'], 'cms.manage', 'message du site à traiter', 'messages du site à traiter', '/admin/crud/contact_messages', 'Lire');
+        $add($stats['failed_notifs'], 'notifications.manage', 'envoi en échec', 'envois en échec', '/admin/notifications?status=failed', 'Relancer');
+        $steps = can('settings.manage') ? \App\Services\OnboardingService::steps() : [];
+        $todayList = array_values(array_filter($repo->between($today, $today), fn($b) => $b['status'] !== 'cancelled'));
+        $this->admin('admin/dashboard', ['title' => 'Tableau de bord', 'todo' => $todo, 'steps' => $steps, 'today_list' => $todayList, 'stats' => $stats, 'by_status' => $byStatus, 'unassigned' => $unassigned,
             'load' => (new SchedulingService())->dayLoad($today), 'today' => $today, 'revenue_on' => setting('revenue_tracking_enabled', '1') === '1']);
     }
 }

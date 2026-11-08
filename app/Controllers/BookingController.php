@@ -101,7 +101,8 @@ final class BookingController extends Controller
         $b = (new BookingRepository())->findByReference($ref);
         if (!$b || Session::get('last_booking') !== $ref) redirect('/suivi');
         $this->view('public/confirmation', ['title' => 'Réservation enregistrée', 'b' => $b, 'items' => (new BookingRepository())->items((int) $b['id']), 'noindex' => true,
-            'mk_event' => ['name' => 'booking', 'id' => $b['reference'], 'value' => (int) $b['total']]]);
+            'mk_event' => ['name' => 'booking', 'id' => $b['reference'], 'value' => (int) $b['total'],],
+            'track_link' => url('/suivi/' . $b['reference'] . '/' . $b['track_token'])]);
     }
 
     // ------------------------------------------------------------ Suivi par le client (référence + téléphone)
@@ -122,12 +123,27 @@ final class BookingController extends Controller
         redirect('/suivi/' . $ref);
     }
 
+    /** Lien personnel (référence + jeton secret) envoyé au client : ouvre le suivi sans autre saisie. */
+    public function trackLink(string $ref, string $key): void
+    {
+        $ref = strtoupper($ref);
+        $b = (new BookingRepository())->findByReference($ref);
+        if (!$b || empty($b['track_token']) || !hash_equals((string) $b['track_token'], $key)) {
+            Audit::log('track_link_failed', 'booking', null, ['ref' => mb_substr($ref, 0, 30)], null);
+            $this->err('Ce lien de suivi n\'est pas valide. Entrez votre référence et votre numéro de téléphone.');
+            redirect('/suivi');
+        }
+        Session::set('track_ok', array_merge(Session::get('track_ok', []), [$ref => true]));
+        redirect('/suivi/' . $ref);
+    }
+
     public function trackShow(string $ref): void
     {
         $b = $this->owned($ref);
         $repo = new BookingRepository();
         $this->view('public/track_show', ['title' => 'Réservation ' . $ref, 'b' => $b, 'items' => $repo->items((int) $b['id']), 'history' => $repo->history((int) $b['id']),
-            'can_cancel' => $this->canCancel($b), 'noindex' => true]);
+            'can_cancel' => $this->canCancel($b), 'noindex' => true,
+            'rebook' => in_array($b['status'], ['completed', 'cancelled'], true) ? '/reserver?service=' . rawurlencode((string) $b['service_slug']) : null]);
     }
 
     public function trackCancel(string $ref): void

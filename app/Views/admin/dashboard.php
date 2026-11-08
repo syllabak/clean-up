@@ -1,16 +1,24 @@
 <h1>Tableau de bord</h1>
+<?php $left = array_filter($steps, fn($s) => !$s['done']); if ($left): ?>
+<div class="panel border-warning"><h2>Premiers pas <span class="small text-muted fw-normal">· <?= count($steps) - count($left) ?> sur <?= count($steps) ?> faits</span></h2>
+  <div class="loadbar mb-2"><i style="width:<?= (int) round((count($steps) - count($left)) / max(1, count($steps)) * 100) ?>%"></i></div>
+  <?php foreach ($left as $s): ?><div class="d-flex flex-wrap align-items-center gap-2 py-1 border-bottom"><span class="me-auto"><strong><?= e($s['label']) ?></strong><br><span class="small text-muted"><?= e($s['hint']) ?></span></span><a class="btn btn-sm btn-primary" href="<?= e($s['href']) ?>">Faire</a></div><?php endforeach ?>
+</div>
+<?php endif ?>
+<div class="panel"><h2>À faire maintenant</h2>
+  <?php if (!$todo): ?><p class="mb-0 text-success">Tout est à jour. Rien n'attend votre action.</p><?php endif ?>
+  <?php foreach ($todo as [$n, $label, $href, $cta]): ?><div class="d-flex align-items-center gap-2 py-1 border-bottom"><span class="badge text-bg-warning fs-6"><?= (int) $n ?></span><span class="me-auto"><?= e($label) ?></span><a class="btn btn-sm btn-primary" href="<?= e($href) ?>"><?= e($cta) ?></a></div><?php endforeach ?>
+</div>
+<?php if ($today_list): ?><div class="panel"><h2>Aujourd'hui (<?= count($today_list) ?>)</h2><div class="table-responsive"><table class="table table-sm align-middle mb-0"><tbody>
+  <?php foreach ($today_list as $b): ?><tr><td class="text-nowrap"><strong><?= e($b['start_time']) ?></strong></td><td><a href="/admin/reservations/<?= (int) $b['id'] ?>"><?= e($b['customer_first_name'] . ' ' . $b['customer_last_name']) ?></a><br><span class="small text-muted"><?= e($b['service_name']) ?> · <?= e($b['neighborhood_name']) ?></span></td>
+    <td><?= e($b['team_name'] ?? '—') ?></td><td><?= status_badge($b['status']) ?></td><td class="text-nowrap text-end"><?= confirm_button($b) ?> <?= contact_buttons($b['customer_phone'], booking_message($b)) ?></td></tr><?php endforeach ?>
+</tbody></table></div></div><?php endif ?>
 <div class="row g-3 mb-3">
   <div class="col-6 col-lg-3"><div class="kpi"><div class="n"><?= $stats['today'] ?></div><div class="l">interventions aujourd'hui</div></div></div>
   <div class="col-6 col-lg-3"><a class="text-decoration-none" href="/admin/reservations?status=pending"><div class="kpi <?= $stats['pending'] ? 'warn' : '' ?>"><div class="n"><?= $stats['pending'] ?></div><div class="l">à confirmer</div></div></a></div>
   <div class="col-6 col-lg-3"><div class="kpi"><div class="n"><?= $stats['week'] ?></div><div class="l">sur les 7 prochains jours</div></div></div>
   <div class="col-6 col-lg-3"><a class="text-decoration-none" href="/admin/notifications?status=failed"><div class="kpi <?= $stats['failed_notifs'] ? 'bad' : '' ?>"><div class="n"><?= $stats['failed_notifs'] ?></div><div class="l">envois en échec</div></div></a></div>
 </div>
-<?php if (isset($stats['leads_new'])): ?>
-<div class="row g-3 mb-3">
-  <div class="col-6"><a class="text-decoration-none" href="/admin/crm"><div class="kpi <?= $stats['leads_new'] ? 'warn' : '' ?>"><div class="n"><?= $stats['leads_new'] ?></div><div class="l">nouveaux prospects à contacter</div></div></a></div>
-  <div class="col-6"><a class="text-decoration-none" href="/admin/crm"><div class="kpi <?= $stats['leads_due'] ? 'warn' : '' ?>"><div class="n"><?= $stats['leads_due'] ?></div><div class="l">prospects à relancer</div></div></a></div>
-</div>
-<?php endif ?>
 <?php if ($revenue_on): ?>
 <div class="row g-3 mb-3">
   <div class="col-md-6"><div class="kpi"><div class="n"><?= money($stats['declared_month']) ?></div><div class="l">encaissé ce mois (saisi sur les réservations terminées)</div></div></div>
@@ -19,7 +27,7 @@
 <?php endif ?>
 <div class="row g-3">
   <div class="col-lg-7">
-    <div class="panel"><h2>À affecter dans les 3 prochains jours</h2>
+    <div class="panel" id="affecter"><h2>À affecter dans les 3 prochains jours</h2>
       <?php if (!$unassigned): ?><p class="text-muted mb-0">Rien à affecter. 🎉</p><?php else: ?>
       <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Quand</th><th>Client</th><th>Service</th><th>Quartier</th><th></th></tr></thead><tbody>
         <?php foreach ($unassigned as $b): ?><tr><td class="text-nowrap"><?= e(date('d/m', strtotime($b['scheduled_date']))) ?> <?= e($b['start_time']) ?></td><td><?= e($b['customer_first_name'] . ' ' . $b['customer_last_name']) ?></td><td><?= e($b['service_name']) ?></td><td><?= e($b['neighborhood_name']) ?></td><td><a class="btn btn-sm btn-outline-primary" href="/admin/reservations/<?= (int) $b['id'] ?>">Ouvrir</a></td></tr><?php endforeach ?>
