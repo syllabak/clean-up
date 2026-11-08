@@ -2,7 +2,7 @@
 
 Application PHP 8.2+ (MVC maison, PDO), Bootstrap 5 local, PWA. Une entreprise, avec `company_id` partout pour préparer un futur mode SaaS. Aucun paiement en ligne : le chiffre d'affaires se saisit à la main sur chaque réservation.
 
-## Démarrage rapide (SQLite, test)
+## Démarrage rapide (SQLite)
 
 ```bash
 cp .env.example .env
@@ -10,7 +10,7 @@ php bin/migrate.php --seed          # crée la base de test + données de démon
 php -S localhost:8000 -t public public/index.php
 ```
 
-Comptes de démonstration (SQLite uniquement, à ne jamais garder en production) :
+Comptes de démonstration (à ne jamais garder en production) :
 
 | Rôle | Email | Mot de passe |
 |---|---|---|
@@ -21,17 +21,19 @@ Comptes de démonstration (SQLite uniquement, à ne jamais garder en production)
 
 Espace équipe : `/connexion` (les agents arrivent sur `/agent`, les autres sur `/admin`).
 
-## Déploiement en production (MySQL / MariaDB)
+## Déploiement en production (SQLite par défaut, MySQL en option)
 
-1. Créez une base `utf8mb4` et un utilisateur dédié.
-2. Dans `.env` : `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://votre-domaine`, `DB_DRIVER=mysql` + identifiants, SMTP, SMS, un `CRON_TOKEN` long et aléatoire.
-3. Faites pointer le serveur web sur `public/` (sinon le `.htaccess` racine redirige vers `public/`). `storage/` et `.env` ne doivent jamais être exposés.
-4. `php bin/migrate.php` (sans `--seed`), puis `php bin/create-admin.php vous@domaine.sn "Votre nom"`.
-5. Saisissez vos vraies données dans l'administration : services, zones, équipes, horaires.
-6. Passez le site en HTTPS (les cookies de session deviennent `Secure`, HSTS est envoyé).
+L'application tourne sur **SQLite**, y compris en production : un seul fichier, aucun serveur de base à installer, adapté à une entreprise. **MySQL / MariaDB est optionnel**, pour ceux qui le préfèrent.
 
-**Reprise de données SQLite → MySQL** : `php bin/export.php fichier.json` (base source), configurez `.env` sur MySQL, `php bin/migrate.php`, puis `php bin/import.php fichier.json --replace`.
-**Sauvegardes** : SQLite est copié automatiquement avant chaque migration (`storage/backups/`). Sur MySQL, utilisez `mysqldump` et/ou `bin/export.php`.
+1. Dans `.env` : `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://votre-domaine`, SMTP, SMS, un `CRON_TOKEN` long et aléatoire. Laissez `DB_DRIVER=sqlite`.
+2. Faites pointer le serveur web sur `public/` (sinon le `.htaccess` racine redirige vers `public/`). `storage/` (donc la base) et `.env` ne doivent jamais être exposés. Le dossier `storage/` doit être accessible en écriture par PHP.
+3. `php bin/migrate.php` (sans `--seed`, qui est de toute façon refusé en production), puis `php bin/create-admin.php vous@domaine.sn "Votre nom"`.
+4. Saisissez vos vraies données dans l'administration : services, zones, équipes, horaires.
+5. Passez le site en HTTPS (les cookies de session deviennent `Secure`, HSTS est envoyé).
+
+**Sauvegardes SQLite** : `php bin/backup.php [nombre]` fait une copie cohérente dans `storage/backups/` (14 conservées par défaut). À planifier chaque nuit (`0 2 * * * php /chemin/du/projet/bin/backup.php`) et à copier régulièrement hors du serveur. Une copie est aussi faite avant chaque migration.
+
+**Passer à MySQL / MariaDB (optionnel)** : créez une base `utf8mb4` et un utilisateur dédié, puis `php bin/export.php fichier.json` (base SQLite), configurez `.env` (`DB_DRIVER=mysql`, `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`), `php bin/migrate.php` et `php bin/import.php fichier.json --replace`. Sauvegardes : `mysqldump` et/ou `bin/export.php`.
 
 ## Tâches planifiées
 
@@ -85,7 +87,7 @@ php tests/smoke.php   # parcours HTTP complet sur un serveur temporaire (CSRF, d
 
 ## Limites connues
 
-- MySQL/MariaDB, SMTP réel et API SMS réelle n'ont pas été testés (seuls SQLite et les pilotes `log` l'ont été).
+- Le mode MySQL/MariaDB (optionnel), SMTP réel et API SMS réelle n'ont pas été testés (seuls SQLite et les pilotes `log` l'ont été). SQLite n'admet qu'un écrit à la fois : largement suffisant pour une entreprise, à reconsidérer si le volume de réservations simultanées devient très élevé.
 - Une prestation par réservation (la table `booking_items` permet le multi-services, pas l'interface).
 - Le planning n'a pas de glisser-déposer : on déplace depuis la fiche réservation, avec créneaux vérifiés.
 - Les textes légaux fournis (CGV, confidentialité) sont indicatifs et à faire valider.
