@@ -7,13 +7,11 @@ use App\Repositories\BookingRepository;
 
 final class BookingService
 {
-    /** Transitions autorisées. Une réservation terminée ou annulée est définitivement close. */
+    /** Transitions autorisées : un clic suffit pour passer d'un statut ouvert à un autre. Une réservation terminée ou annulée est définitivement close. */
     public const TRANSITIONS = [
-        'pending' => ['confirmed', 'assigned', 'cancelled'],
-        'confirmed' => ['assigned', 'cancelled', 'pending'],
-        'assigned' => ['en_route', 'confirmed', 'cancelled'],
-        'en_route' => ['in_progress', 'assigned', 'cancelled'],
-        'in_progress' => ['completed', 'cancelled'],
+        'pending' => ['confirmed', 'in_progress', 'completed', 'cancelled'],
+        'confirmed' => ['pending', 'in_progress', 'completed', 'cancelled'],
+        'in_progress' => ['confirmed', 'completed', 'cancelled'],
         'completed' => [],
         'cancelled' => [],
     ];
@@ -108,7 +106,7 @@ final class BookingService
             $this->history($id, $from, $to, $userId, $note);
         });
         Audit::log('booking.status', 'booking', $id, ['from' => $from, 'to' => $to], $userId);
-        $event = match ($to) { 'confirmed' => 'booking.confirmed', 'cancelled' => 'booking.cancelled', 'completed' => 'booking.completed', 'assigned' => null, default => 'booking.status_changed' };
+        $event = match ($to) { 'confirmed' => 'booking.confirmed', 'cancelled' => 'booking.cancelled', 'completed' => 'booking.completed', 'pending' => null, default => 'booking.status_changed' };
         if ($event) $this->notifier->dispatch($event, $id);
     }
 
@@ -131,7 +129,6 @@ final class BookingService
             $teamChanged = (int) $b['team_id'] !== (int) $slot['team_id'];
             if ($teamChanged) {
                 Database::exec('UPDATE booking_assignments SET active = 0 WHERE booking_id = ?', [$id]);
-                if ($b['status'] === 'assigned') { $upd['status'] = 'confirmed'; $this->history($id, 'assigned', 'confirmed', $userId, "Équipe modifiée suite au déplacement"); }
             }
             Database::update('bookings', $id, $upd);
             Database::insert('booking_notes', ['booking_id' => $id, 'user_id' => $userId, 'note' => "Déplacée du {$b['scheduled_date']} {$b['start_time']} au $date {$slot['start']}", 'created_at' => now()]);

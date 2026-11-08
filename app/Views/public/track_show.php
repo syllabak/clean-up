@@ -1,13 +1,13 @@
 <div class="page-head"><div class="container"><p class="mb-1"><a href="/suivi">← Autre réservation</a></p><h1>Réservation <?= e($b['reference']) ?></h1></div></div>
 <div class="container section" style="max-width:820px">
   <div class="panel">
-    <?php $flow = ['pending' => 'Reçue', 'confirmed' => 'Confirmée', 'assigned' => 'Équipe affectée', 'en_route' => 'En route', 'in_progress' => 'En intervention', 'completed' => 'Terminée'];
+    <?php $flow = ['pending' => 'Reçue', 'confirmed' => 'Confirmée', 'in_progress' => 'En cours', 'completed' => 'Terminée'];
           $idx = array_search($b['status'], array_keys($flow), true); ?>
     <?php if ($b['status'] === 'cancelled'): ?><p class="mb-2"><?= status_badge('cancelled') ?></p>
     <?php else: ?><ol class="wiz-progress mb-3" aria-label="Avancement de la réservation"><?php $i = 0; foreach ($flow as $k => $lab): ?><li class="<?= $i < $idx ? 'done' : ($i === $idx ? 'cur' : '') ?>" <?= $i === $idx ? 'aria-current="step"' : '' ?>><?= e($lab) ?></li><?php $i++; endforeach ?></ol><?php endif ?>
     <p class="mb-1"><strong><?= e($b['service_name']) ?></strong> — <?= e(fmt_date($b['scheduled_date'])) ?> à <?= e($b['start_time']) ?></p>
     <p class="mb-1">Adresse : <?= e($b['address_text']) ?> (<?= e($b['neighborhood_name']) ?>)</p>
-    <?php if ($b['team_name'] && in_array($b['status'], ['assigned', 'en_route', 'in_progress', 'completed'], true)): ?><p class="mb-1">Équipe : <?= e($b['team_name']) ?></p><?php endif ?>
+    <?php if ($b['team_name'] && in_array($b['status'], ['confirmed', 'in_progress', 'completed'], true)): ?><p class="mb-1">Équipe : <?= e($b['team_name']) ?></p><?php endif ?>
     <?php foreach ($items as $it): foreach (json_decode((string) $it['details'], true) ?: [] as [$k, $v]): ?><p class="mb-0 small text-muted"><?= e($k) ?> : <?= e($v) ?></p><?php endforeach; endforeach ?>
     <hr><p class="mb-0">Total estimé : <strong><?= money((int) $b['total']) ?></strong></p>
   </div>

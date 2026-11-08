@@ -10,8 +10,8 @@ use App\Services\{AssignmentService, BookingService};
 final class AgentController extends Controller
 {
     /** Étapes que l'agent peut déclencher lui-même. */
-    private const AGENT_FLOW = ['assigned' => 'en_route', 'en_route' => 'in_progress', 'in_progress' => 'completed'];
-    private const FLOW_LABEL = ['en_route' => 'Je suis en route', 'in_progress' => "Je commence l'intervention", 'completed' => "J'ai terminé"];
+    private const AGENT_FLOW = ['confirmed' => 'in_progress', 'in_progress' => 'completed'];
+    private const FLOW_LABEL = ['in_progress' => "Je commence l'intervention", 'completed' => "J'ai terminé"];
 
     public function index(): void
     {

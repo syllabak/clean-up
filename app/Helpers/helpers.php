@@ -109,12 +109,10 @@ function abort(int $code, string $msg = ''): never
 
 const DAYS_FR = [1 => 'Lundi', 2 => 'Mardi', 3 => 'Mercredi', 4 => 'Jeudi', 5 => 'Vendredi', 6 => 'Samedi', 7 => 'Dimanche'];
 
-const BOOKING_STATUSES = [
-    'pending' => ['En attente', 'warning'],
+const BOOKING_STATUSES = [   // cinq statuts seulement : l'équipe affectée se voit à part, ce n'est pas une étape
+    'pending' => ['Nouvelle', 'warning'],
     'confirmed' => ['Confirmée', 'primary'],
-    'assigned' => ['Affectée', 'info'],
-    'en_route' => ['En route', 'secondary'],
-    'in_progress' => ['En intervention', 'dark'],
+    'in_progress' => ['En cours', 'dark'],
     'completed' => ['Terminée', 'success'],
     'cancelled' => ['Annulée', 'danger'],
 ];
