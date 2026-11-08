@@ -36,6 +36,8 @@ try {
     abort(422, $e->getMessage());
 } catch (Throwable $e) {
     error_log(sprintf("[%s] %s in %s:%d\n%s", date('c'), $e->getMessage(), $e->getFile(), $e->getLine(), $e->getTraceAsString()));
+    // Base absente ou non migrée : le diagnostic est connu, on le dit au lieu d'un 500 opaque.
+    if ($e instanceof PDOException && (str_contains($e->getMessage(), 'no such table') || $e->getCode() === '42S02')) abort(503, "La base de données n'est pas initialisée. Lancez « php bin/migrate.php » sur le serveur.");
     if (filter_var(\App\Core\Env::get('APP_DEBUG', 'false'), FILTER_VALIDATE_BOOLEAN)) {
         http_response_code(500); echo '<pre>' . e($e) . '</pre>'; exit;
     }
