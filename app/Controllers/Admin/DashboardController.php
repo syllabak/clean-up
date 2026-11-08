@@ -22,6 +22,10 @@ final class DashboardController extends Controller
             'failed_notifs' => (int) DB::val("SELECT COUNT(*) FROM notification_logs WHERE company_id = ? AND status = 'failed'", [$cid]),
             'messages' => (int) DB::val('SELECT COUNT(*) FROM contact_messages WHERE company_id = ? AND handled = 0', [$cid]),
         ];
+        if (can('crm.manage')) {
+            $stats['leads_new'] = (int) DB::val("SELECT COUNT(*) FROM leads WHERE company_id = ? AND deleted_at IS NULL AND status = 'new'", [$cid]);
+            $stats['leads_due'] = (int) DB::val("SELECT COUNT(*) FROM leads WHERE company_id = ? AND deleted_at IS NULL AND status IN ('new','contacted','quoted') AND next_follow_up <= ?", [$cid, $today]);
+        }
         $byStatus = array_column(DB::all("SELECT status, COUNT(*) AS n FROM bookings WHERE company_id = ? AND scheduled_date >= ? GROUP BY status", [$cid, $monthStart]), 'n', 'status');
         $repo = new \App\Repositories\BookingRepository();
         $unassigned = array_values(array_filter($repo->between($today, date('Y-m-d', strtotime('+3 day'))), fn($b) => in_array($b['status'], ['pending', 'confirmed'], true)));

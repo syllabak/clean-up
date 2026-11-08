@@ -65,7 +65,7 @@ final class CrudController extends Controller
         }
         Audit::log("crud.$type.create", $type, $id);
         $this->ok('Élément créé.');
-        redirect("/admin/crud/$type" . $this->filterQuery($c, $data));
+        redirect($this->after($c, $type, $data));
     }
 
     public function update(string $type, string $id): void
@@ -82,7 +82,7 @@ final class CrudController extends Controller
         }
         Audit::log("crud.$type.update", $type, (int) $id, ['fields' => array_keys($data)]);
         $this->ok('Modifications enregistrées.');
-        redirect("/admin/crud/$type" . $this->filterQuery($c, $data + $row));
+        redirect($this->after($c, $type, $data + $row));
     }
 
     public function destroy(string $type, string $id): void
@@ -99,7 +99,14 @@ final class CrudController extends Controller
         } catch (\PDOException $e) { $this->err('Suppression impossible : cet élément est utilisé ailleurs.'); redirect("/admin/crud/$type" . $this->filterQuery($c, $row)); }
         Audit::log("crud.$type.delete", $type, (int) $id);
         $this->ok('Élément supprimé.');
-        redirect("/admin/crud/$type" . $this->filterQuery($c, $row));
+        redirect($this->after($c, $type, $row));
+    }
+
+    /** Où revenir après une écriture : la fiche parent si la ressource en déclare une (return_to), sinon sa liste. */
+    private function after(array $c, string $type, array $row): string
+    {
+        if (!empty($c['return_to']) && !empty($row['service_id'])) return strtr($c['return_to'], ['{service_id}' => (int) $row['service_id']]);
+        return "/admin/crud/$type" . $this->filterQuery($c, $row);
     }
 
     // ------------------------------------------------------------------ internes
@@ -162,6 +169,7 @@ final class CrudController extends Controller
                 try { $name = Upload::image($_FILES[$k] ?? ['error' => UPLOAD_ERR_NO_FILE], BASE_PATH . '/public/uploads/' . $f['dir']); }
                 catch (\RuntimeException $e) { $errors[$k] = "$label : " . $e->getMessage(); continue; }
                 if ($name) $data[$col] = '/uploads/' . $f['dir'] . '/' . $name;
+                elseif (!empty($f['required']) && empty($existing[$col])) $errors[$k] = "$label est obligatoire.";
                 continue;
             }
             if ($type === 'bool') { $data[$col] = (($in[$k] ?? '') === '1' || ($in[$k] ?? '') === 1) ? 1 : 0; continue; }

@@ -1,5 +1,5 @@
 <div class="page-head"><div class="container"><h1>Réserver une prestation</h1></div></div>
-<div class="container section wiz" id="wizard" data-currency="<?= e($currency) ?>" data-csrf="<?= e(\App\Core\Csrf::token()) ?>" data-preselect="<?= e($preselect) ?>">
+<div class="container section wiz" id="wizard" data-currency="<?= e($currency) ?>" data-csrf="<?= e(\App\Core\Csrf::token()) ?>" data-preselect="<?= e($preselect) ?>" data-preformula="<?= (int) $preformula ?>">
   <script type="application/json" id="services-data"><?= json_encode($services, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
   <ol class="wiz-progress" id="progress">
     <li>Service</li><li>Détails</li><li>Lieu</li><li>Vos coordonnées</li><li>Date et heure</li><li>Récapitulatif</li>
@@ -41,6 +41,8 @@
           <div class="col-md-6"><label class="form-label" for="last_name">Nom</label><input id="last_name" class="form-control" autocomplete="family-name" maxlength="100"></div>
           <div class="col-md-6"><label class="form-label" for="phone">Téléphone</label><input id="phone" class="form-control" type="tel" inputmode="tel" autocomplete="tel" placeholder="77 123 45 67"></div>
           <div class="col-md-6"><label class="form-label" for="email">Email (facultatif)</label><input id="email" class="form-control" type="email" autocomplete="email" maxlength="190"></div>
+          <?php if (!empty($channels)): ?><div class="col-12"><label class="form-label" for="channel">Comment nous avez-vous connus ? (facultatif)</label><select id="channel" class="form-select"><option value="">—</option>
+            <?php foreach ($channels as $ch): ?><option value="<?= (int) $ch['id'] ?>"><?= e($ch['name']) ?></option><?php endforeach ?></select></div><?php endif ?>
           <div class="d-none" aria-hidden="true"><label for="website">Ne pas remplir</label><input id="website" tabindex="-1" autocomplete="off"></div>
         </div>
       </section>
@@ -70,4 +72,5 @@
       <hr><p class="mb-0 text-muted small">Total estimé</p><p class="total mb-0" id="side-total">—</p>
     </div></aside>
   </div>
+  <div class="mobile-total" aria-hidden="true"><span>Total estimé</span><strong id="mobile-total">—</strong></div>
 </div>

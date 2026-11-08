@@ -5,6 +5,7 @@ $cell = function (string $col, $def, array $row) use ($labels) {
     return match ($t) {
         'money' => money((int) $v), 'bool' => $v ? '<span class="badge text-bg-success">Oui</span>' : '<span class="badge text-bg-secondary">Non</span>',
         'ref' => e($labels[$col][$v] ?? '—'), 'day' => e(DAYS_FR[(int) $v] ?? ''), 'datetime' => $v ? e(date('d/m/Y H:i', strtotime($v . ' UTC'))) : '—',
+        'option' => e($c['fields'][$col]['options'][$v] ?? $v),
         'excerpt' => e(mb_strimwidth((string) $v, 0, 90, '…')), 'event' => e(\App\Services\NotificationService::EVENTS[$v] ?? $v),
         'weekdays' => $v === '' || $v === null ? 'Tous' : e(implode(', ', array_map(fn($d) => mb_substr(DAYS_FR[(int) $d] ?? '', 0, 3), explode(',', $v)))),
         default => e($v),

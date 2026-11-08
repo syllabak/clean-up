@@ -89,7 +89,7 @@ fresh_db($dbFile);
 $svcB = new BookingService(); $av = new AvailabilityService();
 $mon = next_dow(1);
 $b1 = $svcB->create(wash_input($mon, '08:00'));
-T::ok(str_starts_with($b1['reference'], 'NX-'), 'référence unique générée : ' . $b1['reference']);
+T::ok(str_starts_with($b1['reference'], 'CU-'), 'référence unique générée : ' . $b1['reference']);
 T::eq([$b1['status'], $b1['total'], $b1['duration_minutes'], $b1['end_time']], ['pending', 4000, 45, '08:45'], 'statut initial, prix serveur (3000+1000), durée, fin');
 T::eq((int) DB::val('SELECT COUNT(*) FROM booking_items WHERE booking_id = ?', [$b1['id']]), 1, 'ligne de prestation enregistrée');
 T::eq((int) DB::val('SELECT COUNT(*) FROM booking_status_history WHERE booking_id = ?', [$b1['id']]), 1, 'historique de statut initialisé');
@@ -235,7 +235,7 @@ T::eq(DB::val('SELECT status FROM notification_logs WHERE id = ?', [$failed['id'
 $soon = time() + 20 * 3600;   // dans 20 h : dans la fenêtre de rappel de 24 h
 $tomorrow = date('Y-m-d', $soon);
 $cid = (int) DB::val('SELECT id FROM customers LIMIT 1');
-$bk = DB::insert('bookings', ['company_id' => 1, 'reference' => 'NX-TEST-REM1', 'customer_id' => $cid, 'neighborhood_id' => nb('Plateau'), 'service_id' => svc('lavage-automobile'), 'address_text' => 'x',
+$bk = DB::insert('bookings', ['company_id' => 1, 'reference' => 'CU-TEST-REM1', 'customer_id' => $cid, 'neighborhood_id' => nb('Plateau'), 'service_id' => svc('lavage-automobile'), 'address_text' => 'x',
     'scheduled_date' => $tomorrow, 'start_time' => date('H:i', $soon), 'end_time' => '23:59', 'duration_minutes' => 45, 'status' => 'confirmed', 'created_at' => now()]);
 T::eq($ns->sendReminders(), 1, 'rappel envoyé pour une intervention dans moins de 24 h');
 T::eq($ns->sendReminders(), 0, 'et une seule fois par réservation');
@@ -245,15 +245,100 @@ T::group('Sécurité : limitation de débit, mots de passe, téléversement');
 T::eq([RateLimiter::hit('t1', 3, 60), RateLimiter::hit('t1', 3, 60), RateLimiter::hit('t1', 3, 60), RateLimiter::hit('t1', 3, 60)], [true, true, true, false], 'limitation : 3 autorisées, 4e refusée');
 RateLimiter::clear('t1');
 T::eq(RateLimiter::hit('t1', 3, 60), true, 'compteur réinitialisable');
-$hash = DB::val("SELECT password_hash FROM users WHERE email = ?", ['admin@netexpress.test']);
+$hash = DB::val("SELECT password_hash FROM users WHERE email = ?", ['admin@cleanup.test']);
 T::ok(str_starts_with($hash, '$') && password_verify('Admin#2026', $hash) && !password_verify('mauvais', $hash), 'mot de passe haché (password_hash) et vérifié');
 $fake = sys_get_temp_dir() . '/fake.jpg'; file_put_contents($fake, '<?php echo 1; ?>');
 T::throws(fn() => Upload::image(['error' => 0, 'tmp_name' => $fake, 'size' => filesize($fake), 'name' => 'x.jpg'], sys_get_temp_dir() . '/up'), RuntimeException::class, 'script PHP déguisé en .jpg refusé');
 $png = sys_get_temp_dir() . '/ok.png'; file_put_contents($png, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
 $name = Upload::image(['error' => 0, 'tmp_name' => $png, 'size' => filesize($png), 'name' => '../../evil.php'], sys_get_temp_dir() . '/up');
 T::ok(preg_match('/^[a-f0-9]{24}\.png$/', (string) $name) === 1, "vraie image acceptée, nom aléatoire, extension imposée ($name)");
+// IP derrière un proxy, verrouillage par compte
+use App\Core\Request;
+putenv('TRUSTED_PROXIES='); $_SERVER['REMOTE_ADDR'] = '203.0.113.9'; $_SERVER['HTTP_X_FORWARDED_FOR'] = '198.51.100.7'; $_SERVER['HTTP_X_FORWARDED_PROTO'] = 'https';
+T::ok(Request::ip() === '203.0.113.9' && !Request::isHttps(), 'sans proxy de confiance : X-Forwarded-For et X-Forwarded-Proto ignorés (falsifiables)');
+putenv('TRUSTED_PROXIES=203.0.113.0/24, 10.0.0.1');
+T::ok(Request::ip() === '198.51.100.7' && Request::isHttps(), 'proxy de confiance : vraie IP du visiteur et HTTPS lus');
+$_SERVER['HTTP_X_FORWARDED_FOR'] = '6.6.6.6, 198.51.100.7, 203.0.113.50';
+T::eq(Request::ip(), '198.51.100.7', 'chaîne de proxys : IP falsifiée à gauche ignorée');
+$_SERVER['REMOTE_ADDR'] = '192.0.2.1';
+T::ok(Request::ip() === '192.0.2.1' && !Request::isHttps(), 'requête directe (hors plage de confiance) : en-têtes ignorés');
+T::ok(Request::ipInList('2001:db8::5', ['2001:db8::/32']) && !Request::ipInList('2001:db9::5', ['2001:db8::/32']), 'plages IPv6 reconnues');
+putenv('TRUSTED_PROXIES='); unset($_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_X_FORWARDED_FOR'], $_SERVER['HTTP_X_FORWARDED_PROTO']);
+for ($i = 0; $i < 10; $i++) RateLimiter::hit('login_acct|victime@x.sn', 10, 900);
+T::ok(RateLimiter::blocked('login_acct|victime@x.sn', 10, 900) && !RateLimiter::blocked('login_acct|autre@x.sn', 10, 900), 'verrouillage par compte : bloqué après 10 échecs, autres comptes intacts');
 $esc = e('<script>alert(1)</script>"\'');
 T::ok(!str_contains($esc, '<script>') && str_contains($esc, '&lt;script&gt;'), 'échappement XSS (e())');
+
+// ------------------------------------------------------------------ CRM et gestion
+T::group('CRM : canaux, prospects, attribution, rapports');
+use App\Services\{CrmService, BusinessReportService};
+fresh_db($dbFile);
+$svcB = new BookingService(); $crm = new CrmService();
+$bw = $svcB->create(wash_input(next_dow(1), '08:00'));
+$insta = $crm->channelByCode('instagram'); $fb = $crm->channelByCode('facebook');
+T::ok(DB::tableExists('leads') && DB::tableExists('expenses') && $insta && $fb, 'tables CRM et canaux par défaut créés');
+T::eq((int) DB::val("SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id JOIN permissions p ON p.id = rp.permission_id WHERE r.name = 'manager' AND p.name = 'finance.manage'"), 0, 'le gestionnaire n\'a pas accès aux finances');
+$l1 = $crm->createLead(['name' => 'Aminata Fall', 'phone' => '77 555 00 11', 'channel_id' => $fb, 'notes' => 'Veut un lavage SUV']);
+T::eq($crm->createLead(['name' => 'Aminata Fall', 'phone' => '+221 77 555 00 11', 'notes' => 'relance']), $l1, 'même numéro : prospect réutilisé (pas de doublon)');
+T::eq(DB::val('SELECT status FROM leads WHERE id = ?', [$l1]), 'new', 'prospect créé au statut « nouveau »');
+$crm->setStatus($l1, 'contacted', null);
+T::eq(DB::val('SELECT status FROM leads WHERE id = ?', [$l1]), 'contacted', 'changement de statut');
+T::throws(fn() => $crm->setStatus($l1, 'bidon', null), RuntimeException::class, 'statut inconnu refusé');
+// Une réservation avec le même numéro convertit le prospect et attribue le canal choisi par le client
+$tue = next_dow(1);   // lundi, jour desservi par Unité 15
+$bk = $svcB->create(wash_input($tue, '10:00', 'Unité 15', ['first_name' => 'Aminata', 'last_name' => 'Fall', 'phone' => '77 555 00 11', 'channel_id' => $insta]));
+T::eq((int) DB::val('SELECT channel_id FROM bookings WHERE id = ?', [$bk['id']]), $insta, 'canal choisi par le client enregistré sur la réservation');
+T::eq((int) DB::val('SELECT channel_id FROM customers WHERE id = ?', [$bk['customer_id']]), $insta, 'canal rattaché au nouveau client');
+T::eq(DB::val('SELECT status FROM leads WHERE id = ?', [$l1]), 'won', 'prospect converti automatiquement par la réservation');
+T::eq((int) DB::val('SELECT customer_id FROM leads WHERE id = ?', [$l1]), (int) $bk['customer_id'], 'prospect relié au client');
+T::eq((int) DB::val('SELECT channel_id FROM bookings WHERE id = ?', [$bw['id']]), $crm->channelByCode('web'), 'sans choix : canal « site web » par défaut');
+$bk2 = $svcB->create(wash_input($tue, '15:00', 'Unité 15', ['first_name' => 'Aminata', 'last_name' => 'Fall', 'phone' => '77 555 00 11', 'channel_id' => 999999]));
+T::eq((int) DB::val('SELECT channel_id FROM bookings WHERE id = ?', [$bk2['id']]), $insta, 'canal invalide ignoré : on garde celui du client');
+// Conversion manuelle
+$l2 = $crm->createLead(['name' => 'Moussa Ba', 'phone' => '78 444 33 22', 'channel_id' => $fb]);
+$cid2 = $crm->convert($l2, null);
+T::eq([DB::val('SELECT status FROM leads WHERE id = ?', [$l2]), (int) DB::val('SELECT channel_id FROM customers WHERE id = ?', [$cid2])], ['won', $fb], 'conversion manuelle : client créé avec le canal du prospect');
+T::throws(fn() => $crm->convert($crm->createLead(['name' => 'Sans Numéro', 'email' => 'x@y.sn']), null), RuntimeException::class, 'conversion impossible sans téléphone');
+T::ok((int) DB::val('SELECT COUNT(*) FROM interactions WHERE lead_id = ?', [$l1]) >= 2, 'historique des échanges alimenté automatiquement');
+T::eq(CrmService::segment(0, 0) . '/' . CrmService::segment(1, 5000) . '/' . CrmService::segment(2, 5000) . '/' . CrmService::segment(1, 150000), 'Nouveau/Occasionnel/Régulier/VIP', 'segmentation des clients');
+// Rapports : CA, dépenses, coût par client, ROI
+DB::update('bookings', (int) $bk['id'], ['status' => 'completed', 'declared_amount' => 20000]);
+DB::insert('expenses', ['company_id' => 1, 'expense_date' => $tue, 'category' => 'marketing', 'label' => 'Pub Instagram', 'amount' => 10000, 'channel_id' => $insta, 'created_at' => now()]);
+DB::insert('expenses', ['company_id' => 1, 'expense_date' => $tue, 'category' => 'produits', 'label' => 'Savon', 'amount' => 4000, 'created_at' => now()]);
+$rep = new BusinessReportService();
+[$from, $to] = BusinessReportService::range($tue, $tue);
+$row = array_values(array_filter($rep->acquisition(date('Y-m-d', strtotime('-1 day')), $to), fn($r) => $r['id'] === $insta))[0] ?? null;
+T::eq([$row['revenue'], $row['spend']], [20000, 40000], 'acquisition : CA et dépenses du canal (30 000 de démo + 10 000 saisis)');
+T::eq([$row['roi'], $row['cac']], [-50, 40000], 'acquisition : ROI = (20 000 − 40 000) / 40 000 = −50 %, coût par client = 40 000 / 1 client');
+$pf = $rep->profit($from, $to);
+T::eq([$pf['revenue'], $pf['expenses'], $pf['profit']], [20000, 14000, 6000], 'résultat = CA − dépenses (20 000 − 14 000)');
+T::eq(BusinessReportService::range('n\'importe quoi', '2026-03-01')[0], '2026-03-01', 'période invalide : début remplacé, dates remises dans l\'ordre');
+T::eq(count($rep->monthly(6)), 6, 'résultat sur 6 mois');
+$cu = $rep->customers($from, $to);
+T::ok($cu['total'] >= 2 && $cu['buyers'] >= 1, 'statistiques clients');
+
+// ------------------------------------------------------------------ Catalogue : duplication, contrôle de publication, aperçu
+T::group('Catalogue : duplication, contrôle « prêt à réserver », simulateur');
+use App\Services\CatalogService;
+$cat = new CatalogService(); $auto = svc('lavage-automobile');
+$copy = $cat->duplicate($auto);
+$cp = DB::one('SELECT * FROM services WHERE id = ?', [$copy]);
+T::ok($cp['active'] == 0 && str_ends_with($cp['name'], '(copie)') && $cp['slug'] === 'lavage-automobile-copie', 'copie créée inactive, nom et adresse distincts');
+T::eq((int) DB::val('SELECT COUNT(*) FROM service_prices WHERE service_id = ?', [$copy]), (int) DB::val('SELECT COUNT(*) FROM service_prices WHERE service_id = ?', [$auto]), 'formules copiées');
+T::eq((int) DB::val('SELECT COUNT(*) FROM service_field_choices c JOIN service_fields f ON f.id = c.field_id WHERE f.service_id = ?', [$copy]), (int) DB::val('SELECT COUNT(*) FROM service_field_choices c JOIN service_fields f ON f.id = c.field_id WHERE f.service_id = ?', [$auto]), 'champs et choix copiés');
+T::ok(DB::val('SELECT includes FROM service_prices WHERE service_id = ? AND popular = 1', [$copy]) !== null, 'contenu inclus et formule « populaire » copiés');
+T::eq((int) DB::val('SELECT id FROM services WHERE id = ?', [$cat->duplicate($auto)]) > $copy, true, 'seconde copie : adresse unique (-copie-2)');
+T::throws(fn() => (new PricingService())->quote($copy, ['formula_id' => formula($copy, 'Simple'), 'fields' => ['vehicle' => choice($copy, 'vehicle', 'Citadine'), 'count' => 1]]), ValidationException::class, 'copie inactive : invisible pour le public');
+$pv = (new PricingService())->quote($copy, ['formula_id' => formula($copy, 'Simple'), 'fields' => ['vehicle' => choice($copy, 'vehicle', 'Citadine'), 'count' => 1]], null, true);
+T::eq($pv['total'], 3000, 'aperçu admin : la copie inactive se simule quand même');
+$bad = array_column(array_filter($cat->readiness($auto), fn($c) => $c[0] === 'bad'), 1);
+T::eq($bad, [], 'service de démo : aucun blocage');
+$nt = DB::insert('services', ['company_id' => 1, 'name' => 'Vide', 'slug' => 'vide', 'base_price' => 0, 'created_at' => now()]);
+$msgs = implode(' | ', array_column(array_filter($cat->readiness($nt), fn($c) => $c[0] === 'bad'), 1));
+T::ok(str_contains($msgs, 'Aucun prix') && str_contains($msgs, "Aucune équipe"), 'service vide : blocages « aucun prix » et « aucune équipe »');
+$fld = DB::insert('service_fields', ['service_id' => $nt, 'field_key' => 'x', 'label' => 'Taille', 'type' => 'select', 'role' => 'none', 'required' => 1]);
+T::ok(str_contains(implode('|', array_column($cat->readiness($nt), 1)), 'Taille'), 'liste sans choix détectée');
+T::throws(fn() => $cat->duplicate(999999), RuntimeException::class, 'duplication d\'un service inconnu refusée');
 
 DB::reset();
 foreach (['', '-wal', '-shm'] as $s) @unlink($dbFile . $s);

@@ -5,6 +5,12 @@
   <div class="col-6 col-lg-3"><div class="kpi"><div class="n"><?= $stats['week'] ?></div><div class="l">sur les 7 prochains jours</div></div></div>
   <div class="col-6 col-lg-3"><a class="text-decoration-none" href="/admin/notifications?status=failed"><div class="kpi <?= $stats['failed_notifs'] ? 'bad' : '' ?>"><div class="n"><?= $stats['failed_notifs'] ?></div><div class="l">envois en échec</div></div></a></div>
 </div>
+<?php if (isset($stats['leads_new'])): ?>
+<div class="row g-3 mb-3">
+  <div class="col-6"><a class="text-decoration-none" href="/admin/crm"><div class="kpi <?= $stats['leads_new'] ? 'warn' : '' ?>"><div class="n"><?= $stats['leads_new'] ?></div><div class="l">nouveaux prospects à contacter</div></div></a></div>
+  <div class="col-6"><a class="text-decoration-none" href="/admin/crm"><div class="kpi <?= $stats['leads_due'] ? 'warn' : '' ?>"><div class="n"><?= $stats['leads_due'] ?></div><div class="l">prospects à relancer</div></div></a></div>
+</div>
+<?php endif ?>
 <?php if ($revenue_on): ?>
 <div class="row g-3 mb-3">
   <div class="col-md-6"><div class="kpi"><div class="n"><?= money($stats['declared_month']) ?></div><div class="l">encaissé ce mois (saisi sur les réservations terminées)</div></div></div>

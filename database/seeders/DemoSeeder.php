@@ -7,7 +7,7 @@ use App\Core\Database as DB;
 /** Données de démonstration / tests (zones de Dakar, 6 services, 3 équipes, comptes). SQLite de test uniquement. */
 final class DemoSeeder
 {
-    public const ADMIN_EMAIL = 'admin@netexpress.test';
+    public const ADMIN_EMAIL = 'admin@cleanup.test';
     public const ADMIN_PASSWORD = 'Admin#2026';
 
     public static function run(): void
@@ -19,6 +19,8 @@ final class DemoSeeder
             self::teams($skills, $svc);
             self::users();
             self::content();
+            self::crm();
+            self::extras();
         });
     }
 
@@ -152,12 +154,33 @@ final class DemoSeeder
         $roles = array_column(DB::all('SELECT id, name FROM roles'), 'id', 'name');
         $hash = fn(string $p) => password_hash($p, PASSWORD_DEFAULT);
         DB::insert('users', ['role_id' => $roles['admin'], 'name' => 'Administrateur', 'email' => self::ADMIN_EMAIL, 'password_hash' => $hash(self::ADMIN_PASSWORD), 'active' => 1, 'created_at' => now()]);
-        DB::insert('users', ['role_id' => $roles['manager'], 'name' => 'Gestionnaire', 'email' => 'gestion@netexpress.test', 'password_hash' => $hash('Gestion#2026'), 'active' => 1, 'created_at' => now()]);
+        DB::insert('users', ['role_id' => $roles['manager'], 'name' => 'Gestionnaire', 'email' => 'gestion@cleanup.test', 'password_hash' => $hash('Gestion#2026'), 'active' => 1, 'created_at' => now()]);
         $first = DB::all('SELECT id, name, email FROM staff ORDER BY id');
-        foreach ([[0, 'moussa@netexpress.test'], [2, 'awa@netexpress.test']] as [$i, $email]) {
+        foreach ([[0, 'moussa@cleanup.test'], [2, 'awa@cleanup.test']] as [$i, $email]) {
             $st = $first[$i];
             DB::insert('users', ['role_id' => $roles['agent'], 'staff_id' => $st['id'], 'name' => $st['name'], 'email' => $email, 'password_hash' => $hash('Agent#2026'), 'active' => 1, 'created_at' => now()]);
         }
+    }
+
+    /** Formules : contenu inclus et formule mise en avant (démonstration). */
+    private static function extras(): void
+    {
+        $set = fn(string $slug, string $formula, string $inc, int $pop = 0) => DB::exec('UPDATE service_prices SET includes = ?, popular = ? WHERE name = ? AND service_id = (SELECT id FROM services WHERE slug = ?)', [$inc, $pop, $formula, $slug]);
+        $set('lavage-automobile', 'Simple', "Lavage extérieur\nSéchage");
+        $set('lavage-automobile', 'Complet', "Lavage extérieur et séchage\nAspiration intérieure\nNettoyage du tableau de bord\nVitres intérieures et extérieures", 1);
+        $set('lavage-automobile', 'Premium', "Tout le Complet\nShampoing des sièges\nLustrage de la carrosserie\nTraitement des plastiques");
+    }
+
+    /** Prospects et dépenses de démonstration (les canaux viennent de la migration 009). */
+    private static function crm(): void
+    {
+        $ch = fn(string $code) => (int) DB::val('SELECT id FROM acquisition_channels WHERE code = ?', [$code]);
+        $leads = [['Fatou Diallo', '221771110001', 'instagram', 'contacted', 25000, '+0 day'], ['Cheikh Ndiaye', '221771110002', 'whatsapp', 'quoted', 60000, '-2 day'],
+            ['Société Sahel Immo', '221771110003', 'partner', 'new', 150000, '+1 day'], ['Mariama Sow', '221771110004', 'facebook', 'lost', 18000, '-5 day']];
+        foreach ($leads as [$n, $ph, $c, $st, $v, $f]) DB::insert('leads', ['company_id' => 1, 'name' => $n, 'phone' => $ph, 'channel_id' => $ch($c), 'status' => $st, 'estimated_value' => $v,
+            'next_follow_up' => date('Y-m-d', strtotime($f)), 'lost_reason' => $st === 'lost' ? 'Prix trop élevé' : null, 'created_at' => now()]);
+        foreach ([['Sponsoring Instagram', 'marketing', 30000, 'instagram'], ['Impression de flyers', 'marketing', 15000, 'flyers'], ['Produits de nettoyage', 'produits', 45000, null], ['Carburant de la semaine', 'carburant', 20000, null]] as [$l, $cat, $a, $c])
+            DB::insert('expenses', ['company_id' => 1, 'expense_date' => date('Y-m-d'), 'category' => $cat, 'label' => $l, 'amount' => $a, 'channel_id' => $c ? $ch($c) : null, 'created_at' => now()]);
     }
 
     private static function content(): void

@@ -15,11 +15,12 @@ use App\Core\{Database, Env, ValidationException};
  */
 final class PricingService
 {
-    public function quote(int $serviceId, array $input, ?int $neighborhoodId = null): array
+    /** $preview = true : simulation depuis l'administration, un service inactif ou indisponible peut être testé. */
+    public function quote(int $serviceId, array $input, ?int $neighborhoodId = null, bool $preview = false): array
     {
-        $svc = Database::one("SELECT * FROM services WHERE id = ? AND company_id = ? AND active = 1 AND deleted_at IS NULL", [$serviceId, Env::companyId()]);
+        $svc = Database::one('SELECT * FROM services WHERE id = ? AND company_id = ? AND deleted_at IS NULL' . ($preview ? '' : ' AND active = 1'), [$serviceId, Env::companyId()]);
         if (!$svc) throw new ValidationException(['service_id' => "Ce service n'existe pas."]);
-        if ($svc['availability_status'] !== 'available') throw new ValidationException(['service_id' => "Ce service n'est pas réservable pour le moment."]);
+        if (!$preview && $svc['availability_status'] !== 'available') throw new ValidationException(['service_id' => "Ce service n'est pas réservable pour le moment."]);
 
         $errors = [];
         $details = [];

@@ -1,5 +1,5 @@
 <?php
-$company = setting('company_name', "Net'Express");
+$company = setting('company_name', "Clean Up");
 $wa = setting('company_whatsapp', '');
 ?><!doctype html>
 <html lang="fr">
@@ -17,7 +17,7 @@ $wa = setting('company_whatsapp', '');
 <link rel="stylesheet" href="<?= asset('vendor/bootstrap.min.css') ?>">
 <link rel="stylesheet" href="<?= asset('css/app.css') ?>">
 </head>
-<body class="site">
+<body class="site<?= ($page_js ?? "") === "booking.js" ? " is-booking" : "" ?>">
 <a class="skip" href="#main">Aller au contenu</a>
 <header class="site-header">
   <nav class="navbar navbar-expand-lg container">

@@ -1,4 +1,4 @@
-/* Net'Express — thème « eau et savon » : marine profond, bleu eau, jaune citron (raclette). */
+/* Clean Up — thème « eau et savon » : marine profond, bleu eau, jaune citron (raclette). */
 :root {
   --ink: #0B2545; --ink-2: #13315C; --water: #1D7FD6; --water-d: #1565B0; --foam: #E9F4FD; --foam-2: #D3E9FA;
   --lemon: #FFD23F; --lemon-d: #F2BE17; --line: #D9E4EE; --text: #1B2B3A; --muted: #5B6B7B;
@@ -112,3 +112,19 @@ body.agent { background: #F3F6F9; padding-bottom: env(safe-area-inset-bottom); }
   .hero { padding: 3rem 0 3.5rem; } .summary { position: static; margin-top: 1rem; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* Formules (page service) */
+.formula-card { position: relative; display: flex; flex-direction: column; height: 100%; background: #fff; border: 2px solid var(--line); border-radius: 14px; padding: 1.1rem 1.2rem; }
+.formula-card.popular { border-color: var(--lemon-d); background: #FFFDF2; }
+.formula-flag { position: absolute; top: -.7rem; right: 1rem; }
+.formula-price { font-size: 1.6rem; font-weight: 800; color: var(--ink); } .formula-price small { font-size: .9rem; font-weight: 600; color: var(--muted); }
+.formula-inc { list-style: none; padding: 0; margin: 0 0 .8rem; font-size: .92rem; } .formula-inc li { padding-left: 1.4rem; position: relative; margin-bottom: .2rem; } .formula-inc li::before { content: "✓"; position: absolute; left: 0; color: var(--water-d); font-weight: 800; }
+.opt-card .badge { vertical-align: middle; } .opt-card ul { list-style: none; padding: 0; margin: .4rem 0 0; font-size: .85rem; color: var(--muted); } .opt-card ul li::before { content: "✓ "; color: var(--water-d); font-weight: 800; }
+/* Barre de total collée en bas sur mobile (parcours de réservation) */
+.mobile-total { display: none; }
+@media (max-width: 991px) {
+  .mobile-total { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; justify-content: space-between; align-items: center; gap: 1rem; background: var(--ink); color: #fff; padding: .6rem 1rem; box-shadow: 0 -4px 16px rgba(0,0,0,.18); }
+  .mobile-total strong { font-size: 1.15rem; } .wiz { padding-bottom: 5rem; }
+}
+
+@media (max-width: 991px) { .is-booking .wa-float { bottom: 4.6rem; } }

@@ -17,7 +17,7 @@ return [
     'services' => [
         'title' => 'Services', 'table' => 'services', 'permission' => 'catalog.manage', 'company' => true, 'soft_delete' => true, 'order' => 'sort, name', 'search' => ['name'],
         'list' => ['name' => 'Nom', 'category_id' => ['Catégorie', 'ref', 'service_categories', 'name'], 'base_price' => ['Prix de base', 'money'], 'availability_status' => ['Statut', 'text'], 'active' => ['Actif', 'bool']],
-        'links' => [['Formules', '/admin/crud/service_prices?service_id={id}'], ['Options', '/admin/crud/service_options?service_id={id}'], ['Champs', '/admin/crud/service_fields?service_id={id}']],
+        'links' => [['Fiche', '/admin/services/{id}'], ['Formules', '/admin/crud/service_prices?service_id={id}'], ['Options', '/admin/crud/service_options?service_id={id}'], ['Champs', '/admin/crud/service_fields?service_id={id}']],
         'fields' => [
             'name' => ['label' => 'Nom', 'type' => 'text', 'required' => true], 'slug' => ['label' => 'Adresse (slug)', 'type' => 'text', 'auto_slug' => 'name', 'help' => 'Générée à partir du nom si vide.'],
             'category_id' => ['label' => 'Catégorie', 'type' => 'select', 'ref' => ['service_categories', 'name', 'deleted_at IS NULL'], 'nullable' => true],
@@ -37,15 +37,18 @@ return [
     ],
     'service_prices' => [
         'title' => 'Formules et tarifs', 'table' => 'service_prices', 'permission' => 'catalog.manage', 'soft_delete' => true, 'order' => 'sort, id', 'filters' => ['service_id'], 'back' => 'services',
-        'list' => ['name' => 'Formule', 'amount' => ['Prix', 'money'], 'duration_minutes' => ['Durée (min)', 'text'], 'active' => ['Actif', 'bool']],
+        'return_to' => '/admin/services/{service_id}',
+        'list' => ['name' => 'Formule', 'amount' => ['Prix', 'money'], 'duration_minutes' => ['Durée (min)', 'text'], 'popular' => ['La plus choisie', 'bool'], 'active' => ['Actif', 'bool']],
         'fields' => [
             'service_id' => ['label' => 'Service', 'type' => 'select', 'ref' => ['services', 'name', 'deleted_at IS NULL'], 'required' => true],
             'name' => ['label' => 'Nom de la formule', 'type' => 'text', 'required' => true], 'description' => ['label' => 'Description', 'type' => 'text'],
-            'amount' => ['label' => 'Prix (par unité pour les services au m² ou à l\'unité)', 'type' => 'number', 'required' => true], 'duration_minutes' => ['label' => 'Durée ajoutée (min)', 'type' => 'number', 'default' => 0], 'sort' => $sort, 'active' => $active,
+            'amount' => ['label' => 'Prix (par unité pour les services au m² ou à l\'unité)', 'type' => 'number', 'required' => true, 'min' => 0, 'max' => 100000000], 'duration_minutes' => ['label' => 'Durée ajoutée (min)', 'type' => 'number', 'default' => 0, 'min' => 0, 'max' => 1440],
+            'includes' => ['label' => 'Ce qui est inclus', 'type' => 'textarea', 'help' => 'Un élément par ligne ; affiché au client sous la formule (ex. « Lavage extérieur »).'],
+            'popular' => ['label' => 'Mettre en avant (« la plus choisie »)', 'type' => 'bool'], 'sort' => $sort, 'active' => $active,
         ],
     ],
     'service_options' => [
-        'title' => 'Options supplémentaires', 'table' => 'service_options', 'permission' => 'catalog.manage', 'soft_delete' => true, 'order' => 'sort, id', 'filters' => ['service_id'], 'back' => 'services',
+        'title' => 'Options supplémentaires', 'table' => 'service_options', 'permission' => 'catalog.manage', 'return_to' => '/admin/services/{service_id}', 'soft_delete' => true, 'order' => 'sort, id', 'filters' => ['service_id'], 'back' => 'services',
         'list' => ['name' => 'Option', 'price' => ['Prix', 'money'], 'duration_minutes' => ['Durée (min)', 'text'], 'active' => ['Actif', 'bool']],
         'fields' => [
             'service_id' => ['label' => 'Service', 'type' => 'select', 'ref' => ['services', 'name', 'deleted_at IS NULL'], 'required' => true],
@@ -54,7 +57,7 @@ return [
         ],
     ],
     'service_fields' => [
-        'title' => 'Champs du formulaire de réservation', 'table' => 'service_fields', 'permission' => 'catalog.manage', 'soft_delete' => true, 'order' => 'sort, id', 'filters' => ['service_id'], 'back' => 'services',
+        'title' => 'Champs du formulaire de réservation', 'table' => 'service_fields', 'permission' => 'catalog.manage', 'return_to' => '/admin/services/{service_id}', 'soft_delete' => true, 'order' => 'sort, id', 'filters' => ['service_id'], 'back' => 'services',
         'list' => ['label' => 'Libellé', 'type' => ['Type', 'text'], 'role' => ['Rôle', 'text'], 'required' => ['Obligatoire', 'bool'], 'active' => ['Actif', 'bool']],
         'links' => [['Choix', '/admin/crud/service_field_choices?field_id={id}']],
         'fields' => [
@@ -75,6 +78,12 @@ return [
             'label' => ['label' => 'Libellé', 'type' => 'text', 'required' => true], 'price_delta' => ['label' => 'Supplément de prix', 'type' => 'number', 'default' => 0],
             'multiplier' => ['label' => 'Coefficient multiplicateur', 'type' => 'decimal', 'default' => '1', 'help' => 'Ex. 1,4 pour +40 %.'], 'duration_delta' => ['label' => 'Durée ajoutée (min)', 'type' => 'number', 'default' => 0], 'sort' => $sort, 'active' => $active,
         ],
+    ],
+    'service_images' => [
+        'title' => 'Photos du service', 'table' => 'service_images', 'permission' => 'catalog.manage', 'order' => 'sort, id', 'filters' => ['service_id'], 'back' => 'services', 'return_to' => '/admin/services/{service_id}',
+        'list' => ['path' => 'Photo', 'sort' => 'Ordre'],
+        'fields' => ['service_id' => ['label' => 'Service', 'type' => 'select', 'ref' => ['services', 'name', 'deleted_at IS NULL'], 'required' => true],
+            'path' => ['label' => 'Photo', 'type' => 'image', 'dir' => 'services', 'required' => true], 'sort' => $sort],
     ],
     'skills' => [
         'title' => 'Compétences', 'table' => 'skills', 'permission' => 'staff.manage', 'company' => true, 'soft_delete' => true, 'order' => 'name', 'list' => ['name' => 'Compétence'],
@@ -154,9 +163,10 @@ return [
     // ------------------------------------------------------------------ Clients
     'customers' => [
         'title' => 'Clients', 'table' => 'customers', 'permission' => 'customers.manage', 'company' => true, 'soft_delete' => true, 'order' => 'id DESC', 'search' => ['first_name', 'last_name', 'phone', 'email'],
-        'list' => ['last_name' => 'Nom', 'first_name' => 'Prénom', 'phone' => 'Téléphone', 'email' => 'Email'], 'links' => [['Adresses', '/admin/crud/customer_addresses?customer_id={id}'], ['Réservations', '/admin/reservations?q={phone}']],
+        'list' => ['last_name' => 'Nom', 'first_name' => 'Prénom', 'phone' => 'Téléphone', 'email' => 'Email'], 'links' => [['Adresses', '/admin/crud/customer_addresses?customer_id={id}'], ['Réservations', '/admin/reservations?q={phone}'], ['Fiche CRM', '/admin/clients/{id}']],
         'fields' => ['first_name' => ['label' => 'Prénom', 'type' => 'text', 'required' => true], 'last_name' => ['label' => 'Nom', 'type' => 'text', 'required' => true], 'phone' => ['label' => 'Téléphone', 'type' => 'tel', 'required' => true, 'normalize' => 'phone'],
-            'email' => ['label' => 'Email', 'type' => 'email'], 'notes' => ['label' => 'Notes internes', 'type' => 'textarea']],
+            'email' => ['label' => 'Email', 'type' => 'email'], 'channel_id' => ['label' => "Canal d'acquisition", 'type' => 'select', 'ref' => ['acquisition_channels', 'name', 'deleted_at IS NULL'], 'nullable' => true],
+            'marketing_consent' => ['label' => 'Accepte de recevoir nos offres', 'type' => 'bool'], 'notes' => ['label' => 'Notes internes', 'type' => 'textarea']],
     ],
     'customer_addresses' => [
         'title' => 'Adresses de clients', 'table' => 'customer_addresses', 'permission' => 'customers.manage', 'soft_delete' => true, 'order' => 'id DESC', 'filters' => ['customer_id'], 'back' => 'customers',
@@ -164,6 +174,36 @@ return [
         'fields' => ['customer_id' => ['label' => 'Client', 'type' => 'select', 'ref' => ['customers', 'last_name', 'deleted_at IS NULL'], 'required' => true],
             'neighborhood_id' => ['label' => 'Quartier', 'type' => 'select', 'ref' => ['neighborhoods', 'name', 'deleted_at IS NULL'], 'nullable' => true],
             'address_text' => ['label' => 'Adresse', 'type' => 'textarea', 'required' => true], 'instructions' => ['label' => "Instructions d'accès", 'type' => 'textarea']],
+    ],
+
+    // ------------------------------------------------------------------ CRM et gestion
+    'acquisition_channels' => [
+        'title' => "Canaux d'acquisition", 'table' => 'acquisition_channels', 'permission' => 'crm.manage', 'company' => true, 'soft_delete' => true, 'order' => 'sort, name', 'search' => ['name'],
+        'list' => ['name' => 'Canal', 'kind' => ['Type', 'option'], 'public' => ['Proposé au client', 'bool'], 'active' => ['Actif', 'bool']],
+        'fields' => ['name' => ['label' => 'Nom', 'type' => 'text', 'required' => true],
+            'kind' => ['label' => 'Type', 'type' => 'select', 'options' => ['organique' => 'Organique (site, recherche)', 'reseaux' => 'Réseaux sociaux', 'payant' => 'Publicité payante', 'direct' => 'Contact direct', 'recommandation' => 'Recommandation', 'hors_ligne' => 'Hors ligne', 'autre' => 'Autre'], 'required' => true],
+            'public' => ['label' => "Proposé au client dans « Comment nous avez-vous connus ? »", 'type' => 'bool', 'default' => 1], 'active' => $active, 'sort' => $sort],
+    ],
+    'leads' => [
+        'title' => 'Prospects', 'table' => 'leads', 'permission' => 'crm.manage', 'company' => true, 'soft_delete' => true, 'order' => 'id DESC', 'search' => ['name', 'phone', 'email'],
+        'list' => ['name' => 'Nom', 'phone' => 'Téléphone', 'channel_id' => ['Canal', 'ref', 'acquisition_channels', 'name'], 'status' => ['Statut', 'option'], 'next_follow_up' => 'Relance', 'estimated_value' => ['Valeur', 'money']],
+        'links' => [['Ouvrir', '/admin/crm/prospects/{id}']],
+        'fields' => ['name' => ['label' => 'Nom complet', 'type' => 'text', 'required' => true], 'phone' => ['label' => 'Téléphone', 'type' => 'tel', 'normalize' => 'phone'], 'email' => ['label' => 'Email', 'type' => 'email'],
+            'channel_id' => ['label' => "Canal d'acquisition", 'type' => 'select', 'ref' => ['acquisition_channels', 'name', 'deleted_at IS NULL'], 'nullable' => true],
+            'service_id' => ['label' => 'Service demandé', 'type' => 'select', 'ref' => ['services', 'name', 'deleted_at IS NULL'], 'nullable' => true],
+            'status' => ['label' => 'Statut', 'type' => 'select', 'options' => ['new' => 'Nouveau', 'contacted' => 'Contacté', 'quoted' => 'Devis envoyé', 'won' => 'Gagné', 'lost' => 'Perdu'], 'required' => true, 'default' => 'new'],
+            'estimated_value' => ['label' => 'Valeur estimée', 'type' => 'number', 'default' => 0, 'min' => 0, 'max' => 100000000],
+            'assigned_user_id' => ['label' => 'Responsable', 'type' => 'select', 'ref' => ['users', 'name', 'deleted_at IS NULL AND active = 1'], 'nullable' => true],
+            'next_follow_up' => ['label' => 'Prochaine relance', 'type' => 'date', 'nullable' => true], 'notes' => ['label' => 'Notes', 'type' => 'textarea']],
+    ],
+    'expenses' => [
+        'title' => 'Dépenses', 'table' => 'expenses', 'permission' => 'finance.manage', 'company' => true, 'soft_delete' => true, 'order' => 'expense_date DESC, id DESC', 'search' => ['label', 'supplier'],
+        'list' => ['expense_date' => 'Date', 'label' => 'Libellé', 'category' => ['Catégorie', 'option'], 'amount' => ['Montant', 'money'], 'channel_id' => ['Canal', 'ref', 'acquisition_channels', 'name']],
+        'fields' => ['expense_date' => ['label' => 'Date', 'type' => 'date', 'required' => true, 'default' => date('Y-m-d')], 'label' => ['label' => 'Libellé', 'type' => 'text', 'required' => true],
+            'category' => ['label' => 'Catégorie', 'type' => 'select', 'options' => \App\Services\BusinessReportService::EXPENSE_CATEGORIES, 'required' => true, 'default' => 'autre'],
+            'amount' => ['label' => 'Montant', 'type' => 'number', 'required' => true, 'min' => 0, 'max' => 1000000000],
+            'channel_id' => ['label' => "Canal d'acquisition concerné", 'type' => 'select', 'ref' => ['acquisition_channels', 'name', 'deleted_at IS NULL'], 'nullable' => true, 'help' => 'Pour les dépenses de marketing : sert à calculer le coût par client et le ROI.'],
+            'supplier' => ['label' => 'Fournisseur', 'type' => 'text'], 'notes' => ['label' => 'Notes', 'type' => 'textarea']],
     ],
 
     // ------------------------------------------------------------------ Messages et contenus

@@ -7,3 +7,4 @@ storage/uploads/missions/*
 public/uploads/services/*
 storage/cache/*
 !.gitkeep
+motion/out/stills/

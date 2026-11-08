@@ -17,7 +17,50 @@ final class Request
         return $p;
     }
 
-    public static function ip(): string { return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0'; }
+    /** Adresses ou plages CIDR des proxys de confiance (TRUSTED_PROXIES, séparées par des virgules). Vide = aucun. */
+    private static function trustedProxies(): array
+    {
+        return array_values(array_filter(array_map('trim', explode(',', (string) Env::get('TRUSTED_PROXIES', '')))));
+    }
+
+    public static function ipInList(string $ip, array $list): bool
+    {
+        $bin = @inet_pton($ip);
+        if ($bin === false) return false;
+        foreach ($list as $entry) {
+            [$net, $bits] = array_pad(explode('/', $entry, 2), 2, null);
+            $nb = @inet_pton($net);
+            if ($nb === false || strlen($nb) !== strlen($bin)) continue;
+            $bits = $bits === null ? strlen($bin) * 8 : max(0, min(strlen($bin) * 8, (int) $bits));
+            $full = intdiv($bits, 8); $rest = $bits % 8;
+            if (substr($bin, 0, $full) !== substr($nb, 0, $full)) continue;
+            if ($rest === 0 || ((ord($bin[$full]) ^ ord($nb[$full])) >> (8 - $rest)) === 0) return true;
+        }
+        return false;
+    }
+
+    private static function viaTrustedProxy(): bool
+    {
+        $remote = $_SERVER['REMOTE_ADDR'] ?? '';
+        return $remote !== '' && self::ipInList($remote, self::trustedProxies());
+    }
+
+    /** IP du visiteur. X-Forwarded-For n'est lu que si la requête vient d'un proxy de confiance (sinon il est falsifiable). */
+    public static function ip(): string
+    {
+        $remote = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+        if (!self::viaTrustedProxy()) return $remote;
+        $trusted = self::trustedProxies();
+        foreach (array_reverse(array_map('trim', explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''))) as $ip) {
+            if (filter_var($ip, FILTER_VALIDATE_IP) && !self::ipInList($ip, $trusted)) return $ip;
+        }
+        return $remote;
+    }
+
+    public static function isHttps(): bool
+    {
+        return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (self::viaTrustedProxy() && ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    }
 
     public static function isJson(): bool
     {

@@ -8,6 +8,7 @@
   var CSRF = root.dataset.csrf, CUR = root.dataset.currency || 'FCFA';
   var SERVICES = JSON.parse(document.getElementById('services-data').textContent);
   var S = { step: 0, svc: null, def: null, formula: null, fields: {}, options: [], hood: null, date: null, slot: null, quote: null, days: null };
+  var PREFORMULA = parseInt(root.dataset.preformula, 10) || 0;
   var STEPS = ['Service', 'Détails', 'Lieu', 'Coordonnées', 'Créneau', 'Récapitulatif'];
   var $ = function (id) { return document.getElementById(id); };
   var money = function (n) { return new Intl.NumberFormat('fr-FR').format(n).replace(/\u202f/g, ' ') + ' ' + CUR; };
@@ -84,7 +85,9 @@
   function selectService(s) {
     if (S.svc && S.svc.id === s.id) return;
     S.svc = s; S.formula = null; S.fields = {}; S.options = []; S.quote = null; S.date = S.slot = null;
-    api('/api/services/' + s.id + '/form').then(function (r) { if (!r.ok) return showError('Service indisponible.'); S.def = r.data; renderDetails(); refreshQuote(false); });
+    api('/api/services/' + s.id + '/form').then(function (r) { if (!r.ok) return showError('Service indisponible.'); S.def = r.data;
+      if (PREFORMULA && r.data.formulas.some(function (f) { return f.id === PREFORMULA; })) { S.formula = PREFORMULA; }
+      PREFORMULA = 0; renderDetails(); refreshQuote(false); });
     updateSide();
   }
 
@@ -98,9 +101,14 @@
       var row = el('div', { class: 'row g-2' });
       d.formulas.forEach(function (fm) {
         var inp = el('input', { type: 'radio', name: 'formula', value: fm.id });
+        if (S.formula === fm.id) inp.checked = true;
         inp.addEventListener('change', function () { S.formula = fm.id; refreshQuote(false); });
         var price = fm.amount ? money(fm.amount) + (d.service.billing_unit === 'per_sqm' ? ' /m²' : '') : '';
-        row.appendChild(el('div', { class: 'col-md-4' }, [el('label', { class: 'opt-card' }, [inp, el('strong', { text: fm.name }), el('div', { class: 'small text-muted', text: fm.description || '' }), el('div', { class: 'small fw-semibold text-primary', text: price })])]));
+        var kids = [inp, el('strong', { text: fm.name })];
+        if (fm.popular) kids.push(' ', el('span', { class: 'badge text-bg-warning', text: 'La plus choisie' }));
+        kids.push(el('div', { class: 'small text-muted', text: fm.description || '' }), el('div', { class: 'small fw-semibold text-primary', text: price }));
+        if (fm.includes && fm.includes.length) kids.push(el('ul', {}, fm.includes.map(function (t) { return el('li', { text: t }); })));
+        row.appendChild(el('div', { class: 'col-md-4' }, [el('label', { class: 'opt-card' }, kids)]));
       });
       f.appendChild(row);
     }
@@ -154,6 +162,7 @@
     if (S.hood) add('Quartier', S.hood.name);
     if (S.date && S.slot) add('Rendez-vous', fmtDay(S.date) + ' à ' + S.slot);
     $('side-total').textContent = S.quote ? money(S.quote.total) : '—';
+    if ($('mobile-total')) $('mobile-total').textContent = S.quote ? money(S.quote.total) : '—';
   }
 
   // ---------------------------------------------------------------- Étape 2 : localisation en cascade
@@ -244,7 +253,7 @@
   function submit() {
     $('next').disabled = true; $('next').textContent = 'Envoi en cours…';
     var body = payload({ date: S.date, start: S.slot, first_name: $('first_name').value.trim(), last_name: $('last_name').value.trim(), phone: $('phone').value.trim(), email: $('email').value.trim(),
-      address_text: $('address').value.trim(), instructions: $('instructions').value.trim(), website: $('website').value });
+      address_text: $('address').value.trim(), instructions: $('instructions').value.trim(), website: $('website').value, channel_id: $('channel') ? $('channel').value : '' });
     api('/reservation', body).then(function (r) {
       if (r.ok) { location.href = r.data.redirect; return; }
       if (r.status === 409) { S.slot = null; showError(r.data.error); go(4); return; }

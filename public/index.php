@@ -26,7 +26,7 @@ header('X-Frame-Options: SAMEORIGIN');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 header("Content-Security-Policy: default-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'");
 header('Permissions-Policy: geolocation=(self), camera=(self), microphone=()');
-if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') header('Strict-Transport-Security: max-age=31536000');
+if (Request::isHttps()) header('Strict-Transport-Security: max-age=31536000');
 
 try {
     $router = require BASE_PATH . '/routes/web.php';
