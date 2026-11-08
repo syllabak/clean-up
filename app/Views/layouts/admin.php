@@ -1,20 +1,30 @@
 <?php
 use App\Core\Auth;
 $path = \App\Core\Request::path();
-$nav = [   // titre de section => entrées [libellé, adresse, droit]
-  '' => [['Tableau de bord', '/admin', 'dashboard.view']],
-  'Activité' => [['Réservations', '/admin/reservations', 'bookings.view'], ['Planning', '/admin/planning', 'planning.view']],
-  'Clients' => [['Clients', '/admin/crud/customers', 'customers.manage'], ['Prospects (CRM)', '/admin/crm', 'crm.manage'], ['Canaux d\'acquisition', '/admin/crud/acquisition_channels', 'crm.manage']],
-  'Marketing' => [['Marketing', '/admin/marketing', 'marketing.manage'], ['Campagnes', '/admin/marketing/campagnes', 'marketing.manage'], ['Résultats publicitaires', '/admin/marketing/publicites', 'marketing.manage'],
-    ['Liens suivis', '/admin/marketing/liens', 'marketing.manage'], ['Canaux marketing', '/admin/marketing/canaux', 'settings.manage']],
-  'Catalogue' => [['Services', '/admin/crud/services', 'catalog.manage'], ['Catégories', '/admin/crud/service_categories', 'catalog.manage']],
-  'Équipes et zones' => [['Équipes', '/admin/crud/teams', 'staff.manage'], ['Agents', '/admin/crud/staff', 'staff.manage'], ['Compétences', '/admin/crud/skills', 'staff.manage'], ['Congés et fermetures', '/admin/crud/time_off', 'staff.manage'],
-    ['Zones : quartiers', '/admin/crud/neighborhoods', 'geo.manage'], ['Zones : régions', '/admin/crud/regions', 'geo.manage']],
-  'Argent' => [['Gestion et résultats', '/admin/gestion', 'finance.manage'], ['Dépenses', '/admin/crud/expenses', 'finance.manage']],
-  'Messages' => [['Journal des envois', '/admin/notifications', 'notifications.manage'], ['Modèles de messages', '/admin/crud/notifications', 'notifications.manage'], ['Messages reçus', '/admin/crud/contact_messages', 'cms.manage']],
-  'Site web' => [['Pages', '/admin/crud/pages', 'cms.manage'], ['FAQ', '/admin/crud/faq', 'cms.manage'], ['Témoignages', '/admin/crud/testimonials', 'cms.manage']],
-  'Administration' => [['Utilisateurs', '/admin/crud/users', 'users.manage'], ["Journal d'audit", '/admin/audit', 'users.manage'], ['Paramètres', '/admin/parametres', 'settings.manage']],
+// Huit entrées pour le travail de tous les jours ; tout le reste vit dans « Configuration ».
+// [libellé, adresse, droit(s) (un seul suffit), préfixes d'adresses qui gardent l'entrée active]
+$cfg = \App\Controllers\Admin\ConfigController::PERMS;
+$nav = [
+  ['Tableau de bord', '/admin', ['dashboard.view'], []],
+  ['Réservations', '/admin/reservations', ['bookings.view'], []],
+  ['Planning', '/admin/planning', ['planning.view'], []],
+  ['Clients', '/admin/crud/customers', ['customers.manage'], ['/admin/clients']],
+  ['Prospects', '/admin/crm', ['crm.manage'], ['/admin/crud/leads']],
+  ['Marketing', '/admin/marketing', ['marketing.manage'], ['/admin/crud/acquisition_channels']],
+  ['Gestion', '/admin/gestion', ['finance.manage'], ['/admin/crud/expenses']],
+  ['Configuration', '/admin/configuration', $cfg, ['/admin/parametres', '/admin/audit', '/admin/notifications', '/admin/services/', '/admin/crud/']],
 ];
+$elsewhere = ['/admin/crud/customers', '/admin/crud/leads', '/admin/crud/acquisition_channels', '/admin/crud/expenses'];   // écrans de /admin/crud/ qui ont leur propre entrée
+$isActive = function (string $href, array $also) use ($path, $elsewhere): bool {
+    if ($href === '/admin') return $path === '/admin';
+    if (str_starts_with($path, $href)) return true;
+    foreach ($also as $p) {
+        if (!str_starts_with($path, $p)) continue;
+        if ($p === '/admin/crud/' && array_filter($elsewhere, fn($e) => str_starts_with($path, $e))) continue;
+        return true;
+    }
+    return false;
+};
 $u = Auth::user();
 ?><!doctype html>
 <html lang="fr"><head>
@@ -29,11 +39,8 @@ $u = Auth::user();
   <aside class="admin-side" id="side">
     <a class="brand brand-admin" href="/admin"><span class="brand-drop" aria-hidden="true"></span><?= e(setting('company_name')) ?></a>
     <nav aria-label="Navigation principale">
-      <?php foreach ($nav as $group => $items): $items = array_filter($items, fn($i) => Auth::can($i[2])); if (!$items) continue; ?>
-        <?php if ($group !== ''): ?><div class="side-group"><?= e($group) ?></div><?php endif ?>
-        <?php foreach ($items as [$label, $href]): $active = in_array($href, ['/admin', '/admin/marketing'], true) ? $path === $href : str_starts_with($path, $href); ?>
+      <?php foreach ($nav as [$label, $href, $perms, $also]): if (!array_filter($perms, fn($pm) => Auth::can($pm))) continue; $active = $isActive($href, $also); ?>
         <a class="side-link <?= $active ? 'active' : '' ?>" href="<?= e($href) ?>" <?= $active ? 'aria-current="page"' : '' ?>><?= e($label) ?></a>
-        <?php endforeach ?>
       <?php endforeach ?>
     </nav>
   </aside>
