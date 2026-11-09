@@ -74,6 +74,15 @@ h1 em { font-style: normal; color: var(--lemon) }
 .ba.photos figcaption { top: auto; bottom: 0; left: 0; border-radius: 0 3mm 0 0; padding: 3mm 7mm; font-size: 6.5mm; background: #2b2320; color: #fff }
 .ba.photos .after figcaption { left: auto; right: 0; border-radius: 3mm 0 0 0; background: #2b2320; color: #fff }
 .strip { position: relative; z-index: 2; margin: 0 -20mm; background: var(--water); color: #fff; text-align: center; padding: 4.5mm; font-size: 4.6mm; font-weight: 700; letter-spacing: .3mm }
+.steps { position: relative; z-index: 2; margin-top: 8mm; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm }
+.step { background: rgba(255,255,255,.10); border: .6mm solid rgba(255,255,255,.22); border-radius: 5mm; padding: 5mm 5mm 6mm }
+.step b { display: grid; place-items: center; width: 11mm; height: 11mm; border-radius: 50%; background: var(--lemon); color: var(--ink); font-size: 6mm; font-weight: 900; margin-bottom: 3mm }
+.step span { font-size: 5mm; font-weight: 700; line-height: 1.25 }
+.steps-t { position: relative; z-index: 2; margin-top: 9mm; font-size: 5.4mm; font-weight: 800; letter-spacing: 1mm; text-transform: uppercase; color: var(--lemon) }
+.recruit { padding-top: 16mm } .recruit h1 { font-size: 21mm; margin-top: 5mm } .recruit .kicker { margin-top: 12mm; font-size: 5.8mm } .recruit .lead { margin-top: 6mm; font-size: 7mm; max-width: 250mm }
+.recruit .cards { margin-top: 6mm; padding-bottom: 0; flex: none; gap: 4mm } .recruit .card { padding: 6mm 6.5mm 6.5mm } .recruit .card h3 { font-size: 7mm } .recruit .card p { font-size: 4.8mm; margin-top: 2.5mm } .recruit .card ul { margin-top: 3mm; font-size: 4.8mm; line-height: 1.45 } .recruit .tag { margin-bottom: 2mm; font-size: 3.3mm }
+.recruit .steps-t { margin-top: 9mm; font-size: 5mm } .recruit .steps { margin-top: 5mm } .recruit .step { padding: 5mm 4.5mm 5.5mm } .recruit .step b { width: 9mm; height: 9mm; font-size: 5mm; margin-bottom: 2mm } .recruit .step span { font-size: 4.4mm }
+.recruit .cta { margin-top: 7mm; padding: 8mm 20mm 9mm } .recruit .cta h2 { font-size: 10.5mm } .recruit .cta .rows { margin-top: 3mm; font-size: 5mm; gap: 1.5mm } .recruit .cta .rows small { font-size: 3.4mm }
 """
 
 DROP = '<svg viewBox="0 0 24 24" fill="#0B2545"><path d="M12 2.5c3.6 4.3 6 7.6 6 11a6 6 0 0 1-12 0c0-3.4 2.4-6.7 6-11z"/></svg>'
@@ -188,5 +197,38 @@ poster("04-bureaux", "Entreprises et professionnels",
        card("Nettoyage de bureaux", items=["Passage régulier ou ponctuel", "Sols, sanitaires, cuisine", "Vitres sur demande"], hot=True)
        + card("Flotte de véhicules", items=["Lavage sur votre parking", "Plusieurs véhicules par passage", "Facturation simple"]),
        2, "Parlons de votre site.", BUB)
+
+
+def recruit_poster():
+    """Affiche de recrutement des intervenants (07) : mêmes codes visuels que les affiches clients."""
+    wa = f"https://wa.me/{C['whatsapp']}?text=" + "Bonjour%2C%20je%20souhaite%20rejoindre%20l%27%C3%A9quipe%20Clean%20Up."
+    b = "".join(f'<div class="bubble" style="left:{x}mm;top:{y}mm;width:{d}mm;height:{d}mm"></div>' for x, y, d in BUB)
+    cards_html = (card("Laveurs et laveuses auto", "Lavage extérieur et intérieur, à domicile ou sur parking.", hot=True, tag="On recrute")
+                  + card("Nettoyage textile", "Canapés, matelas, tapis : injection-extraction et détachage.", tag="On recrute")
+                  + card("Maison et bureaux", "Ménage, vitres, repassage, chez les particuliers et les entreprises.", tag="On recrute"))
+    steps = [("Vous nous écrivez", "un message WhatsApp suffit"), ("Un court entretien", "et un essai pratique"),
+             ("Une journée de formation", "nos méthodes, notre matériel"), ("Votre première mission", "près de chez vous")]
+    st = "".join(f'<div class="step"><b>{i + 1}</b><span>{html.escape(a)}<br><small style="font-weight:500;color:#cfe2f5;font-size:3.6mm">{html.escape(t)}</small></span></div>' for i, (a, t) in enumerate(steps))
+    page = f"""<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Affiche recrutement</title><style>{CSS}</style></head>
+<body><div class="poster recruit">{b}
+<div class="brand"><div class="mark">{DROP}</div><b>{html.escape(C['nom'])}</b><span>{html.escape(C['zone'])}</span></div>
+<div class="kicker">Nous recrutons à Dakar</div>
+<h1>Vous savez bien nettoyer ? <em>Rejoignez l'équipe.</em></h1>
+<p class="lead">Missions régulières près de chez vous, matériel fourni, formation avec nous. Aucun diplôme demandé.</p>
+<div class="cards c3">{cards_html}</div>
+<div class="steps-t">Comment ça se passe</div>
+<div class="steps">{st}</div>
+<div class="cards c3" style="margin-top:5mm;flex:none;padding-bottom:0">{card("Ce qu'on attend de vous", items=["Ponctualité et sens du service", "Un travail soigné", "Un téléphone avec WhatsApp"])}{card("Ce que vous trouvez ici", items=["Matériel et produits fournis", "Missions dans votre zone", "Formation dès le départ"], hot=True)}{card("Pour qui", items=["Hommes et femmes, dès 18 ans", "Débutants bienvenus", "Équipes ou indépendants"])}</div>
+<div class="spacer"></div>
+<div class="cta"><div><h2>Écrivez-nous sur WhatsApp.</h2>
+<div class="rows"><div><small>WhatsApp · Appel</small>{html.escape(C['telephone'])}</div>
+<div><small>Dites-nous</small>Votre nom, votre quartier, ce que vous savez faire</div></div></div>
+<div class="qr">{qr_svg(wa)}Scannez pour nous écrire</div></div>
+<div class="strip">Clean Up · Nettoyage à domicile et au bureau · Dakar et alentours</div>
+</div></body></html>"""
+    (OUT / "07-recrutement.html").write_text(page, encoding="utf-8")
+
+
+recruit_poster()
 
 print("HTML générés dans", OUT)
