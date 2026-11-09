@@ -201,7 +201,7 @@ poster("04-bureaux", "Entreprises et professionnels",
 
 def recruit_poster():
     """Affiche de recrutement des intervenants (07) : mêmes codes visuels que les affiches clients."""
-    wa = f"https://wa.me/{C['whatsapp']}?text=" + "Bonjour%2C%20je%20souhaite%20rejoindre%20l%27%C3%A9quipe%20Clean%20Up."
+    form = C.get("url_recrutement", C["site"] + "/recrutement") + "?src=affiche"
     b = "".join(f'<div class="bubble" style="left:{x}mm;top:{y}mm;width:{d}mm;height:{d}mm"></div>' for x, y, d in BUB)
     cards_html = (card("Laveurs et laveuses auto", "Lavage extérieur et intérieur, à domicile ou sur parking.", hot=True, tag="On recrute")
                   + card("Nettoyage textile", "Canapés, matelas, tapis : injection-extraction et détachage.", tag="On recrute")
@@ -220,10 +220,10 @@ def recruit_poster():
 <div class="steps">{st}</div>
 <div class="cards c3" style="margin-top:5mm;flex:none;padding-bottom:0">{card("Ce qu'on attend de vous", items=["Ponctualité et sens du service", "Un travail soigné", "Un téléphone avec WhatsApp"])}{card("Ce que vous trouvez ici", items=["Matériel et produits fournis", "Missions dans votre zone", "Formation dès le départ"], hot=True)}{card("Pour qui", items=["Hommes et femmes, dès 18 ans", "Débutants bienvenus", "Équipes ou indépendants"])}</div>
 <div class="spacer"></div>
-<div class="cta"><div><h2>Écrivez-nous sur WhatsApp.</h2>
-<div class="rows"><div><small>WhatsApp · Appel</small>{html.escape(C['telephone'])}</div>
-<div><small>Dites-nous</small>Votre nom, votre quartier, ce que vous savez faire</div></div></div>
-<div class="qr">{qr_svg(wa)}Scannez pour nous écrire</div></div>
+<div class="cta"><div><h2>Postulez en 2 minutes.</h2>
+<div class="rows"><div><small>Formulaire en ligne</small>{html.escape(C.get("url_recrutement", "").replace("https://", ""))}</div>
+<div><small>Ou écrivez-nous · WhatsApp · Appel</small>{html.escape(C['telephone'])}</div></div></div>
+<div class="qr">{qr_svg(form)}Scannez pour postuler</div></div>
 <div class="strip">Clean Up · Nettoyage à domicile et au bureau · Dakar et alentours</div>
 </div></body></html>"""
     (OUT / "07-recrutement.html").write_text(page, encoding="utf-8")

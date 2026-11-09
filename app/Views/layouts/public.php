@@ -63,6 +63,7 @@ $wa = setting('company_whatsapp', '');
         <p class="mb-1"><a href="/a-propos">À propos</a></p>
         <p class="mb-1"><a href="/conditions-generales">Conditions générales</a></p>
         <p class="mb-1"><a href="/confidentialite">Confidentialité</a></p>
+        <p class="mb-1"><a href="/recrutement">Rejoindre l'équipe</a></p>
         <p class="mb-1"><a href="/connexion">Espace équipe</a></p>
         <?php if ($mkOn): ?><p class="mb-0"><a href="#" data-mk-reset>Cookies publicitaires</a></p><?php endif ?>
       </div>
