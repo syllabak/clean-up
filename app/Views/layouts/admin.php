@@ -1,7 +1,7 @@
 <?php
 use App\Core\Auth;
 $path = \App\Core\Request::path();
-// Huit entrées pour le travail de tous les jours ; tout le reste vit dans « Configuration ».
+// Neuf entrées pour le travail de tous les jours ; tout le reste vit dans « Configuration ».
 // [libellé, adresse, droit(s) (un seul suffit), préfixes d'adresses qui gardent l'entrée active]
 $cfg = \App\Controllers\Admin\ConfigController::PERMS;
 $nav = [
@@ -10,6 +10,7 @@ $nav = [
   ['Planning', '/admin/planning', ['planning.view'], []],
   ['Clients', '/admin/crud/customers', ['customers.manage'], ['/admin/clients']],
   ['Prospects', '/admin/crm', ['crm.manage'], ['/admin/crud/leads']],
+  ['Recrutement', '/admin/recrutement', ['recruitment.manage'], []],
   ['Marketing', '/admin/marketing', ['marketing.manage'], ['/admin/crud/acquisition_channels']],
   ['Gestion', '/admin/gestion', ['finance.manage'], ['/admin/crud/expenses']],
   ['Configuration', '/admin/configuration', $cfg, ['/admin/parametres', '/admin/audit', '/admin/notifications', '/admin/services/', '/admin/crud/']],

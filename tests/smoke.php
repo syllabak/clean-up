@@ -451,7 +451,7 @@ $bad = new Client($port);
 [, , $b] = (new Client($port))->get('/reserver'); T::ok(str_contains($b, 'id="prefill-note"') && str_contains($b, 'id="prefill-clear"'), 'formulaire de réservation : mémoire des coordonnées (avec « effacer »)');
 
 [$s, , $b] = $admin->get('/admin'); T::ok($s === 200 && str_contains($b, 'À faire maintenant') && str_contains($b, 'Premiers pas'), 'tableau de bord : « À faire maintenant » et « Premiers pas »');
-T::eq(substr_count($b, 'class="side-link'), 8, 'menu d\'administration : 8 entrées seulement');
+T::eq(substr_count($b, 'class="side-link'), 9, 'menu d\'administration : 9 entrées (dont Recrutement)');
 T::ok(str_contains($b, 'href="/admin/configuration"') && str_contains($b, 'name="q"') && str_contains($b, '/admin/recherche'), 'entrée « Configuration » et barre de recherche présentes');
 foreach (['/admin/configuration' => 'Configuration', '/admin/crud/services' => 'Configuration', '/admin/parametres' => 'Configuration', '/admin/crud/customers' => 'Clients', '/admin/crud/expenses' => 'Gestion', '/admin/crud/acquisition_channels' => 'Marketing', '/admin/marketing/campagnes' => 'Marketing'] as $u => $lab) {
     [, , $pg] = $admin->get($u); preg_match('#class="side-link active"[^>]*>([^<]+)<#', $pg, $mm); T::eq($mm[1] ?? null, $lab, "menu : « $u » garde « $lab » actif");
@@ -522,6 +522,34 @@ T::ok($s === 200 && $info && $info[0] === 160 && str_contains(implode(' ', $h['c
 [$s, , $body] = $admin->get("/photo/$pid?w=999"); $info = @getimagesizefromstring($body); T::ok($s === 200 && $info[0] === 900, 'largeur non prévue : l\'original est servi (pas de redimensionnement arbitraire)');
 [$s, , $body] = $admin->get("/photo/$pid"); T::ok($s === 200 && @getimagesizefromstring($body)[0] === 900, 'sans paramètre : photo en grand');
 @unlink(BASE_PATH . '/storage/uploads/missions/' . $fn); @unlink(BASE_PATH . '/storage/cache/thumbs/' . $pid . '_160.jpg'); \App\Core\Database::exec('DELETE FROM booking_photos WHERE id = ?', [$pid]);
+
+// ------------------------------------------------------------------ Espace de recrutement
+T::group('Recrutement : formulaire public et suivi des candidatures');
+$rc = new Client($port);
+[$s, , $b] = $rc->get('/recrutement'); T::ok($s === 200 && str_contains($b, 'name="skills[]"') && str_contains($b, 'Envoyer ma candidature'), 'formulaire de recrutement affiché');
+[, , $b] = $rc->get('/'); T::ok(str_contains($b, 'href="/recrutement"'), 'lien « Rejoindre l\'équipe » dans le pied de page');
+$t = $rc->token('/recrutement');
+[$s] = $rc->post('/recrutement', ['_csrf' => $t, 'name' => 'Seydou', 'phone' => '12']); T::eq($s, 302, 'candidature incomplète : retour au formulaire');
+\App\Core\Database::reset(); T::eq((int) \App\Core\Database::val('SELECT COUNT(*) FROM job_applications'), 0, 'candidature incomplète : rien d\'enregistré');
+[, , $b] = $rc->get('/recrutement'); T::ok(str_contains($b, 'Cochez au moins un type') && str_contains($b, '18 ans'), 'erreurs lisibles : compétence et âge');
+$good = ['_csrf' => $rc->token('/recrutement'), 'name' => 'Seydou <b>Ndiaye</b>', 'phone' => '77 410 20 30', 'neighborhood_id' => '1', 'skills' => ['auto', 'textile', 'pirate'], 'experience' => 'lt1', 'availability' => 'full', 'has_whatsapp' => '1', 'message' => 'Je suis sérieux.', 'adult' => '1', 'consent' => '1'];
+[$s, $h] = $rc->post('/recrutement', $good); T::ok($s === 302 && str_contains((string) ($h['location'][0] ?? ''), '/recrutement/merci'), 'candidature valide : page de remerciement');
+\App\Core\Database::reset(); $ap = \App\Core\Database::one('SELECT * FROM job_applications');
+T::ok($ap && $ap['phone'] === '221774102030' && $ap['skills'] === 'auto,textile' && $ap['status'] === 'new', 'candidature enregistrée : numéro normalisé, compétence inconnue ignorée');
+$rc->post('/recrutement', ['_csrf' => $rc->token('/recrutement')] + $good); \App\Core\Database::reset();
+T::eq((int) \App\Core\Database::val('SELECT COUNT(*) FROM job_applications'), 1, 'même numéro envoyé deux fois : une seule candidature');
+$rc->post('/recrutement', ['_csrf' => $rc->token('/recrutement'), 'website' => 'http://spam'] + $good); \App\Core\Database::reset();
+T::eq((int) \App\Core\Database::val('SELECT COUNT(*) FROM job_applications'), 1, 'champ piège rempli : ignoré');
+[$s, , $b] = $rc->get('/recrutement/merci'); T::ok($s === 200 && str_contains($b, 'Candidature reçue'), 'page de remerciement');
+[$s] = $rc->get('/admin/recrutement'); T::eq($s, 302, 'liste des candidatures : réservée à l\'équipe connectée');
+[$s, , $b] = $admin->get('/admin/recrutement'); T::ok($s === 200 && str_contains($b, '&lt;b&gt;Ndiaye') && !str_contains($b, '<b>Ndiaye</b>') && str_contains($b, 'wa.me/') && str_contains($b, '/recrutement'), 'administration : candidature listée (échappée), WhatsApp et lien à partager');
+[$s] = $admin->post('/admin/recrutement/' . (int) $ap['id'] . '/statut', ['_csrf' => $admin->token('/admin/recrutement'), 'to' => 'contacted']); \App\Core\Database::reset();
+T::eq(\App\Core\Database::val('SELECT status FROM job_applications WHERE id = ?', [(int) $ap['id']]), 'contacted', 'statut changé en un clic : Contactée');
+$admin->post('/admin/recrutement/' . (int) $ap['id'] . '/statut', ['_csrf' => $admin->token('/admin/recrutement'), 'to' => 'nimporte']); \App\Core\Database::reset();
+T::eq(\App\Core\Database::val('SELECT status FROM job_applications WHERE id = ?', [(int) $ap['id']]), 'contacted', 'statut inconnu refusé');
+$admin->post('/admin/recrutement/' . (int) $ap['id'] . '/note', ['_csrf' => $admin->token('/admin/recrutement'), 'note' => 'Appelé, vient mardi']); \App\Core\Database::reset();
+T::ok(str_contains((string) \App\Core\Database::val('SELECT notes FROM job_applications WHERE id = ?', [(int) $ap['id']]), 'vient mardi'), 'note interne ajoutée');
+[$s, , $b] = $admin->get('/admin/recrutement?status=new'); T::ok($s === 200 && !str_contains($b, 'Ndiaye'), 'filtre par statut');
 
 // ------------------------------------------------------------------ Cron
 T::group('Tâches planifiées HTTP');

@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 use App\Core\Router;
-use App\Controllers\{HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
-use App\Controllers\Admin\{DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
+use App\Controllers\{RecruitmentController, HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
+use App\Controllers\Admin\{RecruitmentAdminController, DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
 
 $r = new Router();
 
@@ -15,6 +15,9 @@ $r->get('/a-propos', [HomeController::class, 'page']);
 $r->get('/faq', [HomeController::class, 'faq']);
 $r->get('/contact', [HomeController::class, 'contact']);
 $r->post('/contact', [HomeController::class, 'contactSend'], ['throttle:contact,5,600']);
+$r->get('/recrutement', [RecruitmentController::class, 'form']);
+$r->post('/recrutement', [RecruitmentController::class, 'send'], ['throttle:recruit,6,3600']);
+$r->get('/recrutement/merci', [RecruitmentController::class, 'thanks']);
 $r->get('/conditions-generales', [HomeController::class, 'page']);
 $r->get('/confidentialite', [HomeController::class, 'page']);
 $r->get('/hors-ligne', [HomeController::class, 'offline']);
@@ -76,6 +79,9 @@ $r->post('/admin/services/{id}/dupliquer', [ServiceAdminController::class, 'dupl
 $r->post('/admin/services/{id}/simuler', [ServiceAdminController::class, 'simulate'], ['perm:catalog.manage']);
 // CRM et gestion
 $r->get('/admin/crm', [CrmController::class, 'pipeline'], ['perm:crm.manage']);
+$r->get('/admin/recrutement', [RecruitmentAdminController::class, 'index'], ['perm:recruitment.manage']);
+$r->post('/admin/recrutement/{id}/statut', [RecruitmentAdminController::class, 'status'], ['perm:recruitment.manage']);
+$r->post('/admin/recrutement/{id}/note', [RecruitmentAdminController::class, 'note'], ['perm:recruitment.manage']);
 $r->get('/admin/crm/prospects/{id}', [CrmController::class, 'lead'], ['perm:crm.manage']);
 $r->post('/admin/crm/prospects/{id}/statut', [CrmController::class, 'leadStatus'], ['perm:crm.manage']);
 $r->post('/admin/crm/prospects/{id}/relance', [CrmController::class, 'leadFollowUp'], ['perm:crm.manage']);
