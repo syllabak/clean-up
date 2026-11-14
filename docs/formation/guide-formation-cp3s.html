@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Guide de formation — machine Magwell CP-3S</title>
+<style>
+@page{size:A4;margin:0}
+*{box-sizing:border-box}
+body{margin:0;font:10.6pt/1.45 Inter,"Helvetica Neue",Arial,sans-serif;color:#17233a}
+.page{width:210mm;height:297mm;padding:15mm 15mm 16mm;position:relative;page-break-after:always;overflow:hidden}
+.page:last-child{page-break-after:auto}
+.cover{background:#0e2442;color:#fff;display:flex;flex-direction:column;justify-content:center;padding:22mm}
+.cover .tag{align-self:flex-start;background:#ffcf3f;color:#0e2442;font-weight:800;padding:2mm 4mm;border-radius:3mm}
+.cover h1{font-size:33pt;line-height:1.08;margin:9mm 0 5mm}
+.cover p{font-size:13pt;color:#c9d6ea;max-width:150mm}
+.cover img{width:150mm;border-radius:4mm;margin-top:10mm;border:1mm solid rgba(255,255,255,.25)}
+.cover .meta{position:absolute;left:22mm;bottom:16mm;font-size:9.5pt;color:#8ea3c4;right:22mm}
+h2{font-size:19pt;margin:0 0 1.5mm;color:#0e2442}
+h3{font-size:12.5pt;margin:5mm 0 1.5mm;color:#0e2442}
+.lead{color:#51607a;margin:0 0 4mm}
+.foot{position:absolute;left:15mm;right:15mm;bottom:6mm;font-size:8.5pt;color:#8793aa;display:flex;justify-content:space-between;border-top:.2mm solid #dde3ee;padding-top:1.5mm}
+table{border-collapse:collapse;width:100%;font-size:9.8pt;margin:2mm 0 3mm}
+td,th{border:.2mm solid #cfd7e6;padding:1.6mm 2.6mm;text-align:left;vertical-align:top}th{background:#eef2f8}
+.cols{display:flex;gap:6mm}.cols>*{flex:1}
+figure{margin:0 0 3mm}figure img{width:100%;border-radius:2mm;border:.25mm solid #cfd7e6;display:block}
+figcaption{font-size:8.8pt;color:#51607a;margin-top:1mm}
+.tip,.warn,.todo{padding:2.2mm 3.4mm;border-radius:1.5mm;font-size:9.8pt;margin:2.5mm 0}
+.tip{background:#eef4ff;border-left:1.2mm solid #2f6fdc}
+.warn{background:#fff1ee;border-left:1.2mm solid #d64545}
+.todo{background:#fff8e0;border-left:1.2mm solid #e0a800}
+ol.steps{margin:1mm 0 0;padding:0;list-style:none;counter-reset:s}
+ol.steps li{counter-increment:s;display:flex;gap:3mm;margin-bottom:2mm}
+ol.steps li::before{content:counter(s);flex:0 0 6.5mm;height:6.5mm;border-radius:50%;background:#ffcf3f;font-weight:800;font-size:9pt;text-align:center;line-height:6.5mm;margin-top:.4mm}
+ul{margin:1mm 0 2mm;padding-left:5mm}li{margin-bottom:.8mm}
+.ck li{list-style:none;margin-left:-5mm}.ck li::before{content:"☐ ";font-size:11pt}
+.badge{display:inline-block;background:#0e2442;color:#fff;border-radius:2mm;padding:.5mm 2.2mm;font-size:8.5pt;font-weight:700;margin-right:1mm}
+small{color:#51607a}
+</style></head><body>
+
+<!-- 1 · couverture -->
+<section class="page cover"><span class="tag">GUIDE DE FORMATION · ÉQUIPES</span>
+<h1>Manipuler la machine d'injection-extraction et vapeur Magwell CP-3S</h1>
+<p>Préparer, utiliser, entretenir. Toutes les fonctions de la machine et les services Clean Up qu'elle permet de réaliser.</p>
+<img src="img/acc.jpg" alt="La machine et ses accessoires">
+<div class="meta">Clean Up · Formation des intervenants · Dakar<br>Photos extraites d'une vidéo de démonstration du fabricant : usage interne de formation uniquement.</div></section>
+
+<!-- 2 · identité -->
+<section class="page"><h2>1. La machine en bref</h2>
+<p class="lead">D'après la vidéo de démonstration et la fiche du fabricant (Magwell, Suzhou, Chine). Modèle identifié : <strong>CP-3S</strong>, « machine multifonction vapeur, nettoyage de moquettes et de tissus à faible mousse ».</p>
+<div class="cols"><div>
+<table><tr><th colspan="2">Fiche technique (fabricant)</th></tr>
+<tr><td>Tension</td><td>110–220 V</td></tr>
+<tr><td>Aspiration</td><td>800 W</td></tr>
+<tr><td>Chauffe / pompe</td><td>1 500 W <small>(voir encadré)</small></td></tr>
+<tr><td>Vapeur</td><td>100 °C · 3 à 8 bar · 100 à 500 ml/min</td></tr>
+<tr><td>Réservoir d'eau propre</td><td><strong>14 L</strong></td></tr>
+<tr><td>Réservoir de récupération</td><td><strong>8 L</strong>, transparent</td></tr>
+<tr><td>Câble d'alimentation</td><td>8 m</td></tr>
+<tr><td>Flexible</td><td>4 m <small>(indiqué dans la vidéo)</small></td></tr>
+<tr><td>Niveau sonore</td><td>moins de 60 dB</td></tr></table></div>
+<div><figure><img src="img/panel.jpg"><figcaption>Le panneau de commandes (voir page 3).</figcaption></figure></div></div>
+<h3>Ce qu'elle sait faire</h3>
+<table><tr><th style="width:42mm">Fonction</th><th>À quoi ça sert</th></tr>
+<tr><td><span class="badge">1</span> Injection-extraction</td><td>Elle projette de l'eau avec le produit dans le tissu, puis aspire aussitôt l'eau sale. C'est le cœur du métier : moquettes, tapis, canapés, matelas, sièges.</td></tr>
+<tr><td><span class="badge">2</span> Aspiration seule</td><td>Elle reprend l'eau restante après le passage, pour un séchage plus rapide.</td></tr>
+<tr><td><span class="badge">3</span> Vapeur à 100 °C</td><td>Le pistolet à main projette de la vapeur : détachage, désinfection, recoins, intérieur de voiture, sièges de bureau, acariens.</td></tr>
+<tr><td><span class="badge">4</span> Outils interchangeables</td><td>Tête transparente large (moquettes), petit outil blanc (tissus et coutures), pistolet vapeur (tout ce qui est difficile d'accès).</td></tr></table>
+<div class="todo"><strong>À vérifier sur la plaque de la machine.</strong> Les sources ne s'accordent pas sur la puissance : la vidéo affiche « Solution power 1500 W », la fiche du fabricant donne 800 W pour l'aspiration et 1 500 W pour la vapeur, une annonce de revendeur inverse les deux. Lisez la plaque signalétique et notez ici la valeur réelle : ______________</div>
+<div class="foot"><span>Guide de formation · Magwell CP-3S</span><span>2</span></div></section>
+
+<!-- 3 · découvrir -->
+<section class="page"><h2>2. Découvrir la machine</h2>
+<p class="lead">Avant la première mission, apprenez à nommer chaque pièce et chaque commande.</p>
+<div class="cols"><div>
+<figure><img src="img/acc.jpg"><figcaption>Tout ce qui sort de la machine : corps, tube inox, tête transparente, petit outil blanc, pistolet vapeur avec son flexible, grand flexible noir, câble.</figcaption></figure>
+<table><tr><th>Pièce</th><th>Rôle</th></tr>
+<tr><td>Corps de la machine</td><td>Deux réservoirs, le moteur et le panneau de commandes. Il roule sur des roues.</td></tr>
+<tr><td>Réservoir d'eau propre (14 L)</td><td>Reçoit l'eau et le produit. Niveau visible.</td></tr>
+<tr><td>Réservoir de récupération (8 L)</td><td>Reçoit l'eau sale aspirée. Transparent : on voit quand il est plein.</td></tr>
+<tr><td>Grand flexible noir (4 m)</td><td>Relie le tube ou l'outil à la machine.</td></tr>
+<tr><td>Tube inox</td><td>Prolonge la main : on travaille debout.</td></tr>
+<tr><td>Tête transparente</td><td>Injecte et aspire sur les surfaces plates. On voit l'eau sale passer.</td></tr>
+<tr><td>Petit outil blanc</td><td>Tissus, coutures, petites surfaces.</td></tr>
+<tr><td>Pistolet vapeur + flexible</td><td>Vapeur à 100 °C à la main.</td></tr></table></div>
+<div>
+<figure><img src="img/panel.jpg"><figcaption>Le panneau, tel qu'il est gravé sur la machine.</figcaption></figure>
+<table><tr><th>Repère gravé</th><th>Ce qu'il fait</th></tr>
+<tr><td>Interrupteur du bas <small>(« off »)</small></td><td>Marche générale de la machine.</td></tr>
+<tr><td>Bascule rouge « Suction »</td><td>Met l'aspiration en marche.</td></tr>
+<tr><td>Bascule verte « Steam »</td><td>Lance la chauffe de la vapeur.</td></tr>
+<tr><td>Voyant vert « Working »</td><td>La machine est en fonctionnement.</td></tr>
+<tr><td>Voyant rouge « Spray / Watering »</td><td>Indique l'arrivée d'eau vers la pulvérisation.</td></tr></table>
+<div class="todo">La fonction exacte de chaque voyant est déduite de la vidéo. Confirmez-la avec le manuel du fabricant ou en observant la machine, puis corrigez ce tableau.</div></div></div>
+<div class="foot"><span>Guide de formation · Magwell CP-3S</span><span>3</span></div></section>
+
+<!-- 4 · sécurité -->
+<section class="page"><h2>3. Sécurité : à lire avant de brancher</h2>
+<p class="lead">La machine mêle électricité, eau et vapeur à 100 °C. Le sérieux de l'équipe commence ici.</p>
+<div class="warn"><strong>Vapeur à 100 °C.</strong> Elle brûle comme de l'eau bouillante. Ne dirigez jamais le pistolet vers une personne, un animal ou vos mains. Ne le laissez pas allumé en l'air.</div>
+<div class="cols"><div>
+<h3>Électricité</h3><ul><li>Câble de 8 m : déroulez-le entièrement, évitez les rallonges fines.</li><li>Branchez avec les mains sèches, loin des flaques.</li><li>Ne tirez jamais sur le câble pour débrancher.</li><li>Un câble abîmé : on n'utilise pas, on prévient le responsable.</li><li>Débranchez avant de remplir, vider ou nettoyer.</li></ul>
+<h3>Votre équipement</h3><ul><li>Gants imperméables, chaussures fermées antidérapantes.</li><li>Lunettes si vous travaillez à la vapeur près du visage.</li><li>Tenue propre et manches courtes ou retroussées au pistolet.</li></ul></div>
+<div>
+<h3>Chez le client</h3><ul><li>Demandez où se trouve la prise et le point d'eau.</li><li>Protégez le sol et les meubles autour avec des bâches.</li><li>Faites sortir les enfants et animaux de la zone de travail.</li><li>Aérez la pièce : la vapeur laisse de l'humidité.</li><li>Faites un <strong>test discret</strong> (sous un coussin, derrière un meuble) avant de commencer : la couleur ne doit pas déteindre.</li></ul>
+<h3>Ne faites pas</h3><ul><li>Ne faites jamais fonctionner sans eau dans le réservoir.</li><li>Ne mettez pas de produit inflammable ou de solvant.</li><li>Ne nettoyez pas un appareil électrique ou une prise.</li><li>Pas de vapeur prolongée sur le cuir, le bois ou la soie : demandez conseil.</li></ul></div></div>
+<div class="tip"><strong>Pour une tache ancienne ou incrustée</strong>, annoncez-le au client avant : elle peut ne pas disparaître totalement. C'est dit dans les conditions du service.</div>
+<div class="foot"><span>Guide de formation · Magwell CP-3S</span><span>4</span></div></section>
+
+<!-- 5 · mise en route -->
+<section class="page"><h2>4. Mise en route, pas à pas</h2>
+<p class="lead">Dans la vidéo, la machine est montée en quelques minutes. Voici la méthode complète.</p>
+<div class="cols"><div>
+<ol class="steps">
+<li><span><strong>Posez la machine</strong> sur une surface plane, près de la prise et loin de la zone à traiter. Les roues se bloquent à la main.</span></li>
+<li><span><strong>Branchez le flexible</strong> sur la machine, puis le tube inox sur le flexible. Emboîtez jusqu'au clic.</span></li>
+<li><span><strong>Choisissez l'outil</strong> au bout du tube : tête transparente pour une moquette, petit outil blanc pour un canapé.</span></li>
+<li><span><strong>Remplissez le réservoir d'eau propre</strong> (14 L au plus), avec le produit dosé comme indiqué sur son étiquette. On voit le niveau à travers le réservoir.</span></li>
+<li><span><strong>Vérifiez le réservoir de récupération</strong> : il doit être vide.</span></li>
+<li><span><strong>Branchez et allumez</strong> avec l'interrupteur du bas. Le voyant « Working » s'allume.</span></li>
+<li><span><strong>Lancez l'aspiration</strong> avec la bascule rouge « Suction ». Pour la vapeur, la bascule verte « Steam » : laissez chauffer avant d'utiliser le pistolet.</span></li></ol></div>
+<div><figure><img src="img/hose.jpg"><figcaption>Montage du tube sur le flexible, machine à côté.</figcaption></figure>
+<figure><img src="img/fill.jpg"><figcaption>Remplissage du réservoir d'eau propre avec le produit.</figcaption></figure></div></div>
+<div class="todo">À confirmer avec le manuel : le dosage exact du produit pour 14 L, le temps de chauffe de la vapeur et la quantité d'eau maximale à ne pas dépasser. Notez les valeurs ici : ____________________</div>
+<div class="tip">Bon réflexe : avant de brancher, regardez les trois choses qui causent presque tous les problèmes. Le réservoir propre contient de l'eau, le réservoir sale est vide, les raccords sont bien clipsés.</div>
+<div class="foot"><span>Guide de formation · Magwell CP-3S</span><span>5</span></div></section>
+
+<!-- 6 · injection-extraction -->
+<section class="page"><h2>5. Fonction 1 : injection-extraction (moquettes et tapis)</h2>
+<p class="lead">On injecte l'eau et le produit dans les fibres, puis on aspire aussitôt. L'eau sale part dans le réservoir de récupération.</p>
+<div class="cols"><figure><img src="img/carpet1.jpg"><figcaption>Une passe : la zone claire est la bande déjà traitée.</figcaption></figure><figure><img src="img/dirtyhead.jpg"><figcaption>La tête transparente montre l'eau sale aspirée.</figcaption></figure></div>
+<h3>La technique</h3>
+<ol class="steps"><li><span><strong>Aspirez à sec d'abord</strong> avec un aspirateur classique pour retirer la poussière et les miettes.</span></li>
+<li><span><strong>Prétraitez les taches</strong> (produit détachant, quelques minutes de pose) avant la machine.</span></li>
+<li><span><strong>Travaillez par bandes</strong> qui se chevauchent d'un tiers, en reculant : on ne marche pas sur ce qu'on vient de nettoyer.</span></li>
+<li><span><strong>Passe humide :</strong> tirez la tête vers vous, en commandant la pulvérisation (poignée ou panneau, à confirmer sur votre machine). <strong>Passe sèche :</strong> repassez sans pulvériser, plus lentement, pour reprendre l'eau.</span></li>
+<li><span><strong>Surveillez l'eau dans la tête transparente.</strong> Tant qu'elle ressort sale, repassez. Quand elle devient claire, la zone est propre.</span></li>
+<li><span><strong>Ne détrempez pas.</strong> Trop d'eau allonge le séchage et risque de faire remonter les taches. Ne restez pas en place.</span></li></ol>
+<div class="tip">La vidéo montre aussi la vapeur sur une moquette : utile pour les zones grasses ou la désinfection. Passez-la avant l'extraction, jamais seule sur une moquette synthétique fragile.</div>
+<div class="tip"><strong>Prix et temps :</strong> le tarif de la moquette et du tapis est au m². Mesurez la surface avant de commencer et comparez avec la commande.</div>
+<div class="foot"><span>Guide de formation · Magwell CP-3S</span><span>6</span></div></section>
+
+<!-- 7 · outil main + vapeur -->
+<section class="page"><h2>6. Fonctions 2 et 3 : outil à main et vapeur</h2>
+<p class="lead">Pour les canapés, les matelas, les sièges et tout ce qui est trop petit ou trop délicat pour la grande tête.</p>
+<div class="cols"><figure><img src="img/steam1.jpg"><figcaption>Vapeur à 100 °C sur une assise tissu.</figcaption></figure><figure><img src="img/steam2.jpg"><figcaption>Reprise de l'humidité avec l'outil d'aspiration.</figcaption></figure></div>
+<div class="cols"><div>
+<h3>Outil à main (petit outil blanc)</h3><ul><li>Pour assises, accoudoirs, dossiers, coutures, escaliers.</li><li>Même principe : on injecte un peu, on aspire tout de suite.</li><li>Travaillez par petites zones, dans le sens du tissu.</li><li>Velours : très peu d'eau, passes légères, sans frotter.</li><li>Cuir ou simili : peu d'eau et séchage immédiat. Pas de vapeur prolongée.</li></ul></div>
+<div>
+<h3>Pistolet vapeur (100 °C)</h3><ul><li>Laissez la vapeur chauffer avant de commencer.</li><li>Gardez 3 à 5 cm de la surface et bougez en continu.</li><li>Détachage, recoins, joints, grilles de ventilation de voiture.</li><li>Désinfection des matelas et sièges : le client peut demander la <em>« désinfection anti-acariens à la vapeur »</em>.</li><li>Finissez toujours en reprenant l'humidité avec l'aspiration.</li></ul></div></div>
+<div class="warn">Test discret obligatoire avant la vapeur : certains tissus rétrécissent, déteignent ou se marquent. Au moindre doute, arrêtez et appelez le responsable.</div>
+<table><tr><th>Surface</th><th>Outil conseillé</th><th>Vapeur ?</th><th>Précaution</th></tr>
+<tr><td>Moquette, tapis</td><td>Tête transparente</td><td>Zones grasses</td><td>Pas de détrempage</td></tr>
+<tr><td>Canapé tissu</td><td>Petit outil blanc</td><td>Oui, légère</td><td>Test discret</td></tr>
+<tr><td>Canapé velours</td><td>Petit outil blanc</td><td>Peu</td><td>Peu d'eau, sans frotter</td></tr>
+<tr><td>Cuir / simili</td><td>Petit outil, ou chiffon</td><td>Non prolongée</td><td>Séchage immédiat</td></tr>
+<tr><td>Matelas</td><td>Petit outil blanc</td><td>Oui (acariens)</td><td>Séchage avant de refaire le lit</td></tr>
+<tr><td>Sièges de voiture, de bureau</td><td>Petit outil + pistolet</td><td>Oui</td><td>Protéger les parties électriques</td></tr></table>
+<div class="foot"><span>Guide de formation · Magwell CP-3S</span><span>7</span></div></section>
+
+<!-- 8 · services -->
+<section class="page"><h2>7. Les services Clean Up que permet la machine</h2>
+<p class="lead">Chaque service du catalogue, ce que la machine y apporte et la méthode à retenir. Les tarifs sont ceux du site : ne les modifiez pas sur place.</p>
+<table><tr><th style="width:36mm">Service Clean Up</th><th>Fonction utilisée</th><th>Méthode et point d'attention</th></tr>
+<tr><td><strong>Nettoyage de canapés et fauteuils</strong><br><small>dès 5 000 FCFA la place</small></td><td>Outil à main (injection-extraction), vapeur en option</td><td>Photo du client à la commande : vérifiez matière et taches. Options : traitement anti-taches, désinfection anti-acariens à la vapeur. Prévoir prise et point d'eau.</td></tr>
+<tr><td><strong>Nettoyage de matelas</strong><br><small>dès 15 000 FCFA</small></td><td>Outil à main, vapeur</td><td>Les deux faces si accessible. Option : anti-acariens renforcé. Séchage complet avant de refaire le lit : le matelas doit être utilisable le soir.</td></tr>
+<tr><td><strong>Nettoyage de tapis et moquettes</strong><br><small>2 500 FCFA/m² tapis · 2 000 FCFA/m² moquette</small></td><td>Tête transparente, aspiration, vapeur pour zones grasses</td><td>Surface mesurée sur place. Dégager l'accès avant de commencer. Option : traitement anti-taches.</td></tr>
+<tr><td><strong>Lavage automobile</strong>, formules Complet et Détaillage<br><small>option « Shampoing des sièges »</small></td><td>Outil à main pour sièges et tapis de sol, pistolet vapeur pour recoins</td><td>Aspirer à sec avant. Sièges en cuir : peu d'eau. Protégez les connecteurs électriques sous les sièges.</td></tr>
+<tr><td><strong>Nettoyage de bureaux et commerces</strong></td><td>Moquette des bureaux, sièges de bureau (vapeur)</td><td>Travailler hors des heures d'activité. Sièges à mailles : vapeur et aspiration.</td></tr>
+<tr><td><strong>Nettoyage après travaux</strong></td><td>Extraction de moquette et de tissus en fin de chantier</td><td>Aspirer à sec la poussière de chantier avant l'eau, sinon elle se transforme en boue.</td></tr></table>
+<div class="tip"><strong>Services pour lesquels la machine ne sert pas</strong> : nettoyage de vitres, ménage courant, repassage. Ils se font avec le matériel habituel.</div>
+<div class="tip"><strong>Autres usages possibles</strong> d'après le fabricant : rideaux, tissus d'ameublement, carrelage et joints à la vapeur. Ils ne figurent pas encore au catalogue : parlez-en au responsable avant de les proposer.</div>
+<div class="foot"><span>Guide de formation · Magwell CP-3S</span><span>8</span></div></section>
+
+<!-- 9 · mission -->
+<section class="page"><h2>8. Déroulé d'une mission</h2>
+<p class="lead">La même séquence à chaque intervention. Elle protège le client, la machine et votre réputation.</p>
+<div class="cols"><div>
+<h3>Avant de partir</h3><ul class="ck"><li>Réservoirs vides, machine propre</li><li>Câble de 8 m, flexible, tube, deux outils, pistolet vapeur</li><li>Produits, bâches, chiffons microfibre, gants</li><li>Photos « avant » du client regardées dans l'application</li></ul>
+<h3>À l'arrivée</h3><ul class="ck"><li>Saluer, se présenter : « Clean Up »</li><li>Confirmer la prestation et le prix de la commande</li><li>Repérer prise et point d'eau</li><li>Protéger le sol et les meubles</li><li>Test discret sur chaque matière</li></ul>
+<h3>Pendant</h3><ul class="ck"><li>Aspiration à sec, prétraitement des taches</li><li>Injection-extraction par passes, vapeur si prévue</li><li>Reprise de l'humidité, ventilation</li></ul></div>
+<div>
+<h3>À la fin</h3><ul class="ck"><li>Montrer le résultat au client, avant de ranger</li><li>Prendre la photo « après » dans l'application</li><li>Remettre les meubles en place</li><li>Conseiller : temps de séchage, éviter de s'asseoir tant que c'est humide</li><li>Changer le statut de la commande : Terminée</li><li>Encaisser comme convenu</li></ul>
+<h3>Temps de séchage</h3><p>Le catalogue annonce « quelques heures » pour un canapé, une soirée pour un matelas. Ouvrez les fenêtres et ventilez : cela accélère nettement le séchage.</p>
+<div class="tip"><strong>Un client mécontent ?</strong> Ne discutez pas sur place. Notez le point, prenez des photos, et prévenez le responsable : une reprise gratuite vaut mieux qu'un mauvais avis.</div></div></div>
+<div class="foot"><span>Guide de formation · Magwell CP-3S</span><span>9</span></div></section>
+
+<!-- 10 · entretien / pannes -->
+<section class="page"><h2>9. Entretien et petits dépannages</h2>
+<h3>Après chaque mission</h3>
+<ol class="steps"><li><span>Éteignez, débranchez, laissez refroidir si la vapeur a servi.</span></li>
+<li><span>Videz le réservoir de récupération (8 L) à l'endroit prévu, jamais sur une plante ou devant le client.</span></li>
+<li><span>Rincez les deux réservoirs à l'eau claire. Videz l'eau propre restante.</span></li>
+<li><span>Rincez la tête et les outils. Vérifiez qu'aucun orifice n'est bouché.</span></li>
+<li><span>Essuyez le corps de la machine, enroulez le câble et le flexible sans les plier net.</span></li>
+<li><span>Rangez la machine sèche, réservoirs ouverts, pour éviter les odeurs.</span></li></ol>
+<table><tr><th style="width:44mm">Symptôme</th><th>Vérifiez d'abord</th></tr>
+<tr><td>Rien ne s'allume</td><td>Prise, câble, interrupteur du bas.</td></tr>
+<tr><td>L'aspiration est faible</td><td>Réservoir de récupération plein, flexible mal clipsé ou bouché, filtre encombré.</td></tr>
+<tr><td>L'eau ne sort pas de l'outil</td><td>Réservoir propre vide, tuyau pincé, buse bouchée.</td></tr>
+<tr><td>Pas de vapeur</td><td>Bascule « Steam » mal enclenchée, vapeur pas encore chaude, eau insuffisante.</td></tr>
+<tr><td>Fuite</td><td>Raccords, couvercle des réservoirs mal fermé.</td></tr>
+<tr><td>Odeur ou mousse excessive</td><td>Réservoir sale non rincé. Trop de produit : respectez le dosage.</td></tr>
+<tr><td>Tout s'arrête d'un coup</td><td>Protection thermique ou réservoir plein. Éteignez, attendez, vérifiez.</td></tr></table>
+<div class="warn">Ne démontez jamais le moteur ni les circuits électriques. Au-delà de ces vérifications simples, arrêtez la machine et contactez le responsable.</div>
+<div class="todo">Entretien du fabricant à confirmer : fréquence de détartrage, nettoyage du filtre, pièces d'usure. Demandez le manuel au fournisseur (info@magwellglobal.com) et joignez-le à ce guide.</div>
+<div class="foot"><span>Guide de formation · Magwell CP-3S</span><span>10</span></div></section>
+
+<!-- 11 · évaluation -->
+<section class="page"><h2>10. Évaluation de fin de formation</h2>
+<p class="lead">Une journée de formation, un essai pratique, puis cette fiche pour valider.</p>
+<div class="cols"><div>
+<h3>Questions</h3><ol style="padding-left:5mm;margin:0">
+<li>Citez les trois vérifications avant de brancher.</li><li>À quoi sert la bascule rouge « Suction » ? la verte « Steam » ?</li><li>Que contient le réservoir de 8 L ? de 14 L ?</li><li>Pourquoi aspire-t-on à sec avant de laver ?</li><li>Que fait-on avant d'attaquer un canapé en velours ?</li><li>Comment sait-on qu'une zone de moquette est propre ?</li><li>Que ne fait-on jamais avec le pistolet vapeur ?</li><li>Pourquoi faut-il bien ventiler après un matelas ?</li><li>Que fait-on du réservoir de récupération après la mission ?</li><li>Que fait-on face à une tache qui ne part pas ?</li></ol></div>
+<div>
+<h3>Essai pratique (à cocher par le formateur)</h3><ul class="ck"><li>Monte la machine sans aide</li><li>Remplit et dose correctement</li><li>Branche et allume dans le bon ordre</li><li>Fait un test discret</li><li>Nettoie 2 m² de moquette en passes régulières</li><li>Nettoie un canapé sans détremper</li><li>Utilise la vapeur en sécurité</li><li>Vide, rince et range la machine</li><li>Explique le résultat au client avec politesse</li></ul>
+<table><tr><td>Candidat</td><td>&nbsp;</td></tr><tr><td>Formateur</td><td>&nbsp;</td></tr><tr><td>Date</td><td>&nbsp;</td></tr><tr><td>Décision</td><td>☐ Apte  ☐ À revoir</td></tr></table></div></div>
+<h3>Ce que ce guide ne couvre pas encore</h3>
+<ul><li>Le manuel officiel du fabricant : il fixe les doses, temps de chauffe et pièces d'usure (voir les encadrés jaunes).</li><li>Les produits utilisés par Clean Up : une fiche par produit (dosage, matières compatibles, précautions) reste à rédiger.</li><li>La vidéo de démonstration porte sur la CP-3S ; une seconde vidéo reçue (moquette violette, tube et tête) peut montrer un autre modèle. Comparez avec votre machine réelle.</li></ul>
+<div class="foot"><span>Guide de formation · Magwell CP-3S</span><span>11</span></div></section>
+</body></html>
