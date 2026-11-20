@@ -27,7 +27,7 @@ body{font-family:Inter,'Helvetica Neue',Arial,sans-serif;color:#fff;overflow:hid
 .brand{display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:-.5px}.brand i{display:grid;place-items:center;border-radius:50%;background:#FFD23F;flex:none}
 .sl{font-weight:900;line-height:1;letter-spacing:-.04em}.sl em{font-style:normal;color:#FFD23F}
 .chips{display:flex;gap:6px;flex-wrap:wrap}.chips span{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:20px;font-weight:700}
-.cta{font-weight:800;color:#0B2545;background:#FFD23F;border-radius:30px;display:inline-block;white-space:nowrap}
+.chips span.cta{background:#FFD23F;border:0;color:#0B2545}.cta{font-weight:800;color:#0B2545;background:#FFD23F;border-radius:30px;display:inline-block;white-space:nowrap}
 .sofa{position:absolute}.sofa svg{width:100%;height:100%}
 .tag{position:absolute;background:#FFD23F;color:#0B2545;font-weight:900;border-radius:20px}
 """
@@ -53,4 +53,19 @@ og = page(1200, 630, f"""
 <div class="sofa" style="left:760px;top:150px;width:360px;height:312px">{armchair(True)}</div>
 <div class="cta" style="position:absolute;left:80px;bottom:52px;font-size:30px;padding:12px 30px">WhatsApp · {phone}</div>
 <div class="tag" style="right:80px;bottom:60px;font-size:26px;padding:8px 22px">Dakar et alentours</div>""")
+# LinkedIn : page entreprise 1128x191 (logo de page en bas à gauche) et profil 1584x396 (photo de profil en bas à gauche) : texte décalé vers la droite
+li_co = page(1128, 191, f"""
+<div class="bubble" style="left:-30px;top:-60px;width:150px;height:150px"></div><div class="bubble" style="left:760px;top:120px;width:90px;height:90px"></div>
+<div style="position:absolute;left:250px;top:30px"><div class="brand" style="font-size:20px;gap:8px"><i style="width:30px;height:30px"><svg viewBox="0 0 24 24" width="17" height="17" fill="#0B2545"><path d="M12 2.5c3.6 4.3 6 7.6 6 11a6 6 0 0 1-12 0c0-3.4 2.4-6.7 6-11z"/></svg></i>Clean Up</div>
+ <div class="sl" style="font-size:38px;margin-top:12px;white-space:nowrap">{SLOGAN[0]} <em>{SLOGAN[1]}</em></div>
+ <div style="margin-top:12px;font-size:13px;font-weight:700;color:#cfe2f5;white-space:nowrap">Voiture · Canapés · Matelas · Tapis · Bureaux &nbsp;|&nbsp; Dakar et alentours</div></div>
+<div class="cta" style="position:absolute;left:740px;top:66px;font-size:15px;padding:9px 18px">WhatsApp · {phone}</div>
+<div class="sofa" style="left:1010px;top:16px;width:104px;height:90px">{armchair(True)}</div>""")
+li_pr = page(1584, 396, f"""
+<div class="bubble" style="left:-60px;top:-90px;width:300px;height:300px"></div><div class="bubble" style="left:1000px;top:300px;width:150px;height:150px"></div><div class="bubble" style="left:1360px;top:-40px;width:150px;height:150px"></div>
+<div style="position:absolute;left:520px;top:62px"><div class="brand" style="font-size:36px;gap:14px"><i style="width:60px;height:60px"><svg viewBox="0 0 24 24" width="33" height="33" fill="#0B2545"><path d="M12 2.5c3.6 4.3 6 7.6 6 11a6 6 0 0 1-12 0c0-3.4 2.4-6.7 6-11z"/></svg></i>Clean Up</div>
+ <div class="sl" style="font-size:70px;margin-top:26px;white-space:nowrap">{SLOGAN[0]} <em>{SLOGAN[1]}</em></div>
+ <div class="chips" style="margin-top:26px;font-size:19px"><span style="padding:6px 16px">Voiture</span><span style="padding:6px 16px">Canapés</span><span style="padding:6px 16px">Matelas</span><span style="padding:6px 16px">Tapis</span><span style="padding:6px 16px">Bureaux</span><span class="cta" style="padding:7px 18px;border:0;font-size:19px">WhatsApp · {phone}</span></div></div>
+<div class="sofa" style="left:1380px;top:120px;width:170px;height:147px">{armchair(True)}</div>""")
+(ROOT / 'couverture-linkedin-entreprise.html').write_text(li_co, encoding='utf-8'); (ROOT / 'couverture-linkedin-profil.html').write_text(li_pr, encoding='utf-8')
 (ROOT / 'couverture-facebook.html').write_text(fb, encoding='utf-8'); (ROOT / 'image-partage.html').write_text(og, encoding='utf-8'); print('HTML OK')
