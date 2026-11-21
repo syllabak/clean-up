@@ -99,6 +99,7 @@
     $('svc-cond').textContent = d.service.conditions || '';
     var f = $('formulas'); f.innerHTML = '';
     if (d.formulas.length) {
+      if (!S.formula) { var pop = d.formulas.filter(function (x) { return x.popular; })[0]; if (pop) S.formula = pop.id; }   // « la plus choisie » est déjà cochée : un clic de moins
       f.appendChild(el('h3', { class: 'h6', text: 'Formule' }));
       var row = el('div', { class: 'row g-2' });
       d.formulas.forEach(function (fm) {
@@ -255,14 +256,27 @@
         b.addEventListener('click', function () { pickDay(d); });
         $('days').appendChild(b);
       });
+      $('soonest').classList.toggle('d-none', !any);
       if (!any) showError("Aucun créneau n'est disponible prochainement dans ce quartier pour cette durée. Appelez-nous ou essayez un autre quartier.");
       else if (S.date) pickDay(S.date, true);
+      else pickDay(Object.keys(S.days).filter(function (k) { return S.days[k].count > 0; })[0]);   // les heures du premier jour libre sont déjà affichées
     });
   }
-  function pickDay(d, keep) {
+  /** Prend d'un geste le tout premier créneau libre. */
+  function soonest() {
+    var first = Object.keys(S.days || {}).filter(function (k) { return S.days[k].count > 0; })[0];
+    if (first) pickDay(first, false, true);
+  }
+  if ($('soonest')) $('soonest').addEventListener('click', soonest);
+  // Le client voit tout de suite comment il sera prévenu.
+  if ($('email') && $('notify-hint')) $('email').addEventListener('input', function () {
+    var ok = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(this.value.trim());
+    $('notify-hint').textContent = ok ? 'Parfait : la confirmation et les rappels vous seront envoyés par email.' : 'Avec un email, nous vous écrivons par email. Sans email, par SMS au numéro ci-dessus.';
+  });
+  function pickDay(d, keep, autoFirst) {
     if (!keep) S.slot = null;
     S.date = d;
-    document.querySelectorAll('.day-btn').forEach(function (b) { var on = b.dataset.date === d; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', on); });
+    document.querySelectorAll('.day-btn').forEach(function (b) { var on = b.dataset.date === d; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', on); if (on && b.scrollIntoView) { var st = $('days'); if (st && st.scrollWidth > st.clientWidth) st.scrollLeft = Math.max(0, b.offsetLeft - st.offsetLeft - 8); } });
     api('/api/availability/slots', payload({ date: d })).then(function (r) {
       var box = $('slots'); box.innerHTML = ''; $('slots-wrap').classList.remove('d-none'); $('slots-title').textContent = 'Heures disponibles le ' + fmtDay(d);
       if (!r.ok) return showError(errText(r.data));
@@ -274,6 +288,7 @@
         });
         box.appendChild(b);
       });
+      if (autoFirst && r.data.slots.length) { var fb = box.querySelector('.slot-btn'); if (fb) fb.click(); }
       updateSide();
     });
   }

@@ -202,37 +202,54 @@ $svcB = new BookingService();
 $mon = next_dow(1);
 $svcB->create(wash_input($mon, '08:00', 'Unité 15', ['email' => 'client@example.com']));
 $logs = DB::all('SELECT channel, audience, status FROM notification_logs ORDER BY id');
-T::eq(count($logs), 3, 'réservation créée : SMS client + email client + email admin');
+T::eq(array_map(fn($l) => $l['audience'] . ':' . $l['channel'], $logs), ['client:email', 'admin:email'], 'client avec email : un seul message, par email (pas de SMS en double) + alerte admin');
 T::ok(!array_filter($logs, fn($l) => $l['status'] !== 'sent'), 'tous envoyés (pilote « log »)');
-T::ok(str_contains((string) @file_get_contents(BASE_PATH . '/storage/logs/sms.log'), '221771234567'), 'SMS écrit pour le bon numéro');
+$n0 = (int) DB::val('SELECT COUNT(*) FROM notification_logs');
+$svcB->create(wash_input($mon, '09:00', 'Unité 15', ['phone' => '77 333 33 33', 'email' => '']));
+$new = DB::all('SELECT channel, audience, recipient FROM notification_logs WHERE id > ? ORDER BY id', [$n0]);
+T::eq(array_map(fn($l) => $l['audience'] . ':' . $l['channel'], $new), ['client:sms', 'admin:email'], 'client sans email : le SMS prend le relais');
+T::ok(str_contains((string) @file_get_contents(BASE_PATH . '/storage/logs/sms.log'), '221773333333'), 'SMS écrit pour le bon numéro');
+T::eq(NotificationService::chooseClientChannel('booking.created', ['customer_email' => 'client@example.com', 'customer_phone' => '221771234567']), 'email', 'canal choisi : email si le client en a donné un');
+T::eq(NotificationService::chooseClientChannel('booking.created', ['customer_email' => 'pas-un-email', 'customer_phone' => '221771234567']), 'sms', 'canal choisi : email invalide → SMS');
+T::eq(NotificationService::chooseClientChannel('booking.created', ['customer_email' => '', 'customer_phone' => '']), null, 'canal choisi : ni email ni téléphone → aucun');
+// Email désactivé dans les paramètres : le SMS reprend, même si le client a un email
+setting_set(NotificationService::toggleKey('booking.created', 'email'), '0');
+T::eq(NotificationService::chooseClientChannel('booking.created', ['customer_email' => 'client@example.com', 'customer_phone' => '221771234567']), 'sms', 'email désactivé pour cet événement : SMS');
+setting_set(NotificationService::toggleKey('booking.created', 'email'), '1');
+// Ancien comportement, si on le souhaite : email et SMS tous les deux
+setting_set('notif_prefer_email', '0');
+$n0 = (int) DB::val('SELECT COUNT(*) FROM notification_logs');
+$svcB->create(wash_input($mon, '10:00', 'Unité 15', ['phone' => '77 111 11 11', 'email' => 'x@example.com']));
+T::eq((int) DB::val('SELECT COUNT(*) FROM notification_logs') - $n0, 3, 'priorité à l\'email désactivée : email et SMS partent tous les deux (comportement d\'avant)');
+setting_set('notif_prefer_email', '1');
 // Désactivation d'un type de notification
 setting_set(NotificationService::toggleKey('booking.created', 'sms'), '0');
 $n0 = (int) DB::val('SELECT COUNT(*) FROM notification_logs');
-$svcB->create(wash_input($mon, '10:00', 'Unité 15', ['phone' => '77 111 11 11', 'email' => 'x@example.com']));
-T::eq((int) DB::val('SELECT COUNT(*) FROM notification_logs') - $n0, 2, 'SMS désactivé dans les paramètres : seulement 2 envois');
+$svcB->create(wash_input($mon, '11:00', 'Unité 15', ['phone' => '77 111 11 12', 'email' => '']));
+T::eq((int) DB::val('SELECT COUNT(*) FROM notification_logs') - $n0, 1, 'SMS désactivé et pas d\'email : seule l\'alerte admin part');
 setting_set(NotificationService::toggleKey('booking.created', 'sms'), '1');
-// Panne SMTP
+// Panne SMTP : le client est prévenu par SMS à la place
 putenv('MAIL_DRIVER=smtp'); putenv('MAIL_HOST=127.0.0.1'); putenv('MAIL_PORT=1');
 $b = $svcB->create(wash_input($mon, '15:00', 'Unité 15', ['phone' => '77 222 22 22', 'email' => 'panne@example.com']));
 T::ok($b && $b['id'] > 0, 'panne email : la réservation est quand même enregistrée');
 $failed = DB::one("SELECT * FROM notification_logs WHERE booking_id = ? AND channel = 'email' AND audience = 'client'", [$b['id']]);
 T::eq([$failed['status'], (int) $failed['attempts']], ['failed', 1], 'envoi échoué journalisé avec 1 tentative');
-T::ok(!empty($failed['error']) && $failed['next_attempt_at'] !== null, 'erreur conservée et nouvelle tentative planifiée : ' . $failed['error']);
-$sms = DB::one("SELECT status FROM notification_logs WHERE booking_id = ? AND channel = 'sms'", [$b['id']]);
-T::eq($sms['status'], 'sent', 'le SMS part malgré la panne email (canaux indépendants)');
+T::ok(str_contains((string) $failed['error'], 'SMS envoyé à la place') && $failed['next_attempt_at'] === null, 'erreur conservée, SMS de secours signalé, plus de reprise inutile : ' . $failed['error']);
+$sms = DB::one("SELECT status, recipient FROM notification_logs WHERE booking_id = ? AND channel = 'sms' AND audience = 'client'", [$b['id']]);
+T::ok($sms && $sms['status'] === 'sent' && $sms['recipient'] === '221772222222', 'email impossible : le client reçoit le SMS à la place');
 $ns = new NotificationService();
-for ($k = 2; $k <= 4; $k++) {
-    DB::exec('UPDATE notification_logs SET next_attempt_at = ? WHERE id = ?', [gmdate('Y-m-d H:i:s', time() - 5), $failed['id']]);
-    $ns->retryDue();
-}
-$after = DB::one('SELECT status, attempts, next_attempt_at FROM notification_logs WHERE id = ?', [$failed['id']]);
-T::eq([(int) $after['attempts'], $after['next_attempt_at']], [4, null], 'après 4 tentatives : plus aucune reprise planifiée');
-DB::exec('UPDATE notification_logs SET next_attempt_at = ? WHERE id = ?', [gmdate('Y-m-d H:i:s', time() - 5), $failed['id']]);
 $ns->retryDue();
-T::eq((int) DB::val('SELECT attempts FROM notification_logs WHERE id = ?', [$failed['id']]), 4, 'la file automatique ne dépasse jamais le plafond de tentatives');
+T::eq((int) DB::val("SELECT COUNT(*) FROM notification_logs WHERE booking_id = ? AND channel = 'sms' AND audience = 'client'", [$b['id']]), 1, 'une seule fois : pas de second SMS sur les reprises');
 putenv('MAIL_DRIVER=log');
-T::eq($ns->retryNow((int) $failed['id'], true), true, 'relance manuelle forcée réussie une fois le service rétabli');
+T::eq($ns->retryNow((int) $failed['id'], true), true, 'relance manuelle de l\'email réussie une fois le service rétabli');
 T::eq(DB::val('SELECT status FROM notification_logs WHERE id = ?', [$failed['id']]), 'sent', 'statut passé à « envoyé »');
+// Sans SMS disponible (désactivé), l'email échoué reste relancé automatiquement
+setting_set(NotificationService::toggleKey('booking.created', 'sms'), '0');
+putenv('MAIL_DRIVER=smtp');
+$b2 = $svcB->create(wash_input(next_dow(3), '09:00', 'Unité 15', ['phone' => '77 444 44 44', 'email' => 'panne2@example.com']));
+$f2 = DB::one("SELECT * FROM notification_logs WHERE booking_id = ? AND channel = 'email' AND audience = 'client'", [$b2['id']]);
+T::ok($f2['status'] === 'failed' && $f2['next_attempt_at'] !== null, 'pas de SMS de secours possible : l\'email échoué est relancé plus tard');
+putenv('MAIL_DRIVER=log'); setting_set(NotificationService::toggleKey('booking.created', 'sms'), '1');
 // Rappels
 $soon = time() + 20 * 3600;   // dans 20 h : dans la fenêtre de rappel de 24 h
 $tomorrow = date('Y-m-d', $soon);

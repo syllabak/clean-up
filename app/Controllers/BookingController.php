@@ -129,6 +129,7 @@ final class BookingController extends Controller
         $this->view('public/confirmation', ['title' => 'Réservation enregistrée', 'b' => $b, 'items' => (new BookingRepository())->items((int) $b['id']), 'noindex' => true,
             'mk_event' => ['name' => 'booking', 'id' => $b['reference'], 'value' => (int) $b['total'],],
             'track_link' => url('/suivi/' . $b['reference'] . '/' . $b['track_token']),
+            'notify_channel' => \App\Services\NotificationService::preferEmail() ? \App\Services\NotificationService::chooseClientChannel('booking.created', $b) : null,
             'photos' => array_values(array_filter((new \App\Services\PhotoService())->forBooking((int) $b['id']), fn($p) => $p['user_id'] === null)), 'page_js' => 'photos.js', 'csrf' => \App\Core\Csrf::token()]);
     }
 

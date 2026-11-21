@@ -70,6 +70,11 @@ a { text-underline-offset: 3px; }
 .day-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: .5rem; }
 .day-btn { border: 2px solid var(--line); background: #fff; border-radius: 12px; padding: .5rem .3rem; text-align: center; line-height: 1.2; cursor: pointer; }
 .day-btn .dn { font-weight: 800; font-size: 1.15rem; color: var(--ink); } .day-btn small { color: var(--muted); display: block; }
+/* Téléphone : une seule rangée de jours qu'on fait glisser ; les heures du jour choisi restent juste en dessous, sans longue page à parcourir. */
+@media (max-width: 767.98px) {
+  .day-strip { display: flex; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: .4rem; -webkit-overflow-scrolling: touch; }
+  .day-btn { flex: 0 0 82px; scroll-snap-align: start; }
+}
 .day-btn:hover:not(:disabled) { border-color: var(--water); } .day-btn.sel { border-color: var(--water); background: var(--foam); } .day-btn:disabled { opacity: .4; cursor: not-allowed; background: #f4f7fa; }
 .slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: .5rem; }
 .slot-btn { border: 2px solid var(--line); background: #fff; border-radius: 10px; padding: .55rem; font-weight: 700; color: var(--ink); cursor: pointer; }
