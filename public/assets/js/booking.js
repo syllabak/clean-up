@@ -259,7 +259,7 @@
       $('soonest').classList.toggle('d-none', !any);
       if (!any) showError("Aucun créneau n'est disponible prochainement dans ce quartier pour cette durée. Appelez-nous ou essayez un autre quartier.");
       else if (S.date) pickDay(S.date, true);
-      else pickDay(Object.keys(S.days).filter(function (k) { return S.days[k].count > 0; })[0]);   // les heures du premier jour libre sont déjà affichées
+      else { S.auto = true; pickDay(Object.keys(S.days).filter(function (k) { return S.days[k].count > 0; })[0], false, true); }   // le premier créneau libre est déjà retenu : le client n'a qu'à continuer, ou à en choisir un autre
     });
   }
   /** Prend d'un geste le tout premier créneau libre. */
@@ -278,7 +278,7 @@
     S.date = d;
     document.querySelectorAll('.day-btn').forEach(function (b) { var on = b.dataset.date === d; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', on); if (on && b.scrollIntoView) { var st = $('days'); if (st && st.scrollWidth > st.clientWidth) st.scrollLeft = Math.max(0, b.offsetLeft - st.offsetLeft - 8); } });
     api('/api/availability/slots', payload({ date: d })).then(function (r) {
-      var box = $('slots'); box.innerHTML = ''; $('slots-wrap').classList.remove('d-none'); $('slots-title').textContent = 'Heures disponibles le ' + fmtDay(d);
+      var box = $('slots'); box.innerHTML = ''; $('slots-wrap').classList.remove('d-none'); $('slots-title').textContent = (autoFirst ? 'Premier créneau retenu, vous pouvez en choisir un autre : ' : 'Heures disponibles le ') + fmtDay(d);
       if (!r.ok) return showError(errText(r.data));
       if (!r.data.slots.length) box.appendChild(el('p', { class: 'text-muted', text: 'Plus aucun créneau ce jour-là.' }));
       r.data.slots.forEach(function (s) {

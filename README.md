@@ -21,6 +21,24 @@ Comptes de démonstration (à ne jamais garder en production) :
 
 Espace équipe : `/connexion` (les agents arrivent sur `/agent`, les autres sur `/admin`).
 
+## Installation rapide (script)
+
+Sur un serveur ou un poste Linux / macOS avec PHP 8.1 ou plus, un seul script prépare tout :
+
+```bash
+./install.sh
+```
+
+Il vérifie PHP et ses extensions, crée `.env` (jeton des tâches planifiées généré, droits restreints), crée les dossiers et la base, applique les migrations, propose le catalogue de Dakar et crée l'administrateur (mot de passe généré s'il n'est pas fourni, affiché une seule fois). On peut le relancer sans danger : `.env`, les données et les comptes existants ne sont pas touchés.
+
+Sans aucune question, pour un déploiement automatisé :
+
+```bash
+./install.sh --yes --url https://votre-domaine.sn --email vous@votre-domaine.sn --name "Votre Nom" --dakar --cron
+```
+
+Options : `--mysql` (MySQL / MariaDB au lieu de SQLite, le mot de passe se donne par la variable `DB_PASSWORD`), `--dev` (installation locale avec debug), `--cron` (ajoute les tâches planifiées à votre crontab sans toucher à vos autres lignes), `--serve` (lance le serveur de test sur le port 8000), `--password`, `--no-dakar`. Détails : `./install.sh --help`. Sous Windows, utilisez WSL ou suivez les étapes manuelles ci-dessous.
+
 ## Déploiement en production (SQLite par défaut, MySQL en option)
 
 L'application tourne sur **SQLite**, y compris en production : un seul fichier, aucun serveur de base à installer, adapté à une entreprise. **MySQL / MariaDB est optionnel**, pour ceux qui le préfèrent.
