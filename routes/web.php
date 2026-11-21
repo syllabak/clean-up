@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 use App\Core\Router;
-use App\Controllers\{SubscriptionController, RecruitmentController, HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
-use App\Controllers\Admin\{SubscriptionAdminController, RecruitmentAdminController, DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
+use App\Controllers\{ChatbotController, PaymentController, SubscriptionController, RecruitmentController, HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
+use App\Controllers\Admin\{IntegrationsController, SubscriptionAdminController, RecruitmentAdminController, DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
 
 $r = new Router();
 
@@ -32,6 +32,7 @@ $r->get('/hors-ligne', [HomeController::class, 'offline']);
 // ---- Réservation
 $r->get('/reserver', [BookingController::class, 'wizard']);
 $r->get('/api/services/{id}/form', [BookingController::class, 'formDef']);
+$r->get('/api/chatbot', [ChatbotController::class, 'config'], ['throttle:api,120,60']);
 $r->get('/api/geo/{type}/{id}', [BookingController::class, 'geo']);
 $r->post('/api/quote', [BookingController::class, 'quote'], ['throttle:api,120,60']);
 $r->post('/api/availability/days', [BookingController::class, 'days'], ['throttle:api,120,60']);
@@ -40,6 +41,9 @@ $r->post('/reservation', [BookingController::class, 'store'], ['throttle:booking
 $r->get('/reservation/confirmation/{ref}', [BookingController::class, 'confirmation']);
 $r->post('/reservation/{ref}/photos', [BookingController::class, 'photoUpload'], ['throttle:photo,60,600']);   // photos « avant » : prises ou importées par le client
 $r->get('/suivi/{ref}/photo/{id}', [BookingController::class, 'trackPhoto']);
+$r->post('/reservation/{ref}/payer', [PaymentController::class, 'pay'], ['throttle:pay,20,600']);
+$r->get('/paiement/retour/{ref}', [PaymentController::class, 'returned'], ['throttle:track,60,600']);
+$r->get('/paiement/annule/{ref}', [PaymentController::class, 'cancelled'], ['throttle:track,60,600']);
 $r->get('/suivi', [BookingController::class, 'trackForm']);
 $r->post('/suivi', [BookingController::class, 'track'], ['throttle:track,10,600']);
 $r->get('/suivi/{ref}', [BookingController::class, 'trackShow']);
@@ -53,6 +57,8 @@ $r->post('/connexion', [AuthController::class, 'login'], ['throttle:login,8,300'
 $r->post('/deconnexion', [AuthController::class, 'logout']);
 
 // ---- Réponses entrantes des fournisseurs (désinscription STOP) : authentifiées par signature ou jeton, sans session
+$r->post('/webhooks/paytech', [PaymentController::class, 'paytechIpn'], ['throttle:hook,300,60']);
+$r->post('/webhooks/paydunya', [PaymentController::class, 'paydunyaCallback'], ['throttle:hook,300,60']);
 $r->get('/webhooks/whatsapp', [WebhookController::class, 'whatsappVerify'], ['throttle:hook,120,60']);
 $r->post('/webhooks/whatsapp', [WebhookController::class, 'whatsappReceive'], ['throttle:hook,300,60']);
 $r->post('/webhooks/sms', [WebhookController::class, 'smsReceive'], ['throttle:hook,300,60']);
@@ -86,6 +92,9 @@ $r->post('/admin/services/{id}/dupliquer', [ServiceAdminController::class, 'dupl
 $r->post('/admin/services/{id}/simuler', [ServiceAdminController::class, 'simulate'], ['perm:catalog.manage']);
 // CRM et gestion
 $r->get('/admin/crm', [CrmController::class, 'pipeline'], ['perm:crm.manage']);
+$r->get('/admin/messagerie-paiement', [IntegrationsController::class, 'index'], ['perm:settings.manage']);
+$r->post('/admin/messagerie-paiement/{section}', [IntegrationsController::class, 'save'], ['perm:settings.manage']);
+$r->post('/admin/messagerie-paiement/{section}/tester', [IntegrationsController::class, 'test'], ['perm:settings.manage']);
 $r->get('/admin/abonnements', [SubscriptionAdminController::class, 'index'], ['perm:subscriptions.manage']);
 $r->get('/admin/abonnements/{id}', [SubscriptionAdminController::class, 'show'], ['perm:subscriptions.manage']);
 foreach (['activer' => 'activate', 'pause' => 'pause', 'reprendre' => 'resume', 'resilier' => 'cancel', 'generer' => 'generate', 'note' => 'note'] as $path => $method) {

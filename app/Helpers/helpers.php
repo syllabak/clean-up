@@ -86,6 +86,15 @@ function slugify(string $s): string
     return trim(preg_replace('/[^a-z0-9]+/', '-', $s) ?? '', '-') ?: 'item';
 }
 
+/** Redirection vers la page de paiement d'un prestataire : adresse https vers un domaine de la liste blanche seulement (jamais de redirection libre). */
+function redirect_away(string $url): never
+{
+    $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+    $ok = parse_url($url, PHP_URL_SCHEME) === 'https' && (bool) preg_match('/(^|\.)(paytech\.sn|paydunya\.com)$/', $host);
+    if (!$ok) abort(502, 'Adresse de paiement non reconnue.');
+    header('Location: ' . $url, true, 303);
+    exit;
+}
 function redirect(string $to, int $code = 302): never
 {
     header('Location: ' . with_base($to), true, $code);

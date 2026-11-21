@@ -46,6 +46,7 @@ final class BookingAdminController extends Controller
             'staff' => DB::all("SELECT s.id, s.name, s.team_id, t.name AS team_name FROM staff s LEFT JOIN teams t ON t.id = s.team_id WHERE s.company_id = ? AND s.deleted_at IS NULL AND s.status = 'active' ORDER BY t.name, s.name", [$cid]),
             'logs' => DB::all('SELECT * FROM notification_logs WHERE booking_id = ? ORDER BY id DESC', [(int) $id]),
             'revenue_on' => setting('revenue_tracking_enabled', '1') === '1',
+            'payments' => (new \App\Services\PaymentService())->forBooking((int) $id),
         ]);
     }
 

@@ -12,6 +12,7 @@ return [
         'slot_step_minutes' => ['Pas des créneaux (minutes)', 'number', 'Intervalle entre deux heures de début proposées.'], 'min_lead_hours' => ['Délai minimum avant intervention (heures)', 'number'],
         'max_days_ahead' => ['Réservation possible jusqu\'à (jours)', 'number'], 'buffer_same_zone' => ['Battement dans un même quartier (minutes)', 'number'],
         'cancel_hours_before' => ['Annulation client possible jusqu\'à (heures avant)', 'number'],
+        'chatbot_enabled' => ['Assistant de réservation (chatbot) sur le site', 'bool', 'Un bouton « Prendre rendez-vous » ouvre une conversation qui réserve à la place du formulaire. Même prix, mêmes disponibilités.'],
         'auto_assign' => ['Affectation automatique à la création', 'bool', 'Choisit l\'agent le moins chargé de l\'équipe réservée. Désactivée par défaut.'],
         'revenue_tracking_enabled' => ['Suivi du chiffre d\'affaires saisi à la main', 'bool', 'Aucun paiement en ligne : le montant encaissé se saisit sur la réservation.'],
     ],

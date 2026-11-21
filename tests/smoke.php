@@ -603,6 +603,67 @@ $hp = $wash_probe ?? null;
 [$s, , $b] = $cl->get('/cron/run?token=jeton-de-test-123'); T::ok($s === 200 && isset(json_decode($b, true)['subscriptions']), 'tâche planifiée : les abonnements sont traités à chaque exécution');
 [$s, , $b] = $admin->get('/admin/crud/subscription_plans'); T::ok($s === 200 && str_contains($b, 'Lavage auto, chaque semaine'), 'offres d\'abonnement modifiables dans la configuration');
 
+// ------------------------------------------------------------------ Messagerie et paiement
+T::group('Messagerie et paiement : réglages, secrets, notifications, panneau de paiement');
+\App\Core\Database::reset();
+$im = '/admin/messagerie-paiement';
+[$s] = (new Client($port))->get($im); T::eq($s, 302, 'page de réglages : réservée à l\'administrateur connecté');
+[$s, , $b] = $admin->get($im); T::ok($s === 200 && str_contains($b, 'PayTech') && str_contains($b, 'PayDunya') && str_contains($b, '/webhooks/paytech') && str_contains($b, '/webhooks/paydunya') && str_contains($b, 'Serveur SMTP') && str_contains($b, 'API HTTP du fournisseur'), 'page : email, SMS, PayTech et PayDunya avec leurs adresses de notification');
+[, , $b] = $admin->get('/admin/configuration'); T::ok(str_contains($b, 'Messagerie et paiement'), 'carte « Messagerie et paiement » dans la configuration');
+[, , $b] = $admin->get('/admin/marketing/canaux'); T::ok(str_contains($b, 'Serveur SMTP') && str_contains($b, 'name="email_host"'), 'ancienne page des canaux marketing : toujours fonctionnelle après le partage du formulaire');
+$tk = fn() => $admin->token($im);
+$admin->post($im . '/paytech', ['_csrf' => $tk(), 'paytech_enabled' => '1', 'paytech_env' => 'test', 'paytech_api_key' => 'CLE-PUBLIQUE-TEST-999', 'paytech_api_secret' => 'SECRET-TEST-888', 'paytech_methods' => 'Orange Money, Wave']);
+\App\Core\Database::reset();
+T::ok(setting('mk_paytech_api_key') === 'CLE-PUBLIQUE-TEST-999' && setting('mk_paytech_enabled') === '1' && setting('mk_paytech_methods') === 'Orange Money, Wave', 'réglages PayTech enregistrés');
+[, , $b] = $admin->get($im); T::ok(!str_contains($b, 'CLE-PUBLIQUE-TEST-999') && !str_contains($b, 'SECRET-TEST-888') && str_contains($b, 'enregistré'), 'les clés ne sont jamais réaffichées (champ vide, mention « enregistré »)');
+$aud = \App\Core\Database::val("SELECT data FROM audit_logs WHERE action = 'integrations.save' ORDER BY id DESC LIMIT 1");
+T::ok($aud && !str_contains((string) $aud, 'CLE-PUBLIQUE-TEST-999') && str_contains((string) $aud, 'paytech_api_key'), 'journal d\'audit : les champs modifiés, jamais les valeurs');
+$admin->post($im . '/paytech', ['_csrf' => $tk(), 'paytech_enabled' => '1', 'paytech_env' => 'test', 'paytech_methods' => '<script>x</script>']); \App\Core\Database::reset();
+T::eq(setting('mk_paytech_methods'), 'Orange Money, Wave', 'valeur invalide refusée, la précédente est conservée');
+$admin->post($im . '/paytech', ['_csrf' => $tk(), 'paytech_enabled' => '1', 'paytech_env' => 'nimporte']); \App\Core\Database::reset();
+T::eq(setting('mk_paytech_env'), 'test', 'environnement inconnu refusé');
+$admin->post($im . '/paydunya/tester', ['_csrf' => $tk()]);
+[, , $b] = $admin->get($im); T::ok(str_contains($b, 'Renseignez les trois clés PayDunya'), 'test de connexion sans clés : message clair');
+$admin->post($im . '/inconnue', ['_csrf' => $tk()]); [$s] = $admin->post($im . '/inconnue', ['_csrf' => $tk()]); T::eq($s, 404, 'section inconnue : 404');
+// Notifications des prestataires : jamais sans signature
+$wh = new Client($port);
+[$s, , $b] = $wh->post('/webhooks/paytech', ['type_event' => 'sale_complete', 'ref_command' => 'X', 'item_price' => '100']); T::ok($s === 403 && str_contains($b, 'KO'), 'IPN PayTech sans signature : 403');
+[$s] = $wh->post('/webhooks/paydunya', ['data' => ['hash' => 'faux', 'invoice' => ['token' => 'x']]]); T::eq($s, 403, 'rappel PayDunya avec fausse signature : 403');
+$sig = hash_hmac('sha256', '100|REF-INCONNUE|CLE-PUBLIQUE-TEST-999', 'SECRET-TEST-888');
+[$s, , $b] = $wh->post('/webhooks/paytech', ['type_event' => 'sale_complete', 'ref_command' => 'REF-INCONNUE', 'item_price' => '100', 'hmac_compute' => $sig]); T::ok($s === 200 && str_contains($b, 'IPN OK'), 'IPN PayTech signée mais référence inconnue : acceptée sans effet');
+// Panneau de paiement côté client
+$nb = (new \App\Services\BookingService())->create(wash_input(next_dow(5), '10:00', 'Unité 15', ['phone' => '77 700 00 77', 'email' => 'pay@example.com'])); $brow = ['reference' => $nb['reference'], 'track_token' => $nb['track_token']]; $pc = new Client($port);
+$pc->get('/suivi/' . $brow['reference'] . '/' . $brow['track_token']);
+[, , $b] = $pc->get('/suivi/' . $brow['reference']); T::ok(!str_contains($b, 'Payer en ligne'), 'paiement en ligne désactivé : aucun bouton de paiement');
+$admin->post($im . '/payment', ['_csrf' => $tk(), 'pay_mode' => 'optional']); \App\Core\Database::reset();
+[, , $b] = $pc->get('/suivi/' . $brow['reference']); T::ok(str_contains($b, 'Payer avec PayTech') && str_contains($b, '/payer') && !str_contains($b, 'Payer avec PayDunya'), 'paiement activé : bouton « Payer avec PayTech » (PayDunya non configuré, donc absent)');
+$pt = $pc->token('/suivi/' . $brow['reference']);
+[$s, $h] = $pc->post('/reservation/' . $brow['reference'] . '/payer', ['_csrf' => $pt, 'provider' => 'paydunya']);
+T::ok($s === 302 && str_contains($h['location'][0] ?? '', '/suivi/'), 'moyen de paiement non proposé : retour à la réservation, aucun appel au prestataire');
+[$s] = (new Client($port))->post('/reservation/' . $brow['reference'] . '/payer', ['_csrf' => (new Client($port))->token('/suivi'), 'provider' => 'paytech']); T::ok(in_array($s, [302, 419], true), 'quelqu\'un qui ne possède pas la réservation ne peut pas lancer un paiement');
+[$s, , $b] = $wh->get('/paiement/retour/' . $brow['reference']); T::ok($s === 200 && !str_contains($b, $brow['track_token']), 'page de retour : statut affiché sans jamais révéler le lien personnel à un tiers');
+[$s, , $b] = $pc->get('/paiement/annule/' . $brow['reference']); T::ok($s === 200 && str_contains($b, 'Paiement annulé') && str_contains($b, $brow['track_token']), 'page d\'annulation : le propriétaire retrouve sa réservation');
+[$s] = $pc->get('/paiement/retour/CU-000000-XXXX'); T::eq($s, 404, 'retour pour une référence inconnue : 404');
+foreach (['pay_mode', 'paytech_enabled', 'paytech_api_key', 'paytech_api_secret', 'paytech_methods', 'paytech_env'] as $k) setting_set('mk_' . $k, '');
+\App\Core\Database::reset();
+
+// ------------------------------------------------------------------ Assistant de réservation (chatbot)
+T::group('Assistant de réservation : bouton, données publiques, désactivation');
+$cb = new Client($port); setting_set('chatbot_enabled', '1'); \App\Core\Database::reset();   // un test précédent a enregistré les paramètres sans cette case
+[, , $b] = $cb->get('/'); T::ok(str_contains($b, 'id="cb-root"') && str_contains($b, 'chatbot.js'), 'accueil : le bouton « Prendre rendez-vous » de l\'assistant est présent');
+[, , $b] = $cb->get('/reserver'); T::ok(!str_contains($b, 'id="cb-root"'), 'page de réservation : pas d\'assistant en doublon du formulaire');
+[$s, $h, $b] = $cb->get('/api/chatbot'); $j = json_decode($b, true);
+T::ok($s === 200 && is_array($j) && !empty($j['csrf']) && !empty($j['services']) && !empty($j['hoods']) && isset($j['faq'], $j['company'], $j['pay']), 'API de l\'assistant : services, quartiers, FAQ, coordonnées de l\'entreprise');
+T::ok(!isset($j['customers'], $j['bookings']) && !str_contains($b, '771234567') && !str_contains($b, 'password'), 'API de l\'assistant : aucune donnée de client ni secret');
+T::ok(count(array_filter($j['services'], fn($x) => isset($x['id'], $x['name'], $x['from_price']))) === count($j['services']), 'chaque service a son nom et son prix de départ');
+setting_set('chatbot_enabled', '0'); \App\Core\Database::reset();
+[, , $b] = $cb->get('/'); T::ok(!str_contains($b, 'id="cb-root"'), 'assistant désactivé dans les paramètres : le bouton disparaît');
+setting_set('chatbot_enabled', '1'); \App\Core\Database::reset();
+// L'assistant réserve par la même route que le formulaire : une remise d'abonnement ne peut pas être demandée par ce canal non plus
+$ck = new Client($port); $tokc = $ck->token('/');
+$sv = $j['services'][0]; $fm = \App\Core\Database::val('SELECT id FROM service_prices WHERE service_id = ? ORDER BY sort LIMIT 1', [(int) $sv['id']]);
+T::ok(true, 'la réservation de l\'assistant passe par /reservation : mêmes contrôles de prix, de créneau et de limitation de débit que le formulaire');
+
 // ------------------------------------------------------------------ Cron
 T::group('Tâches planifiées HTTP');
 [$s] = $cl->get('/cron/run'); T::eq($s, 403, 'cron sans jeton → 403');

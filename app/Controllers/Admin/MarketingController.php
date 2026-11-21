@@ -88,20 +88,7 @@ final class MarketingController extends Controller
         redirect('/admin/marketing/canaux#' . $section);
     }
 
-    private function invalid(string $key, string $type, string $v, ?array $options): ?string
-    {
-        if ($type === 'select' && !array_key_exists($v, $options ?? [])) return 'valeur non autorisée.';
-        if ($v === '' || $type === 'bool' || $type === 'select' || $type === 'secret' || $type === 'textarea') return null;
-        if ($type === 'number' && !preg_match('/^\d{1,5}$/', $v)) return 'nombre entier attendu.';
-        $rules = ['meta_pixel_id' => ['/^\d{5,20}$/', 'chiffres uniquement.'], 'google_ads_id' => ['/^AW-\d{5,15}$/', 'format AW-123456789.'], 'google_ga4_id' => ['/^G-[A-Z0-9]{4,15}$/', 'format G-XXXXXXXXXX.'],
-            'google_label_booking' => ['/^[A-Za-z0-9_\-]{4,60}$/', 'lettres, chiffres, - et _.'], 'google_label_lead' => ['/^[A-Za-z0-9_\-]{4,60}$/', 'lettres, chiffres, - et _.'],
-            'wa_phone_id' => ['/^\d{5,20}$/', 'chiffres uniquement.'], 'wa_version' => ['/^v\d+\.\d+$/', 'format v21.0.'], 'wa_template' => ['/^[a-z0-9_]{1,512}$/', 'minuscules, chiffres et _ (nom donné par Meta).'],
-            'wa_template_lang' => ['/^[a-z]{2}(_[A-Z]{2})?$/', 'ex. fr ou fr_FR.'], 'sms_api_url' => ['#^https?://[^\s]+$#i', 'adresse commençant par https://.'], 'email_port' => ['/^\d{2,5}$/', 'numéro de port.'],
-            'meta_test_code' => ['/^[A-Za-z0-9]{1,30}$/', 'lettres et chiffres.']];
-        if (isset($rules[$key]) && !preg_match($rules[$key][0], $v)) return $rules[$key][1];
-        if ($key === 'email_from_address' && !filter_var($v, FILTER_VALIDATE_EMAIL)) return "email invalide.";
-        return null;
-    }
+    private function invalid(string $key, string $type, string $v, ?array $options): ?string { return ChannelConfig::invalid($key, $type, $v, $options); }
 
     // ------------------------------------------------------------------ Campagnes
     public function campaigns(): void

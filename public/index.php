@@ -26,7 +26,8 @@ header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 $csp = ['default-src' => ["'self'"], 'img-src' => ["'self'", 'data:', 'blob:', 'https://*.tile.openstreetmap.org'], 'style-src' => ["'self'", "'unsafe-inline'"], 'script-src' => ["'self'"], 'connect-src' => ["'self'"],
-    'frame-ancestors' => ["'self'"], 'form-action' => ["'self'"], 'base-uri' => ["'self'"]];
+    'frame-ancestors' => ["'self'"], 'form-action' => ["'self'", 'https://paytech.sn', 'https://*.paytech.sn', 'https://app.paydunya.com', 'https://*.paydunya.com'],   // le bouton « Payer » redirige vers la page sécurisée du prestataire
+     'base-uri' => ["'self'"]];
 try { foreach (\App\Services\TrackingService::cspExtra() as $dir => $hosts) $csp[$dir] = array_merge($csp[$dir], $hosts); } catch (Throwable) {}   // base non migrée : politique de base
 header('Content-Security-Policy: ' . implode('; ', array_map(fn($d, $v) => $d . ' ' . implode(' ', $v), array_keys($csp), $csp)));
 header('Permissions-Policy: geolocation=(self), camera=(self), microphone=()');
