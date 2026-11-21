@@ -42,11 +42,11 @@
           <div class="col-md-6"><label class="form-label" for="phone">Téléphone</label><input id="phone" class="form-control" type="tel" inputmode="tel" autocomplete="tel" placeholder="77 123 45 67"></div>
           <div class="col-12"><label class="form-label" for="email">Email <span class="text-muted fw-normal">(conseillé)</span></label><input id="email" class="form-control" type="email" autocomplete="email" inputmode="email" maxlength="190" placeholder="vous@exemple.com">
             <div class="form-text" id="notify-hint">Avec un email, nous vous écrivons par email. Sans email, par SMS au numéro ci-dessus.</div></div>
+          <div class="col-12"><h3 class="h6 mb-1">Photos de ce qui sera nettoyé <span class="text-muted fw-normal">(conseillé)</span></h3>
+            <p class="small text-muted mb-2">Le prix est plus juste et l'équipe arrive préparée.</p>
+            <?= \App\Core\View::partial('partials/photos_widget', ['id' => 'photos', 'ref' => '', 'photos' => [], 'editable' => true]) ?></div>
           <div class="col-12"><details class="more"><summary class="small text-primary">Options (facultatif) : photos, offres</summary><div class="row g-3 mt-0">
             <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="consent" value="1"><label class="form-check-label small" for="consent">Je veux recevoir les offres de <?= e(setting('company_name', 'Clean Up')) ?> par SMS, WhatsApp ou email (facultatif, désinscription à tout moment en répondant STOP).</label></div></div>
-            <div class="col-12"><h3 class="h6 mb-1">Photos avant l'intervention <span class="text-muted fw-normal">(facultatif)</span></h3>
-            <p class="small text-muted mb-2">Montrez-nous ce qui sera nettoyé : le prix est plus juste et l'équipe arrive préparée.</p>
-            <?= \App\Core\View::partial('partials/photos_widget', ['id' => 'photos', 'ref' => '', 'photos' => [], 'editable' => true]) ?></div>
           </div></details></div>
           <div class="d-none" aria-hidden="true"><label for="website">Ne pas remplir</label><input id="website" tabindex="-1" autocomplete="off"></div>
         </div>

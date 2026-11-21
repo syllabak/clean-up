@@ -208,3 +208,9 @@ button.seg:hover { border-color: var(--water); background: var(--foam); } button
   .cb-launch.open { display: none; }
   .cb-launch { padding: .65rem .9rem; font-size: .9rem; }
 }
+
+/* Chatbot : bloc photos dans une bulle */
+.cb-photos { margin: 0; } .cb-photos .cu-thumbs:empty { display: none; } .cb-photos .cu-thumbs { margin-bottom: 8px; }
+.cb-ph-act { display: flex; flex-wrap: wrap; gap: 8px; }
+.cb-ph-btn { display: inline-block; border: 2px solid var(--water); color: var(--water); background: #fff; border-radius: 999px; padding: .35rem .8rem; font-weight: 600; font-size: .9rem; cursor: pointer; }
+.cb-ph-btn:hover { background: var(--foam); }

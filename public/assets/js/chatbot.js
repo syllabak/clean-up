@@ -223,6 +223,23 @@
     }
   }
 
+  /** Photos « avant » : prises avec le téléphone ou importées, gardées jusqu'à la création du rendez-vous. Facultatif, mais jamais retiré du parcours. */
+  async function pickPhotos(B) {
+    if (!window.CuPhotos) return;
+    await sayT('Avez-vous des photos de ce qui sera nettoyé ? Le prix est plus juste et l\'équipe arrive préparée.');
+    if (!B.photoBox) {
+      var cam = el('label', { class: 'cb-ph-btn' }, ['Prendre une photo', el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: 'hidden' })]);
+      var imp = el('label', { class: 'cb-ph-btn' }, ['Importer des photos', el('input', { type: 'file', accept: 'image/*', multiple: 'multiple', hidden: 'hidden' })]);
+      var box = el('div', { class: 'cu-photos cb-photos', 'data-max': '8' }, [el('div', { class: 'cu-thumbs' }), el('div', { class: 'cb-ph-act' }, [cam, imp]), el('p', { class: 'cu-msg small text-muted mb-0', role: 'status' })]);
+      B.photoBox = box; B.photos = window.CuPhotos.mount(box, { deferred: true });
+    }
+    var b = el('div', { class: 'cb-b bot' }); b.appendChild(B.photoBox); log.appendChild(b); scroll();
+    for (;;) {
+      var a = await ask([{ label: B.photos.count() ? 'Continuer (' + B.photos.count() + ' photo' + (B.photos.count() > 1 ? 's' : '') + ')' : 'Continuer', value: 'go', primary: true }, { label: 'Pas de photo', value: 'skip' }], 'Ajoutez vos photos ci-dessus');
+      if (a.choice !== undefined || a.text) break;
+    }
+  }
+
   async function pickSlot(B) {
     var r = await api('/api/availability/days', payload(B));
     if (!r.ok) { say(errText(r.data)); throw RESTART; }
@@ -286,6 +303,7 @@
     var lines = ['Voici votre rendez-vous :', el('br'), '• ' + B.svc.name + (B.detailsText.length ? ' (' + B.detailsText.join(', ') + ')' : ''),
       el('br'), '• Le ' + fmtDay(B.date) + ' à ' + B.start + ' (durée estimée : ' + dur(q.data.duration) + ')', el('br'), '• ' + B.address + ', ' + B.hood.name,
       el('br'), '• ' + B.name + ' · ' + B.phone + (B.email ? ' · ' + B.email : ''), el('br'), '• Total estimé : ' + money(q.data.total) + (q.data.travel_fee ? ' (déplacement ' + money(q.data.travel_fee) + ' compris)' : '') + ', à régler à l\'équipe après l\'intervention.'];
+    if (B.photos && B.photos.count()) { var ti = lines.length - 1; while (ti > 0 && !(typeof lines[ti] === 'string' && lines[ti].indexOf('• Total') === 0)) ti--; lines.splice(ti - 1, 0, el('br'), '• ' + B.photos.count() + (B.photos.count() > 1 ? ' photos jointes' : ' photo jointe')); }
     await typing(); sayLines(lines);
     var a = await ask([{ label: 'Confirmer le rendez-vous', value: 'ok', primary: true }, { label: 'Changer l\'heure', value: 'slot' }, { label: 'Changer l\'adresse', value: 'addr' }, { label: 'Tout recommencer', value: 'restart' }]);
     if (a.choice === 'ok' || (a.text && /^(oui|ok|confirme|confirmer|d accord)/.test(norm(a.text)))) return 'ok';
@@ -299,6 +317,11 @@
     var r = await api('/reservation', payload(B, { date: B.date, start: B.start, first_name: first, last_name: last, phone: B.phone, email: B.email || '', address_text: B.address, instructions: '', website: '', marketing_consent: false, source: 'chatbot' }));
     if (r.ok) {
       B.done = r.data;
+      if (B.photos && B.photos.count()) {   // la commande est créée : une panne d'envoi ne l'annule pas
+        var up = await B.photos.uploadAll(r.data.reference, CFG.csrf, function (d, t) { if (!B.upMsg) B.upMsg = say('Envoi des photos…'); B.upMsg.textContent = 'Envoi des photos ' + d + '/' + t + '…'; });
+        if (up.failed) say(up.failed + ' photo' + (up.failed > 1 ? 's n\'ont' : ' n\'a') + ' pas pu être envoyée' + (up.failed > 1 ? 's' : '') + '. Vous pourrez la réessayer depuis votre confirmation.');
+        else if (B.upMsg) B.upMsg.textContent = 'Photos envoyées.';
+      }
       var ch = B.email ? 'par email à ' + B.email : 'par SMS au ' + B.phone;
       sayLines(['Rendez-vous enregistré. Votre référence : ' + r.data.reference + '.', el('br'), 'Nous vous envoyons la confirmation ' + ch + ', puis un rappel avant l\'intervention.']);
       var acts = [link(r.data.redirect, 'Voir ma confirmation')];
@@ -316,7 +339,7 @@
     await details(B.svc, B);
     var est = await api('/api/quote', payload(B));
     if (est.ok) await sayT('Estimation pour ' + B.svc.name + ' : ' + money(est.data.subtotal) + ' (hors déplacement, calculé selon votre quartier).');
-    await pickHood(B); await pickAddress(B);
+    await pickHood(B); await pickAddress(B); await pickPhotos(B);
     for (;;) {
       await pickSlot(B); await contact(B);
       var step;
