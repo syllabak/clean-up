@@ -52,7 +52,12 @@ final class BookingService
         $quote = $this->pricing->quote($serviceId, $in, $nid);   // lève ValidationException si les choix sont invalides
         if (!$this->availability->neighborhood($nid)) throw new ValidationException(['neighborhood_id' => "Ce quartier n'est pas desservi."]);
 
-        $booking = Database::transaction(function () use ($in, $quote, $serviceId, $nid, $lat, $lng, $locSrc) {
+        // Abonnement : remise en pourcentage sur le sous-total (jamais sur le déplacement), passage rattaché à l'abonnement, sans message « réservation enregistrée » à chaque passage.
+        $subId = (int) ($in['subscription_id'] ?? 0) ?: null;
+        $pct = $subId ? max(0, min(50, (int) ($in['discount_percent'] ?? 0))) : 0;
+        $discount = $pct > 0 ? (int) round($quote['subtotal'] * $pct / 100) : 0;
+        $status = $subId && ($in['status'] ?? '') === 'confirmed' ? 'confirmed' : 'pending';
+        $booking = Database::transaction(function () use ($in, $quote, $serviceId, $nid, $lat, $lng, $locSrc, $subId, $discount, $status) {
             // Verrouille les équipes candidates dans un ordre constant (évite les interblocages sous MySQL).
             foreach ($this->availability->eligibleTeams($serviceId, $nid) as $t) Database::lockRow('teams', (int) $t['id']);
 
@@ -68,8 +73,8 @@ final class BookingService
                 'company_id' => Env::companyId(), 'reference' => $this->newReference(), 'customer_id' => $customerId, 'address_id' => $addressId,
                 'neighborhood_id' => $nid, 'service_id' => $serviceId, 'address_text' => trim($in['address_text']), 'lat' => $lat, 'lng' => $lng, 'location_source' => $locSrc,
                 'instructions' => trim((string) ($in['instructions'] ?? '')) ?: null, 'scheduled_date' => $in['date'], 'start_time' => $slot['start'],
-                'end_time' => $slot['end'], 'duration_minutes' => $quote['duration'], 'team_id' => $slot['team_id'], 'status' => 'pending',
-                'subtotal' => $quote['subtotal'], 'travel_fee' => $quote['travel_fee'], 'total' => $quote['total'],
+                'end_time' => $slot['end'], 'duration_minutes' => $quote['duration'], 'team_id' => $slot['team_id'], 'status' => $status,
+                'subtotal' => $quote['subtotal'], 'travel_fee' => $quote['travel_fee'], 'total' => max(0, $quote['total'] - $discount), 'discount' => $discount, 'subscription_id' => $subId,
                 'source' => $in['source'] ?? 'web', 'created_at' => now(), 'track_token' => bin2hex(random_bytes(16)),
             ] + TrackingService::columns((array) ($in['attr'] ?? [])));
             Database::insert('booking_items', [
@@ -77,7 +82,7 @@ final class BookingService
                 'details' => json_encode($quote['details'], JSON_UNESCAPED_UNICODE), 'quantity' => $quote['quantity'], 'unit_price' => $quote['unit_price'],
                 'total' => $quote['subtotal'], 'duration_minutes' => $quote['duration'],
             ]);
-            $this->history($id, null, 'pending', null, 'Réservation créée');
+            $this->history($id, null, $status, null, $subId ? 'Passage d\'abonnement' : 'Réservation créée');
             return $id;
         });
 
@@ -86,7 +91,7 @@ final class BookingService
             (new CrmService())->onBookingCreated($booking, (int) $this->repo->find($booking)['customer_id'], (int) ($in['channel_id'] ?? 0) ?: null);
         } catch (\Throwable $e) { error_log('CRM: ' . $e->getMessage()); }
         // Après validation de la transaction : une panne de notification ne remet rien en cause.
-        $this->notifier->dispatch('booking.created', $booking);
+        if (empty($in['silent'])) $this->notifier->dispatch('booking.created', $booking);
         if (setting('auto_assign', '0') === '1') (new AssignmentService())->autoAssign($booking);
         return $this->repo->find($booking);
     }
@@ -101,7 +106,7 @@ final class BookingService
         return [$lat, $lng, in_array($in['location_source'] ?? '', ['gps', 'map'], true) ? $in['location_source'] : 'map'];
     }
 
-    public function changeStatus(int $id, string $to, ?int $userId = null, ?string $note = null): void
+    public function changeStatus(int $id, string $to, ?int $userId = null, ?string $note = null, bool $silent = false): void
     {
         $b = $this->repo->find($id) ?? throw new \RuntimeException('Réservation introuvable.');
         $from = $b['status'];
@@ -118,7 +123,7 @@ final class BookingService
         });
         Audit::log('booking.status', 'booking', $id, ['from' => $from, 'to' => $to], $userId);
         $event = match ($to) { 'confirmed' => 'booking.confirmed', 'cancelled' => 'booking.cancelled', 'completed' => 'booking.completed', 'pending' => null, default => 'booking.status_changed' };
-        if ($event) $this->notifier->dispatch($event, $id);
+        if ($event && !$silent) $this->notifier->dispatch($event, $id);
     }
 
     public function cancel(int $id, ?int $userId, string $reason = ''): void { $this->changeStatus($id, 'cancelled', $userId, $reason ?: null); }

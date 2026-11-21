@@ -17,15 +17,16 @@ use App\Core\Database as DB;
  */
 final class DakarCatalogSeeder
 {
-    /** @return array{services:int, neighborhoods:int, teams:int} */
+    /** @return array{services:int, neighborhoods:int, teams:int, plans:int} */
     public static function run(): array
     {
-        $count = ['services' => 0, 'neighborhoods' => 0, 'teams' => 0];
+        $count = ['services' => 0, 'neighborhoods' => 0, 'teams' => 0, 'plans' => 0];
         DB::transaction(function () use (&$count) {
             $count['neighborhoods'] = self::geo();
             $sk = self::skills(); $cat = self::categories();
             $svc = self::services($sk, $cat); $count['services'] = count($svc);
             $count['teams'] = self::teams($svc, $sk);
+            $count['plans'] = self::plans($svc);
         });
         return $count;
     }
@@ -178,6 +179,33 @@ final class DakarCatalogSeeder
         self::formula($s, 'Panier de linge', 'Environ 15 pièces', 3500, 60, 1);
         self::field($s, 'count', 'Nombre de paniers', 'number', 'quantity', 1, null, 1, 10);
         return $out;
+    }
+
+    /**
+     * Offres d'abonnement de départ. Les remises (5 à 10 %) sont des valeurs de départ prudentes, à fixer selon vos marges :
+     * Configuration → Offres d'abonnement. Un abonnement n'est possible que pour un service dont on a choisi la fréquence ici.
+     */
+    private static function plans(array $svc): int
+    {
+        $defs = [
+            ['maison', 'Ménage à domicile, chaque semaine', 'all', 'weekly', 10, "Le même jour, à la même heure, chaque semaine. Une équipe habituée à votre logement."],
+            ['maison', 'Ménage à domicile, toutes les 2 semaines', 'all', 'biweekly', 5, "Un passage tous les quinze jours, au jour et à l'heure de votre choix."],
+            ['bureaux', 'Bureaux et commerces, chaque semaine', 'business', 'weekly', 10, "Des locaux propres chaque semaine, sans y penser. Passage en dehors des heures d'activité si vous le souhaitez."],
+            ['bureaux', 'Bureaux et commerces, toutes les 2 semaines', 'business', 'biweekly', 5, "Un entretien tous les quinze jours pour les petits locaux."],
+            ['auto', 'Lavage auto, chaque semaine', 'all', 'weekly', 10, "Votre véhicule propre chaque semaine, chez vous ou sur le parking de l'entreprise. Plusieurs véhicules possibles."],
+            ['auto', 'Lavage auto, toutes les 2 semaines', 'all', 'biweekly', 5, "Un lavage tous les quinze jours, au même endroit."],
+            ['canape', 'Entretien des canapés, tous les 3 mois', 'all', 'quarterly', 10, "Un nettoyage en profondeur à intervalle régulier : le tissu dure plus longtemps et les taches n'ont pas le temps de s'installer."],
+            ['matelas', 'Entretien des matelas, tous les 3 mois', 'all', 'quarterly', 10, "Moins d'acariens et de mauvaises odeurs, à chaque saison."],
+            ['tapis', 'Tapis et moquettes, tous les 3 mois', 'all', 'quarterly', 10, "Idéal pour les bureaux, hôtels et résidences : un passage planifié, un tapis toujours net."],
+            ['vitres', 'Vitres, toutes les 4 semaines', 'all', 'monthly', 10, "Vitrines et baies vitrées nettes en permanence, pour les boutiques comme pour les maisons."],
+        ];
+        $n = 0;
+        foreach ($defs as $i => [$k, $name, $aud, $freq, $pct, $desc]) {
+            if (!isset($svc[$k])) continue;
+            DB::insert('subscription_plans', ['company_id' => 1, 'service_id' => $svc[$k], 'name' => $name, 'audience' => $aud, 'frequency' => $freq, 'discount_percent' => $pct, 'description' => $desc, 'active' => 1, 'sort' => $i, 'created_at' => now()]);
+            $n++;
+        }
+        return $n;
     }
 
     /** Quatre équipes, leurs horaires, et deux agents « modèles » par équipe (à renommer) : sans agent, aucun créneau n'est proposé. */

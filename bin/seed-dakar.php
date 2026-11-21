@@ -12,5 +12,5 @@ if (DakarCatalogSeeder::alreadyLoaded() && !in_array('--force', $argv ?? [], tru
     exit(1);
 }
 $n = DakarCatalogSeeder::run();
-echo "Catalogue de Dakar chargé : {$n['services']} services, {$n['neighborhoods']} quartiers, {$n['teams']} équipes." . PHP_EOL;
-echo "Renommez les agents modèles (Configuration → Agents) et vérifiez les tarifs (Configuration → Services et tarifs)." . PHP_EOL;
+echo "Catalogue de Dakar chargé : {$n['services']} services, {$n['neighborhoods']} quartiers, {$n['teams']} équipes, {$n['plans']} offres d'abonnement." . PHP_EOL;
+echo "Renommez les agents modèles (Configuration → Agents) et vérifiez les tarifs (Configuration → Services et tarifs) et les remises d'abonnement (Configuration → Offres d'abonnement)." . PHP_EOL;

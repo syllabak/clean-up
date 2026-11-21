@@ -89,6 +89,7 @@ final class BookingController extends Controller
         $in = Request::json();
         if (!empty($in['website'])) json_response(['error' => 'Requête refusée.'], 400);     // piège à robots
         $in['source'] = 'web';
+        unset($in['subscription_id'], $in['discount_percent'], $in['silent'], $in['status']);   // réservés au moteur d'abonnement : jamais acceptés depuis le navigateur
         $in['attr'] = \App\Services\TrackingService::attribution();
         if (empty($in['channel_id'])) $in['channel_id'] = \App\Services\TrackingService::channelId($in['attr']);   // canal déduit de la publicité
         try {

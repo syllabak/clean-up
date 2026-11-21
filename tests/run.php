@@ -540,7 +540,7 @@ putenv('DB_DRIVER=sqlite'); putenv('DB_SQLITE_PATH=' . $dkFile); $GLOBALS['__set
 require_once BASE_PATH . '/database/seeders/DakarCatalogSeeder.php';
 use Database\Seeders\DakarCatalogSeeder as Dk;
 T::eq(Dk::alreadyLoaded(), false, 'base vide : le catalogue peut se charger');
-T::eq(Dk::run(), ['services' => 9, 'neighborhoods' => 33, 'teams' => 4], '9 services, 33 quartiers, 4 équipes');
+T::eq(Dk::run(), ['services' => 9, 'neighborhoods' => 33, 'teams' => 4, 'plans' => 10], '9 services, 33 quartiers, 4 équipes, 10 offres d\'abonnement');
 T::eq(Dk::alreadyLoaded(), true, 'catalogue chargé : un second chargement est refusé (pas de doublons)');
 $cat = new \App\Services\CatalogService();
 foreach (DB::all('SELECT id, name FROM services') as $sv) T::eq(array_column(array_filter($cat->readiness((int) $sv['id']), fn($c) => $c[0] === 'bad'), 1), [], $sv['name'] . ' : prêt à être réservé');
@@ -564,6 +564,91 @@ T::eq($pq->quote($rp, ['formula_id' => formula($rp, 'Panier de linge'), 'fields'
 $bk = (new BookingService())->create(['first_name' => 'Awa', 'last_name' => 'Diop', 'phone' => '77 612 34 56', 'neighborhood_id' => $plateau, 'address_text' => 'Rue 10, près de la poste', 'date' => next_dow(2, 3), 'start' => '09:00',
     'service_id' => $a, 'formula_id' => formula($a, 'Complet'), 'fields' => ['vehicle' => choice($a, 'vehicle', 'Citadine'), 'count' => 1]]);
 T::ok($bk['status'] === 'pending' && (int) $bk['total'] === 9000, 'une réservation de lavage dans le catalogue de Dakar passe : ' . $bk['reference']);
+// ------------------------------------------------------------------ Abonnements
+T::group('Abonnements : rythme, demande, activation, passages, pause et résiliation');
+use App\Services\SubscriptionService as Sub;
+$sb = new Sub();
+$planM = (int) DB::val("SELECT id FROM subscription_plans WHERE name = 'Ménage à domicile, chaque semaine'");
+$planB = (int) DB::val("SELECT id FROM subscription_plans WHERE audience = 'business' ORDER BY id LIMIT 1");
+T::eq((int) DB::val('SELECT discount_percent FROM subscription_plans WHERE id = ?', [$planM]), 10, 'offre de départ : ménage hebdomadaire à −10 %');
+$svM = (int) DB::val('SELECT service_id FROM subscription_plans WHERE id = ?', [$planM]);
+$fM = (int) DB::val('SELECT id FROM service_prices WHERE service_id = ? ORDER BY sort LIMIT 1', [$svM]);
+$fieldsM = []; foreach (DB::all('SELECT id, field_key FROM service_fields WHERE service_id = ?', [$svM]) as $ff) $fieldsM[$ff['field_key']] = (string) DB::val('SELECT id FROM service_field_choices WHERE field_id = ? ORDER BY sort LIMIT 1', [$ff['id']]);
+$subIn = ['plan_id' => $planM, 'kind' => 'person', 'first_name' => 'Awa', 'last_name' => 'Diop', 'phone' => '77 612 34 56', 'neighborhood_id' => $plateau, 'address_text' => 'Rue Carnot, 2e étage',
+    'weekday' => 2, 'start_time' => '09:00', 'start_date' => date('Y-m-d', strtotime('+2 day')), 'formula_id' => $fM, 'fields' => $fieldsM];
+
+// Rythme : un jour fixe de la semaine, un intervalle constant
+$probe = ['start_date' => '2026-12-01', 'weekday' => 4, 'frequency' => 'weekly'];   // le 1er décembre 2026 est un mardi
+T::eq(Sub::anchor($probe), '2026-12-03', 'premier passage : le premier jeudi à partir de la date de début');
+T::eq(Sub::dates($probe, '2026-12-01', '2026-12-24'), ['2026-12-03', '2026-12-10', '2026-12-17', '2026-12-24'], 'chaque semaine : tous les 7 jours');
+T::eq(Sub::dates(['frequency' => 'biweekly'] + $probe, '2026-12-01', '2027-01-10'), ['2026-12-03', '2026-12-17', '2026-12-31'], 'toutes les 2 semaines : tous les 14 jours');
+T::eq(Sub::dates(['frequency' => 'quarterly'] + $probe, '2026-12-01', '2027-04-30'), ['2026-12-03', '2027-03-04'], 'tous les 3 mois : 13 semaines');
+T::eq(Sub::dates($probe, '2026-12-11', '2026-12-18'), ['2026-12-17'], 'seules les dates de la période demandée sont renvoyées, le rythme reste calé sur le début');
+
+// Demande : validations
+T::throws(fn() => $sb->request(['kind' => 'business', 'business_name' => ''] + $subIn), ValidationException::class, 'entreprise sans nom : refusé');
+T::throws(fn() => $sb->request(['weekday' => 7] + $subIn), ValidationException::class, 'dimanche : refusé');
+T::throws(fn() => $sb->request(['start_date' => date('Y-m-d')] + $subIn), ValidationException::class, 'début aujourd\'hui : refusé (au plus tôt demain)');
+T::throws(fn() => $sb->request(['formula_id' => 0] + $subIn), ValidationException::class, 'formule manquante : refusée par le calcul du prix');
+T::throws(fn() => $sb->request(['plan_id' => $planB] + $subIn), ValidationException::class, 'offre entreprises demandée par un particulier : refusé');
+T::throws(fn() => $sb->request(['plan_id' => 99999] + $subIn), ValidationException::class, 'offre inconnue : refusée');
+T::eq((int) DB::val('SELECT COUNT(*) FROM subscriptions'), 0, 'demandes refusées : rien enregistré');
+$sub = $sb->request($subIn);
+T::ok($sub['status'] === 'requested' && (int) $sub['discount_percent'] === 10 && preg_match('/^[a-f0-9]{32}$/', $sub['track_token']), 'demande enregistrée : statut « demande », remise de l\'offre, lien personnel');
+T::eq((int) $sb->request($subIn)['id'], (int) $sub['id'], 'même demande envoyée deux fois : une seule');
+T::eq(Sub::dates($sub + ['frequency' => 'weekly'], date('Y-m-d'), date('Y-m-d', strtotime('+1 day'))), [], 'avant activation, aucun passage n\'existe');
+T::eq((int) DB::val('SELECT COUNT(*) FROM bookings WHERE subscription_id IS NOT NULL'), 0, 'une simple demande ne crée aucune réservation');
+$est = $sb->estimate($sub);
+T::eq($est['discount'], (int) round($est['subtotal'] * 0.10), 'estimation : remise de 10 % sur le sous-total');
+T::eq($est['total'], $est['subtotal'] - $est['discount'] + $est['travel_fee'], 'estimation : total = sous-total − remise + déplacement');
+
+// Activation et génération
+$logsBefore = (int) DB::val('SELECT COUNT(*) FROM notification_logs');
+$g = $sb->activate((int) $sub['id'], [], null);
+T::ok($g['booked'] >= 2 && $g['unavailable'] === 0, 'activation : ' . $g['booked'] . ' passages planifiés sur 21 jours');
+$vis = DB::all('SELECT b.* FROM bookings b WHERE b.subscription_id = ? ORDER BY b.scheduled_date', [(int) $sub['id']]);
+T::ok(count($vis) === $g['booked'] && !array_filter($vis, fn($b) => $b['status'] !== 'confirmed'), 'les passages sont des réservations confirmées dans le planning');
+T::ok(!array_filter($vis, fn($b) => (int) date('N', strtotime($b['scheduled_date'])) !== 2 || $b['start_time'] !== '09:00'), 'tous le mardi à 09:00');
+T::ok(!array_filter($vis, fn($b) => (int) $b['discount'] !== (int) round($b['subtotal'] * 0.10) || (int) $b['total'] !== (int) $b['subtotal'] - (int) $b['discount'] + (int) $b['travel_fee']), 'chaque passage : remise de 10 % appliquée au total');
+T::eq((int) DB::val('SELECT COUNT(*) FROM notification_logs'), $logsBefore, 'passages générés : aucun message envoyé au client (pas de « réservation enregistrée » en rafale)');
+T::eq($sb->generate((int) $sub['id'])['booked'], 0, 'générer deux fois : aucun doublon (idempotent)');
+T::eq((int) DB::val('SELECT COUNT(*) FROM subscription_visits WHERE subscription_id = ?', [(int) $sub['id']]), count($vis), 'un passage suivi par date');
+T::throws(fn() => $sb->activate((int) $sub['id'], [], null), \RuntimeException::class, 'activer deux fois : refusé');
+// Un passage annulé à la main n'est pas recréé : le client saute cette date seulement.
+(new BookingService())->changeStatus((int) $vis[0]['id'], 'cancelled', null, 'Je suis absent', true);
+T::eq($sb->generate((int) $sub['id'])['booked'], 0, 'passage annulé à la main : la date n\'est pas recréée, l\'abonnement continue');
+
+// Créneau habituel impossible : décalage à l'heure libre la plus proche le même jour
+DB::exec('UPDATE subscriptions SET start_time = ? WHERE id = ?', ['17:50', (int) $sub['id']]);
+DB::exec('DELETE FROM subscription_visits WHERE subscription_id = ? AND visit_date = ?', [(int) $sub['id'], $vis[1]['scheduled_date']]);
+DB::exec('UPDATE bookings SET status = ? WHERE id = ?', ['cancelled', (int) $vis[1]['id']]);
+$sb->generate((int) $sub['id']);
+$moved = DB::one('SELECT b.start_time, v.note FROM subscription_visits v JOIN bookings b ON b.id = v.booking_id WHERE v.subscription_id = ? AND v.visit_date = ?', [(int) $sub['id'], $vis[1]['scheduled_date']]);
+T::ok($moved && $moved['start_time'] !== '17:50' && str_contains((string) $moved['note'], 'décalée'), 'heure habituelle impossible : passage décalé à l\'heure libre la plus proche (' . ($moved['start_time'] ?? '?') . ')');
+DB::exec('UPDATE subscriptions SET start_time = ? WHERE id = ?', ['09:00', (int) $sub['id']]);
+
+// Pause, reprise, résiliation
+$open = fn() => (int) DB::val("SELECT COUNT(*) FROM bookings WHERE subscription_id = ? AND status IN ('pending','confirmed') AND scheduled_date >= ?", [(int) $sub['id'], date('Y-m-d', strtotime('+1 day'))]);
+T::ok($open() >= 2, 'avant la pause : des passages à venir');
+$logsBefore = (int) DB::val('SELECT COUNT(*) FROM notification_logs');
+$sb->pause((int) $sub['id'], null, 'client', null);
+T::eq([$open(), DB::val('SELECT status FROM subscriptions WHERE id = ?', [(int) $sub['id']])], [0, 'paused'], 'pause : les passages à venir sont annulés');
+T::eq((int) DB::val('SELECT COUNT(*) FROM notification_logs'), $logsBefore, 'pause : aucun message d\'annulation envoyé');
+T::eq($sb->generate((int) $sub['id']), ['booked' => 0, 'unavailable' => 0], 'en pause : rien n\'est généré');
+T::throws(fn() => $sb->pause((int) $sub['id'], null, 'client', null), \RuntimeException::class, 'pause d\'un abonnement déjà en pause : refusée');
+$r = $sb->resume((int) $sub['id'], null);
+T::ok($r['booked'] >= 2 && $open() >= 2, 'reprise : les passages sont de nouveau planifiés');
+DB::exec('UPDATE subscriptions SET status = ?, paused_until = ? WHERE id = ?', ['paused', date('Y-m-d'), (int) $sub['id']]);
+$auto = $sb->generateAll();
+T::ok(DB::val('SELECT status FROM subscriptions WHERE id = ?', [(int) $sub['id']]) === 'active' && $auto['subscriptions'] >= 1, 'tâche planifiée : une pause arrivée à échéance reprend toute seule');
+$sb->cancel((int) $sub['id'], 'Déménagement', null);
+T::eq([$open(), DB::val('SELECT status FROM subscriptions WHERE id = ?', [(int) $sub['id']])], [0, 'cancelled'], 'résiliation : passages à venir annulés');
+T::eq($sb->generate((int) $sub['id']), ['booked' => 0, 'unavailable' => 0], 'abonnement résilié : plus aucun passage');
+// Une réservation en ligne ne peut pas s'attribuer une remise d'abonnement
+$hack = (new BookingService())->create(['first_name' => 'Test', 'last_name' => 'Remise', 'phone' => '77 500 00 01', 'neighborhood_id' => $plateau, 'address_text' => 'Rue 1, Plateau', 'date' => date('Y-m-d', strtotime('+9 day')), 'start' => '10:00',
+    'service_id' => $svM, 'formula_id' => $fM, 'fields' => $fieldsM, 'subscription_id' => 0, 'discount_percent' => 50]);
+T::eq([(int) $hack['discount'], $hack['subscription_id']], [0, null], 'réservation ordinaire : aucune remise ni abonnement, même si on les demande');
+
 DB::reset(); foreach (['', '-wal', '-shm'] as $sfx) @unlink($dkFile . $sfx);
 
 DB::reset();

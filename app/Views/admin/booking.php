@@ -8,7 +8,7 @@ $photoIds = implode(',', array_map(fn($p) => (int) $p['id'], $photos));
 $final = in_array($b['status'], ['completed', 'cancelled'], true);
 ?>
 <p class="mb-1"><a href="/admin/reservations">← Réservations</a></p>
-<h1 class="mb-2"><?= e($b['reference']) ?> <?= status_badge($b['status']) ?></h1>
+<h1 class="mb-2"><?= e($b['reference']) ?> <?= status_badge($b['status']) ?><?php if (!empty($b['subscription_id'])): ?> <a class="badge text-bg-info text-decoration-none" href="/admin/abonnements/<?= (int) $b['subscription_id'] ?>">Abonnement</a><?php endif ?></h1>
 
 <div class="seg-status mb-3" role="group" aria-label="Statut de la commande">
   <?php foreach (BOOKING_STATUSES as $k => [$label]):
@@ -32,7 +32,7 @@ $final = in_array($b['status'], ['completed', 'cancelled'], true);
       <p class="mb-1"><?= e(fmt_date($b['scheduled_date'])) ?> de <?= e($b['start_time']) ?> à <?= e($b['end_time']) ?> (<?= e(fmt_duration((int) $b['duration_minutes'])) ?>)</p>
       <?php foreach ($items as $it): foreach (json_decode((string) $it['details'], true) ?: [] as [$k, $v]): ?><p class="mb-0 small text-muted"><?= e($k) ?> : <?= e($v) ?></p><?php endforeach; endforeach ?>
       <?php if ($b['instructions']): ?><p class="mt-2 mb-0"><strong>Instructions :</strong> <?= e($b['instructions']) ?></p><?php endif ?>
-      <hr><p class="mb-0">Total <strong><?= money((int) $b['total']) ?></strong> <span class="small text-muted">(dont déplacement <?= money((int) $b['travel_fee']) ?>)</span></p>
+      <hr><p class="mb-0">Total <strong><?= money((int) $b['total']) ?></strong> <span class="small text-muted">(dont déplacement <?= money((int) $b['travel_fee']) ?><?= !empty($b['discount']) ? ', remise abonnement −' . money((int) $b['discount']) : '' ?>)</span></p>
     </div>
 
     <div class="panel" id="carte"><h2>Localisation</h2>
