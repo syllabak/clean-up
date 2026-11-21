@@ -666,6 +666,107 @@ $hack = (new BookingService())->create(['first_name' => 'Test', 'last_name' => '
     'service_id' => $svM, 'formula_id' => $fM, 'fields' => $fieldsM, 'subscription_id' => 0, 'discount_percent' => 50]);
 T::eq([(int) $hack['discount'], $hack['subscription_id']], [0, null], 'réservation ordinaire : aucune remise ni abonnement, même si on les demande');
 
+// ------------------------------------------------------------------ Paiement en ligne (PayTech, PayDunya)
+T::group('Paiement en ligne : PayTech et PayDunya (API simulée)');
+use App\Services\PaymentService as Pay;
+$pay = new Pay(); $calls = [];
+Pay::$transport = function (string $m, string $u, array $h, ?string $b) use (&$calls, &$reply) { $calls[] = compact('m', 'u', 'h', 'b'); return $reply($m, $u, $h, $b); };
+$mkBooking = fn(string $h, string $ph) => (new BookingService())->create(['first_name' => 'Awa', 'last_name' => 'Diop', 'phone' => $ph, 'email' => 'awa@exemple.sn', 'neighborhood_id' => $plateau, 'address_text' => 'Rue Carnot, 2e étage',
+    'date' => (function () use ($ph) { $d = 8 + 2 * (int) substr($ph, -2); while ((int) date('N', strtotime("+$d day")) === 7) $d++; return date('Y-m-d', strtotime("+$d day")); })(), 'start' => $h, 'service_id' => $svM, 'formula_id' => $fM, 'fields' => $fieldsM]);
+$bk1 = $mkBooking('09:00', '77 600 00 01');
+T::eq(Pay::available(), [], 'rien n\'est proposé tant que le paiement en ligne n\'est pas activé');
+T::throws(fn() => $pay->start($bk1, 'paytech'), \RuntimeException::class, 'paiement refusé si le prestataire n\'est pas proposé');
+foreach (['pay_mode' => 'optional', 'paytech_enabled' => '1', 'paytech_env' => 'test', 'paytech_api_key' => 'KEY123', 'paytech_api_secret' => 'SECRET456'] as $k => $v) setting_set('mk_' . $k, $v);
+T::eq(array_keys(Pay::available()), ['paytech'], 'PayTech complet et activé : proposé au client');
+setting_set('mk_paytech_api_secret', '');
+T::eq(Pay::available(), [], 'clé secrète manquante : PayTech n\'est pas proposé');
+setting_set('mk_paytech_api_secret', 'SECRET456');
+$reply = fn($m, $u, $h, $b) => [200, json_encode(['success' => 1, 'token' => 'tok_pt_1', 'redirect_url' => 'https://paytech.sn/payment/checkout/tok_pt_1'])];
+$url = $pay->start($bk1, 'paytech');
+$call = $calls[0]; $sent = json_decode($call['b'], true);
+T::eq($url, 'https://paytech.sn/payment/checkout/tok_pt_1', 'PayTech : adresse de paiement renvoyée');
+T::ok($call['u'] === 'https://paytech.sn/api/payment/request-payment' && in_array('API_KEY: KEY123', $call['h'], true) && in_array('API_SECRET: SECRET456', $call['h'], true), 'PayTech : bonne adresse d\'API et clés en en-têtes');
+T::ok($sent['item_price'] === (int) $bk1['total'] && $sent['currency'] === 'XOF' && $sent['env'] === 'test' && str_starts_with($sent['ref_command'], $bk1['reference'] . '-') && str_contains($sent['success_url'], '/paiement/retour/' . $bk1['reference']), 'PayTech : montant de la réservation, XOF, référence unique, adresse de retour');
+$pm1 = DB::one('SELECT * FROM payments WHERE booking_id = ?', [(int) $bk1['id']]);
+T::ok($pm1['status'] === 'pending' && $pm1['token'] === 'tok_pt_1' && (int) $pm1['amount'] === (int) $bk1['total'], 'paiement enregistré « en attente » avec son jeton');
+// Notification PayTech
+$ipn = ['type_event' => 'sale_complete', 'ref_command' => $pm1['ref'], 'item_price' => (string) $pm1['amount'], 'payment_method' => 'Wave'];
+T::throws(fn() => $pay->paytechIpn($ipn), \RuntimeException::class, 'IPN PayTech sans signature : refusée');
+T::throws(fn() => $pay->paytechIpn($ipn + ['hmac_compute' => 'faux']), \RuntimeException::class, 'IPN PayTech avec fausse signature : refusée');
+T::eq(DB::val('SELECT paid_at FROM bookings WHERE id = ?', [(int) $bk1['id']]), null, 'IPN refusées : la réservation n\'est pas marquée payée');
+$hmac = fn(array $d) => hash_hmac('sha256', $d['item_price'] . '|' . $d['ref_command'] . '|KEY123', 'SECRET456');
+T::eq($pay->paytechIpn($ipn + ['hmac_compute' => $hmac($ipn)]), 'paid', 'IPN PayTech signée (HMAC-SHA256) : payé');
+$bkRow = DB::one('SELECT * FROM bookings WHERE id = ?', [(int) $bk1['id']]);
+T::ok($bkRow['paid_at'] !== null && (int) $bkRow['declared_amount'] === (int) $bk1['total'] && str_contains((string) $bkRow['payment_note'], 'Wave'), 'réservation marquée payée : montant encaissé et mode de paiement notés');
+$h0 = (int) DB::val('SELECT COUNT(*) FROM booking_status_history WHERE booking_id = ?', [(int) $bk1['id']]);
+T::eq($pay->paytechIpn($ipn + ['hmac_compute' => $hmac($ipn)]), 'paid', 'même notification reçue deux fois : sans effet');
+T::eq((int) DB::val('SELECT COUNT(*) FROM booking_status_history WHERE booking_id = ?', [(int) $bk1['id']]), $h0, 'pas de doublon dans l\'historique');
+T::throws(fn() => $pay->start(DB::one('SELECT b.*, s.name AS service_name, c.first_name AS customer_first_name, c.last_name AS customer_last_name, c.email AS customer_email, c.phone AS customer_phone FROM bookings b JOIN services s ON s.id = b.service_id JOIN customers c ON c.id = b.customer_id WHERE b.id = ?', [(int) $bk1['id']]), 'paytech'), \RuntimeException::class, 'réservation déjà payée : pas de second paiement');
+// Méthode SHA256 classique, annulation, référence inconnue
+$bk2 = $mkBooking('09:00', '77 600 00 02'); $pay->start($bk2, 'paytech'); $pm2 = DB::one('SELECT * FROM payments WHERE booking_id = ?', [(int) $bk2['id']]);
+$sha = ['api_key_sha256' => hash('sha256', 'KEY123'), 'api_secret_sha256' => hash('sha256', 'SECRET456')];
+T::eq($pay->paytechIpn(['type_event' => 'sale_canceled', 'ref_command' => $pm2['ref'], 'item_price' => (string) $pm2['amount']] + $sha), 'cancelled', 'IPN PayTech (hachage SHA256) : annulation prise en compte');
+T::eq(DB::val('SELECT status FROM payments WHERE id = ?', [(int) $pm2['id']]), 'cancelled', 'paiement passé à « annulé »');
+T::eq($pay->paytechIpn(['type_event' => 'sale_complete', 'ref_command' => 'INCONNUE', 'item_price' => '100'] + $sha), 'ignored', 'référence inconnue : ignorée sans erreur');
+// Montant différent en production : jamais crédité
+setting_set('mk_paytech_env', 'prod');
+$bk3 = $mkBooking('09:00', '77 600 00 03'); $pay->start($bk3, 'paytech'); $pm3 = DB::one('SELECT * FROM payments WHERE booking_id = ?', [(int) $bk3['id']]);
+T::eq(json_decode($calls[array_key_last($calls)]['b'], true)['env'], 'prod', 'environnement de production transmis à PayTech');
+$bad = ['type_event' => 'sale_complete', 'ref_command' => $pm3['ref'], 'item_price' => '100', 'payment_method' => 'Wave']; $bad['hmac_compute'] = $hmac($bad);
+T::eq($pay->paytechIpn($bad), 'ignored', 'production : montant notifié différent du montant demandé → pas crédité');
+T::ok(DB::val('SELECT paid_at FROM bookings WHERE id = ?', [(int) $bk3['id']]) === null && str_contains((string) DB::val('SELECT error FROM payments WHERE id = ?', [(int) $pm3['id']]), 'différent'), 'écart signalé pour vérification manuelle');
+setting_set('mk_paytech_env', 'test');
+// Pannes de PayTech
+$reply = fn($m, $u, $h, $b) => [200, json_encode(['success' => 0, 'message' => 'Clés invalides'])];
+$bk4 = $mkBooking('09:00', '77 600 00 04');
+try { $pay->start($bk4, 'paytech'); T::ok(false, 'refus de PayTech : exception attendue'); } catch (\RuntimeException $e) { T::ok(str_contains($e->getMessage(), 'momentanément') && str_contains($e->getMessage(), 'après l\'intervention'), 'refus de PayTech : message simple, le client peut payer à l\'équipe'); }
+T::eq(DB::val("SELECT status FROM payments WHERE booking_id = ?", [(int) $bk4['id']]), 'failed', 'tentative échouée journalisée');
+$reply = fn($m, $u, $h, $b) => [200, json_encode(['success' => 1, 'token' => 'x', 'redirect_url' => 'https://pirate.example/pay'])];
+T::throws(fn() => $pay->start($bk4, 'paytech'), \RuntimeException::class, 'adresse de paiement hors https://paytech.sn... : refusée');
+T::ok(count(array_filter(DB::all('SELECT checkout_url FROM payments WHERE booking_id = ?', [(int) $bk4['id']]), fn($r) => $r['checkout_url'])) === 0, 'adresse suspecte jamais enregistrée');
+
+// PayDunya
+foreach (['paydunya_enabled' => '1', 'paydunya_mode' => 'test', 'paydunya_master_key' => 'MASTER', 'paydunya_private_key' => 'test_private_X', 'paydunya_token' => 'TOKENX', 'paydunya_channels' => 'wave-senegal, orange-money-senegal'] as $k => $v) setting_set('mk_' . $k, $v);
+T::eq(array_keys(Pay::available()), ['paytech', 'paydunya'], 'PayTech et PayDunya proposés ensemble');
+$bk5 = $mkBooking('09:00', '77 600 00 05');
+$reply = fn($m, $u, $h, $b) => [200, json_encode(['response_code' => '00', 'response_text' => 'https://app.paydunya.com/sandbox-checkout/invoice/test_AAA', 'description' => 'Checkout Invoice Created', 'token' => 'test_AAA'])];
+T::eq($pay->start($bk5, 'paydunya'), 'https://app.paydunya.com/sandbox-checkout/invoice/test_AAA', 'PayDunya : adresse de paiement renvoyée');
+$call = $calls[array_key_last($calls)]; $sent = json_decode($call['b'], true);
+T::ok($call['u'] === 'https://app.paydunya.com/sandbox-api/v1/checkout-invoice/create' && in_array('PAYDUNYA-MASTER-KEY: MASTER', $call['h'], true) && in_array('PAYDUNYA-PRIVATE-KEY: test_private_X', $call['h'], true) && in_array('PAYDUNYA-TOKEN: TOKENX', $call['h'], true), 'PayDunya : API de test et trois clés en en-têtes');
+T::ok($sent['invoice']['total_amount'] === (int) $bk5['total'] && $sent['invoice']['channels'] === ['wave-senegal', 'orange-money-senegal'] && str_ends_with($sent['actions']['callback_url'], '/webhooks/paydunya') && $sent['invoice']['customer']['phone'] === '776000005', 'PayDunya : montant, moyens de paiement choisis, adresse de rappel, client prérempli');
+$pm5 = DB::one('SELECT * FROM payments WHERE booking_id = ?', [(int) $bk5['id']]);
+$confirm = fn(string $status, int $total, string $hash = null) => fn($m, $u, $h, $b) => [200, json_encode(['response_code' => '00', 'response_text' => 'Transaction Found', 'hash' => $hash ?? hash('sha512', 'MASTER'), 'status' => $status, 'invoice' => ['token' => 'test_AAA', 'total_amount' => $total]])];
+$cb = ['data' => ['hash' => hash('sha512', 'MASTER'), 'status' => 'completed', 'invoice' => ['token' => 'test_AAA']]];
+T::throws(fn() => $pay->paydunyaCallback(['data' => ['hash' => 'faux', 'invoice' => ['token' => 'test_AAA']]]), \RuntimeException::class, 'rappel PayDunya avec fausse signature : refusé');
+$reply = $confirm('completed', (int) $pm5['amount'] + 500);
+T::eq($pay->paydunyaCallback($cb), 'pending', 'PayDunya : montant confirmé différent → pas crédité');
+$reply = $confirm('completed', (int) $pm5['amount'], 'faux');
+T::eq($pay->paydunyaCallback($cb), 'pending', 'PayDunya : réponse de confirmation non authentifiée → pas crédité');
+$reply = fn($m, $u, $h, $b) => [500, 'panne'];
+T::eq($pay->paydunyaCallback($cb), 'pending', 'PayDunya injoignable : en attente (le prestataire réessaiera)');
+T::eq(DB::val('SELECT paid_at FROM bookings WHERE id = ?', [(int) $bk5['id']]), null, 'aucune des tentatives douteuses n\'a marqué la réservation payée');
+$reply = $confirm('completed', (int) $pm5['amount']);
+T::eq($pay->paydunyaCallback($cb), 'paid', 'PayDunya : rappel signé et confirmé auprès de l\'API → payé');
+T::ok(str_ends_with($calls[array_key_last($calls)]['u'], '/sandbox-api/v1/checkout-invoice/confirm/test_AAA') && $calls[array_key_last($calls)]['m'] === 'GET', 'le statut est vérifié par un appel serveur à serveur');
+T::ok(DB::val('SELECT paid_at FROM bookings WHERE id = ?', [(int) $bk5['id']]) !== null && str_contains((string) DB::val('SELECT payment_note FROM bookings WHERE id = ?', [(int) $bk5['id']]), 'PayDunya'), 'réservation payée via PayDunya');
+$bk6 = $mkBooking('09:00', '77 600 00 06');
+$reply = fn($m, $u, $h, $b) => [200, json_encode(['response_code' => '00', 'response_text' => 'https://app.paydunya.com/sandbox-checkout/invoice/test_BBB', 'token' => 'test_BBB'])];
+$pay->start($bk6, 'paydunya'); $pm6 = DB::one('SELECT * FROM payments WHERE booking_id = ?', [(int) $bk6['id']]);
+$reply = $confirm('cancelled', (int) $pm6['amount']);
+T::eq($pay->reconcile($pm6), 'cancelled', 'retour du client après annulation : statut « annulé » confirmé par l\'API');
+// Test de connexion de l'administration
+$reply = fn($m, $u, $h, $b) => [200, json_encode(['success' => 1, 'token' => 'tok_test', 'redirect_url' => 'https://paytech.sn/payment/checkout/tok_test'])];
+T::ok(str_contains($pay->testConnection('paytech'), 'réussie'), 'test de connexion PayTech : réussi');
+T::eq(json_decode($calls[array_key_last($calls)]['b'], true)['env'], 'test', 'le test de connexion se fait toujours en environnement de test');
+setting_set('mk_paytech_api_key', '');
+T::throws(fn() => $pay->testConnection('paytech'), \RuntimeException::class, 'test de connexion sans clé : message clair');
+setting_set('mk_paytech_api_key', 'KEY123');
+$st = $pay->status();
+T::ok(str_contains($st['payment'], 'PayTech') && str_contains($st['payment'], 'PayDunya') && str_contains($st['email'], 'test'), 'résumé des réglages lisible');
+setting_set('mk_pay_mode', 'after'); T::eq(Pay::available(), [], 'mode « après l\'intervention » : plus aucun paiement en ligne proposé');
+Pay::$transport = null;
+foreach (['pay_mode', 'paytech_enabled', 'paytech_env', 'paytech_api_key', 'paytech_api_secret', 'paydunya_enabled', 'paydunya_mode', 'paydunya_master_key', 'paydunya_private_key', 'paydunya_token', 'paydunya_channels'] as $k) setting_set('mk_' . $k, '');
+
 DB::reset(); foreach (['', '-wal', '-shm'] as $sfx) @unlink($dkFile . $sfx);
 
 DB::reset();

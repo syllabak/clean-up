@@ -75,6 +75,7 @@ $wa = setting('company_whatsapp', '');
 <?php if ($wa !== ''): ?>
 <a class="wa-float" href="https://wa.me/<?= e(preg_replace('/\D/', '', $wa)) ?>" target="_blank" rel="noopener" aria-label="Écrire sur WhatsApp">WhatsApp</a>
 <?php endif ?>
+<?php if (setting('chatbot_enabled', '1') === '1' && !in_array('booking.js', (array) ($page_js ?? []), true)): ?><div id="cb-root"></div><script src="<?= asset('js/chatbot.js') ?>" defer></script><?php endif ?>
 <script src="<?= asset('vendor/bootstrap.bundle.min.js') ?>"></script>
 <script src="<?= asset('js/app.js') ?>"></script>
 <?php foreach ((array) ($page_js ?? []) as $js): ?><script src="<?= asset(str_contains($js, '/') ? $js : 'js/' . $js) ?>"></script><?php endforeach ?>

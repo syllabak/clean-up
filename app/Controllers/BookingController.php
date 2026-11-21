@@ -129,6 +129,7 @@ final class BookingController extends Controller
         $this->view('public/confirmation', ['title' => 'Réservation enregistrée', 'b' => $b, 'items' => (new BookingRepository())->items((int) $b['id']), 'noindex' => true,
             'mk_event' => ['name' => 'booking', 'id' => $b['reference'], 'value' => (int) $b['total'],],
             'track_link' => url('/suivi/' . $b['reference'] . '/' . $b['track_token']),
+            'pay_providers' => \App\Services\PaymentService::available(),
             'notify_channel' => \App\Services\NotificationService::preferEmail() ? \App\Services\NotificationService::chooseClientChannel('booking.created', $b) : null,
             'photos' => array_values(array_filter((new \App\Services\PhotoService())->forBooking((int) $b['id']), fn($p) => $p['user_id'] === null)), 'page_js' => 'photos.js', 'csrf' => \App\Core\Csrf::token()]);
     }
@@ -170,7 +171,7 @@ final class BookingController extends Controller
         $b = $this->owned($ref);
         $repo = new BookingRepository();
         $this->view('public/track_show', ['title' => 'Réservation ' . $ref, 'b' => $b, 'items' => $repo->items((int) $b['id']), 'history' => $repo->history((int) $b['id']),
-            'can_cancel' => $this->canCancel($b), 'noindex' => true, 'page_js' => 'photos.js', 'csrf' => \App\Core\Csrf::token(),
+            'can_cancel' => $this->canCancel($b), 'noindex' => true, 'pay_providers' => \App\Services\PaymentService::available(), 'page_js' => 'photos.js', 'csrf' => \App\Core\Csrf::token(),
             'photos' => array_values(array_filter((new \App\Services\PhotoService())->forBooking((int) $b['id']), fn($p) => $p['user_id'] === null)),
             'rebook' => in_array($b['status'], ['completed', 'cancelled'], true) ? '/reserver?service=' . rawurlencode((string) $b['service_slug']) : null]);
     }

@@ -80,6 +80,13 @@ $final = in_array($b['status'], ['completed', 'cancelled'], true);
     <?php endif ?>
     <?php endif ?>
 
+    <?php if (!empty($payments)): ?>
+    <div class="panel"><h2>Paiement en ligne</h2>
+      <?php if (!empty($b['paid_at'])): ?><p class="mb-2"><span class="badge text-bg-success">Payé</span> le <?= e(date('d/m/Y H:i', strtotime($b['paid_at'] . ' UTC'))) ?></p><?php endif ?>
+      <?php foreach ($payments as $pm): ?><p class="mb-1 small"><span class="badge text-bg-<?= ['paid' => 'success', 'pending' => 'warning', 'failed' => 'danger', 'cancelled' => 'secondary'][$pm['status']] ?? 'light' ?>"><?= e(['paid' => 'Payé', 'pending' => 'En attente', 'failed' => 'Échec', 'cancelled' => 'Annulé'][$pm['status']] ?? $pm['status']) ?></span>
+        <?= e(\App\Services\PaymentService::PROVIDERS[$pm['provider']] ?? $pm['provider']) ?> · <?= e(money((int) $pm['amount'])) ?><?= $pm['method'] ? ' · ' . e($pm['method']) : '' ?> · <?= e(date('d/m H:i', strtotime($pm['created_at'] . ' UTC'))) ?><?= $pm['error'] ? '<br><span class="text-danger">' . e($pm['error']) . '</span>' : '' ?></p><?php endforeach ?></div>
+    <?php endif ?>
+
     <?php if ($revenue_on && in_array($b['status'], ['in_progress', 'completed'], true)): ?>
     <div class="panel"><h2>Montant encaissé</h2>
       <form method="post" action="/admin/reservations/<?= (int) $b['id'] ?>/montant" class="row g-2"><?= csrf_field() ?>

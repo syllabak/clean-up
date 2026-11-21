@@ -18,6 +18,19 @@ final class Http
         return [$status, (string) $res];
     }
 
+    /** @return array{0:int,1:string} statut HTTP et corps de la réponse. */
+    public static function get(string $url, array $headers = [], int $timeout = 10): array
+    {
+        if (!preg_match('#^https?://#i', $url)) throw new \RuntimeException("Adresse d'API invalide.");
+        $h = array_merge(['Accept: application/json'], $headers);
+        $ctx = stream_context_create(['http' => ['method' => 'GET', 'header' => implode("\r\n", $h), 'timeout' => $timeout, 'ignore_errors' => true]]);
+        $res = @file_get_contents($url, false, $ctx);
+        $status = 0;
+        if (isset($http_response_header[0]) && preg_match('#\s(\d{3})\s#', $http_response_header[0], $m)) $status = (int) $m[1];
+        if ($res === false && $status === 0) throw new \RuntimeException('Connexion à l\'API impossible.');
+        return [$status, (string) $res];
+    }
+
     /** Message d'erreur lisible tiré d'une réponse d'API (champ error.message, message ou début du corps). */
     public static function errorText(int $status, string $body): string
     {

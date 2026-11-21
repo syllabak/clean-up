@@ -182,3 +182,16 @@ Un client ou une entreprise peut s'abonner à un passage régulier, avec une rem
 - **Offres et remises** : Configuration → Offres d'abonnement. `php bin/seed-dakar.php` charge 10 offres de départ (remises de 5 à 10 %, à ajuster selon vos marges).
 - **Règlement** : inchangé, après chaque intervention. L'abonnement ne prélève rien.
 - **Pause / résiliation** : les passages à venir concernés sont annulés sans message au client ; une pause avec date reprend toute seule.
+
+## Messagerie et paiement (Configuration → Messagerie et paiement)
+
+Tout se règle depuis l'administration, sans toucher au serveur : email (SMTP), SMS (API HTTP du fournisseur), PayTech et PayDunya. Les clés sont masquées (jamais réaffichées) et chaque enregistrement est tracé sans les valeurs. Chaque bloc a son test : envoi d'essai pour l'email et le SMS, demande de paiement d'essai de 100 FCFA pour PayTech et PayDunya (rien n'est débité).
+
+- **Notifications au client** : un seul message, par email s'il en a donné un, sinon par SMS. Si l'envoi de l'email échoue, un SMS part à la place (une seule fois). Réglage : Paramètres → Notifications (« Écrire au client par email… »).
+- **Paiement en ligne (facultatif)** : « Paiement en ligne » → « Paiement en ligne proposé après la réservation », puis activer PayTech et/ou PayDunya avec leurs clés. Le client voit « Payer avec… » sur sa page de confirmation et de suivi, et peut toujours régler l'équipe après l'intervention. Rien ne passe par ce serveur (redirection vers la page sécurisée du prestataire).
+- **Sécurité** : une réservation n'est marquée « payée » que sur notification signée (PayTech : HMAC-SHA256 ou hachage des clés ; PayDunya : empreinte SHA-512 de la clé principale, plus une reconfirmation auprès de l'API). Les adresses de paiement hors des domaines du prestataire sont refusées. Les notifications arrivent sur `/webhooks/paytech` et `/webhooks/paydunya` ; en production, le site doit être en HTTPS.
+- **Avant la production** : essayez chaque prestataire en mode Test avec un vrai paiement d'essai de bout en bout, puis passez en production quand votre compte est activé chez eux. Les échanges avec PayTech et PayDunya sont couverts par des tests avec une API simulée, pas par de vrais comptes.
+
+## Assistant de réservation (chatbot)
+
+Un bouton « Prendre rendez-vous » sur le site ouvre une conversation qui réserve à la place du formulaire : service et détails, quartier (les fautes de frappe sont corrigées), adresse, jour et heure (premier créneau possible en un geste), coordonnées, récapitulatif puis confirmation. Il répond aussi aux questions de la FAQ et affiche les prix. Il utilise les mêmes routes que le formulaire (prix, disponibilités, limitation de débit) : aucun service externe, aucune IA. Lien direct : `/?assistant=1`. Désactivation : Paramètres → « Assistant de réservation ».

@@ -16,6 +16,14 @@
     <?php if (!empty($rebook)): ?><a class="btn btn-sm btn-primary" href="<?= e($rebook) ?>">Réserver à nouveau</a><?php endif ?>
     <?php if ($wa): ?><a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="https://wa.me/<?= e($wa) ?>?text=<?= rawurlencode('Bonjour, ma réservation ' . $b['reference']) ?>">Écrire sur WhatsApp</a><?php endif ?></p>
   <?php if ($photos || in_array($b['status'], ['pending', 'confirmed'], true)): ?>
+  <?php if (!empty($pay_providers) && empty($b['paid_at']) && $b['status'] !== 'cancelled'): ?>
+  <div class="panel"><h2 class="h6">Payer en ligne (facultatif)</h2>
+    <p class="small text-muted mb-2">Wave, Orange Money, Free Money ou carte, sur la page sécurisée du prestataire : <?= e(money((int) $b['total'])) ?>. Vous pouvez aussi régler l'équipe après l'intervention.</p>
+    <form method="post" action="/reservation/<?= e($b['reference']) ?>/payer" class="d-flex flex-wrap gap-2"><?= csrf_field() ?>
+      <?php foreach ($pay_providers as $k => $name): ?><button class="btn btn-lemon" name="provider" value="<?= e($k) ?>">Payer avec <?= e($name) ?></button><?php endforeach ?></form></div>
+  <?php elseif (!empty($b['paid_at'])): ?>
+  <div class="panel"><p class="mb-0"><span class="badge text-bg-success">Payé en ligne</span> <span class="small text-muted"><?= e(money((int) $b['total'])) ?> reçus. Rien à régler à l'équipe.</span></p></div>
+  <?php endif ?>
   <div class="panel"><h2 class="h6">Photos avant l'intervention</h2>
     <?= \App\Core\View::partial('partials/photos_widget', ['id' => 'photos', 'ref' => $b['reference'], 'csrf' => $csrf, 'photos' => $photos, 'editable' => in_array($b['status'], ['pending', 'confirmed'], true)]) ?></div>
   <?php endif ?>
