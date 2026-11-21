@@ -1,6 +1,6 @@
-<div class="page-head"><div class="container"><h1>Réserver une prestation</h1></div></div>
-<div class="container section wiz" id="wizard" data-currency="<?= e($currency) ?>" data-csrf="<?= e(\App\Core\Csrf::token()) ?>" data-preselect="<?= e($preselect) ?>" data-preformula="<?= (int) $preformula ?>">
+<div class="container wiz" id="wizard" data-currency="<?= e($currency) ?>" data-csrf="<?= e(\App\Core\Csrf::token()) ?>" data-preselect="<?= e($preselect) ?>" data-preformula="<?= (int) $preformula ?>">
   <script type="application/json" id="services-data"><?= json_encode($services, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
+  <h1 class="visually-hidden">Réserver une prestation</h1>
   <ol class="wiz-progress" id="progress">
     <li>Votre besoin</li><li>Où et quand</li><li>Vos coordonnées</li>
   </ol>
@@ -24,8 +24,8 @@
       <section class="wiz-step" data-step="2" aria-labelledby="t2">
         <h2 class="h4" id="t2">Où intervenons-nous ?</h2>
         <div class="geo-bar"><button type="button" id="geo-btn" class="btn btn-outline-primary btn-sm"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg> Utiliser ma position</button><span id="geo-status" class="small text-muted" role="status"></span></div>
-        <div id="map" class="geo-map" role="application" aria-label="Carte : touchez pour placer votre adresse"></div>
-        <p class="small text-muted mt-1 mb-3">Touchez la carte ou déplacez le repère pour corriger l'endroit exact.</p>
+        <details class="more mb-3" id="map-box"><summary class="small text-primary">Corriger sur la carte (facultatif)</summary>
+          <div id="map" class="geo-map mt-2" role="application" aria-label="Carte : touchez pour placer votre adresse"></div></details>
         <div class="row g-3">
           <div class="col-md-6"><label class="form-label" for="hood">Votre quartier</label><select id="hood" class="form-select"><option value="">Chargement…</option></select></div>
           <div class="col-md-6"><label class="form-label" for="address">Adresse ou repère</label><input id="address" class="form-control" maxlength="500" autocomplete="street-address" placeholder="Rue, villa, près de la pharmacie…"></div>
@@ -54,7 +54,7 @@
 
       <section class="wiz-step" data-step="4" aria-labelledby="t4">
         <h2 class="h4" id="t4">Choisissez un créneau</h2>
-        <p class="text-muted small">Durée estimée : <strong id="dur-label"></strong>. Les créneaux marqués d'un liseré jaune regroupent nos passages dans votre quartier.</p>
+        <p class="text-muted small">Durée estimée : <strong id="dur-label"></strong>.</p>
         <div id="days-loading" class="text-muted">Choisissez votre quartier pour voir les créneaux disponibles.</div>
         <button type="button" class="btn btn-lemon mb-3 d-none" id="soonest">Premier créneau disponible</button>
         <div id="days" class="day-strip mb-3" role="group" aria-label="Jours disponibles"></div>
