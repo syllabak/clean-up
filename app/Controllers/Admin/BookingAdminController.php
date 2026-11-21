@@ -50,6 +50,7 @@ final class BookingAdminController extends Controller
             (new BookingService())->changeStatus((int) $id, Request::str('to'), Auth::id(), Request::str('note') ?: null);
             $this->ok('Statut mis à jour.');
         } catch (\RuntimeException $e) { $this->err($e->getMessage()); }
+        if (Request::str('back') === '1') $this->back('/admin/reservations');   // bouton rapide d'une liste : on y reste
         redirect('/admin/reservations/' . (int) $id);
     }
 

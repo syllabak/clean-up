@@ -10,14 +10,15 @@
   <div class="col-12 col-md-auto"><button class="btn btn-sm btn-primary">Filtrer</button> <a class="btn btn-sm btn-outline-secondary" href="/admin/reservations">Réinitialiser</a></div>
 </form>
 <div class="panel p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
-  <thead><tr><th>Référence</th><th>Quand</th><th>Client</th><th>Service</th><th>Quartier</th><th>Équipe / agent</th><th>Total</th><th>Statut</th></tr></thead><tbody>
+  <thead><tr><th>Référence</th><th>Quand</th><th>Client</th><th>Service</th><th>Quartier</th><th>Équipe / agent</th><th>Total</th><th>Statut</th><th>Actions</th></tr></thead><tbody>
   <?php foreach ($rows as $b): ?><tr>
     <td><a href="/admin/reservations/<?= (int) $b['id'] ?>"><?= e($b['reference']) ?></a></td>
     <td class="text-nowrap"><?= e(date('d/m/Y', strtotime($b['scheduled_date']))) ?> <?= e($b['start_time']) ?></td>
     <td><?= e($b['customer_first_name'] . ' ' . $b['customer_last_name']) ?><br><span class="small text-muted"><?= e(phone_fmt($b['customer_phone'])) ?></span></td>
     <td><?= e($b['service_name']) ?></td><td><?= e($b['neighborhood_name']) ?></td>
     <td><?= e($b['team_name'] ?? '—') ?><?= $b['staff_name'] ? '<br><span class="small text-muted">' . e($b['staff_name']) . '</span>' : '' ?></td>
-    <td class="text-nowrap"><?= money((int) $b['total']) ?></td><td><?= status_badge($b['status']) ?></td></tr>
-  <?php endforeach; if (!$rows): ?><tr><td colspan="8" class="text-center text-muted py-4">Aucune réservation.</td></tr><?php endif ?>
+    <td class="text-nowrap"><?= money((int) $b['total']) ?></td><td><?= status_badge($b['status']) ?></td>
+    <td class="text-nowrap"><?= confirm_button($b) ?> <?= contact_buttons($b['customer_phone'], booking_message($b)) ?></td></tr>
+  <?php endforeach; if (!$rows): ?><tr><td colspan="9" class="text-center text-muted py-4">Aucune réservation.</td></tr><?php endif ?>
 </tbody></table></div></div>
 <?= \App\Core\View::partial('partials/pagination', ['page' => $page, 'pages' => $pages]) ?>

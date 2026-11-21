@@ -13,6 +13,7 @@
     <div class="panel"><h2>Client</h2>
       <p class="mb-1"><strong><?= e($b['customer_first_name'] . ' ' . $b['customer_last_name']) ?></strong></p>
       <p class="mb-0"><a href="tel:+<?= e($b['customer_phone']) ?>"><?= e(phone_fmt($b['customer_phone'])) ?></a><?= $b['customer_email'] ? ' · <a href="mailto:' . e($b['customer_email']) . '">' . e($b['customer_email']) . '</a>' : '' ?></p>
+      <p class="mt-2 mb-0"><?= contact_buttons($b['customer_phone'], booking_message($b)) ?></p>
     </div>
     <div class="panel"><h2>Notes internes</h2>
       <form method="post" action="/admin/reservations/<?= (int) $b['id'] ?>/note" class="d-flex gap-2 mb-3"><?= csrf_field() ?><input class="form-control" name="note" maxlength="2000" placeholder="Ajouter une note…" required><button class="btn btn-outline-primary">Ajouter</button></form>

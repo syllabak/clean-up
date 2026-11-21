@@ -85,6 +85,21 @@ php tests/smoke.php   # parcours HTTP complet sur un serveur temporaire (CSRF, d
 - **Droits** : `crm.manage` (administrateur et gestionnaire), `finance.manage` (administrateur seul).
 - Après mise à jour d'une installation existante : `php bin/migrate.php` (migrations 008 et 009).
 
+## Parcours simplifiés
+
+**Pour le client**
+- **Réservation en 3 écrans** au lieu de 6 : (1) le besoin, avec les détails qui apparaissent sous le service choisi ; (2) où et quand, avec **un seul choix de quartier** (au lieu de quatre listes en cascade) et les créneaux qui s'affichent dès que le quartier est choisi ; (3) nom, téléphone et récapitulatif sur la même page. Le nom est un seul champ ; email, instructions d'accès et « comment nous avez-vous connus » sont repliés, car facultatifs.
+- **Lien de suivi personnel** : chaque réservation a un lien secret (`/suivi/RÉFÉRENCE/JETON`) envoyé dans les messages « réservation enregistrée » et « confirmée » (variable `{lien_suivi}` des modèles) et affiché sur la page de confirmation. Un clic ouvre le suivi, sans retaper la référence ni le téléphone (qui restent possibles). La migration 013 ajoute ce lien aux modèles existants qui ne l'ont pas encore.
+- **Coordonnées retenues sur l'appareil** : à la réservation suivante, nom, téléphone, email et adresse sont préremplis (stockés dans le navigateur uniquement, avec un lien « Ce n'est pas vous ? Effacer »).
+- **Réserver à nouveau** : bouton sur le suivi d'une réservation terminée ou annulée, qui rouvre le même service.
+
+**Pour la gestion**
+- **Tableau de bord** : « À faire maintenant » (réservations à confirmer, interventions à affecter, prospects à contacter ou relancer, messages du site, envois en échec, chacun avec son bouton), liste des interventions du jour, et « Premiers pas » (administrateur) qui indique ce qu'il reste à régler : coordonnées, service prêt, zones, équipe et horaires, envoi des messages, comptes de démonstration.
+- **Recherche unique** (barre en haut de l'administration) : référence, nom, morceau de numéro ou email retrouvent réservations, clients et prospects. Une référence exacte ouvre directement la réservation.
+- **Actions rapides** : « Confirmer », « Appeler » et « WhatsApp » (message déjà écrit) directement dans la liste des réservations, le tableau de bord, la recherche et la fiche réservation.
+- **Menu de 8 entrées** (Tableau de bord, Réservations, Planning, Clients, Prospects, Marketing, Gestion, Configuration) au lieu de 28. Tout ce qui se règle rarement (services, zones, équipes, messages, site, utilisateurs, paramètres) est rangé dans **Configuration**, par thème ; chacun ne voit que ce à quoi il a droit.
+- Après mise à jour : `php bin/migrate.php` (migration 013).
+
 ## Marketing et publicité
 
 Tout se règle dans l'administration (**Marketing → Canaux marketing**, réservé à l'administrateur) : aucun fichier à modifier sur le serveur. Les valeurs saisies l'emportent sur le `.env`, qui reste le repli. Les clés et mots de passe ne sont jamais réaffichés (laissez le champ vide pour les garder). Ils sont enregistrés dans la base : protégez-la comme le `.env`.

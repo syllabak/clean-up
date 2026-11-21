@@ -416,6 +416,53 @@ T::ok($ev['marketing_optout_at'] && $ev['marketing_consent_source'] === 'whatsap
 // Consentement à la réservation : la case apparaît sur le formulaire public
 [, , $b] = (new Client($port))->get('/reserver'); T::ok(str_contains($b, 'id="consent"') && !preg_match('/id="consent"[^>]*checked/', $b), 'formulaire de réservation : case d\'offres présente, décochée par défaut');
 
+// ------------------------------------------------------------------ Parcours simplifiés
+T::group('Parcours simplifiés : lien de suivi, recherche, actions rapides, tableau de bord');
+\App\Core\Database::reset();
+$tok = \App\Core\Database::val('SELECT track_token FROM bookings WHERE reference = ?', [$ref]);
+$lk = new Client($port);
+[$s, $h] = $lk->get("/suivi/$ref/$tok"); T::ok($s === 302 && str_ends_with($h['location'][0], "/suivi/$ref"), 'lien de suivi personnel : redirige vers la réservation');
+[$s, , $b] = $lk->get("/suivi/$ref"); T::ok($s === 200 && str_contains($b, $ref), 'réservation visible sans saisir référence ni téléphone');
+[$s, $hh] = $lk->get("/suivi/$ref/calendrier"); T::ok($s === 200 && str_contains(implode(' ', $hh['content-type'] ?? []), 'text/calendar'), 'le lien personnel n\'avale pas la route « agenda »');
+T::ok(str_contains($b, 'Réserver à nouveau') && str_contains($b, '/reserver?service='), 'réservation terminée ou annulée : bouton « Réserver à nouveau »');
+$bad = new Client($port);
+[$s, $h] = $bad->get("/suivi/$ref/" . str_repeat('a', 32)); T::ok($s === 302 && str_ends_with($h['location'][0], '/suivi'), 'mauvais jeton : renvoyé au formulaire');
+[$s] = $bad->get("/suivi/$ref"); T::eq($s, 302, 'mauvais jeton : aucun accès accordé');
+[$s] = $bad->get('/suivi/CU-INCONNU/' . str_repeat('b', 32)); T::eq($s, 302, 'référence inconnue : même réponse');
+[, , $b] = (new Client($port))->get('/reserver'); T::ok(str_contains($b, 'id="prefill-note"') && str_contains($b, 'id="prefill-clear"'), 'formulaire de réservation : mémoire des coordonnées (avec « effacer »)');
+
+[$s, , $b] = $admin->get('/admin'); T::ok($s === 200 && str_contains($b, 'À faire maintenant') && str_contains($b, 'Premiers pas'), 'tableau de bord : « À faire maintenant » et « Premiers pas »');
+T::eq(substr_count($b, 'class="side-link'), 8, 'menu d\'administration : 8 entrées seulement');
+T::ok(str_contains($b, 'href="/admin/configuration"') && str_contains($b, 'name="q"') && str_contains($b, '/admin/recherche'), 'entrée « Configuration » et barre de recherche présentes');
+foreach (['/admin/configuration' => 'Configuration', '/admin/crud/services' => 'Configuration', '/admin/parametres' => 'Configuration', '/admin/crud/customers' => 'Clients', '/admin/crud/expenses' => 'Gestion', '/admin/crud/acquisition_channels' => 'Marketing', '/admin/marketing/campagnes' => 'Marketing'] as $u => $lab) {
+    [, , $pg] = $admin->get($u); preg_match('#class="side-link active"[^>]*>([^<]+)<#', $pg, $mm); T::eq($mm[1] ?? null, $lab, "menu : « $u » garde « $lab » actif");
+}
+[$s, , $b] = $admin->get('/admin/configuration'); T::ok($s === 200 && str_contains($b, 'Services et tarifs') && str_contains($b, 'Quartiers desservis') && str_contains($b, 'Utilisateurs'), 'Configuration : tous les réglages rangés sur une page');
+[$s, , $b] = $m->get('/admin/configuration'); T::ok($s === 200 && str_contains($b, 'Services et tarifs') && !str_contains($b, 'Utilisateurs') && !str_contains($b, 'Paramètres'), 'Configuration : le gestionnaire ne voit que ce qui lui est permis');
+[$s] = $ag->get('/admin/configuration'); T::ok($s === 403 || $s === 302, 'Configuration : agent refusé');
+[$s, , $b] = (new Client($port))->get('/api/geo/all/0'); $hoods = json_decode($b, true); T::ok($s === 200 && count($hoods) > 5 && isset($hoods[0]['commune'], $hoods[0]['travel_fee']), 'une seule liste de quartiers pour le client : ' . count($hoods) . ' quartiers');
+[, , $b] = (new Client($port))->get('/reserver'); T::ok(!str_contains($b, 'id="region"') && !str_contains($b, 'id="commune"') && str_contains($b, 'id="full_name"') && substr_count($b, 'data-step="') === 6, 'formulaire : plus de listes en cascade, un seul champ pour le nom');
+[$s, , $b] = $m->get('/admin'); T::ok($s === 200 && !str_contains($b, 'Premiers pas'), 'gestionnaire : pas de « Premiers pas » (réservé à l\'administrateur)');
+[$s] = (new Client($port))->get('/admin/recherche?q=test'); T::eq($s, 302, 'recherche : visiteur anonyme redirigé');
+[$s] = $ag->get('/admin/recherche?q=test'); T::ok($s === 403 || $s === 302, 'recherche : agent refusé');
+[$s, , $b] = $admin->get('/admin/recherche?q=' . rawurlencode('Khady')); T::ok($s === 200 && str_contains($b, 'Prospects') && str_contains($b, 'Khady Seck'), 'recherche par nom : prospect retrouvé');
+[$s, , $b] = $admin->get('/admin/recherche?q=' . rawurlencode('7 456 78')); T::ok($s === 200 && str_contains($b, 'Clients'), 'recherche par morceau de numéro : client retrouvé');
+[$s, $h] = $admin->get('/admin/recherche?q=' . rawurlencode($ref)); T::ok($s === 302 && str_contains($h['location'][0], '/admin/reservations/'), 'référence exacte : ouvre directement la réservation');
+[$s, , $b] = $admin->get('/admin/recherche?q=a'); T::ok($s === 200 && str_contains($b, 'au moins 2 caractères'), 'recherche trop courte : consigne affichée');
+[$s, , $b] = $admin->get('/admin/recherche?q=' . rawurlencode("'; DROP TABLE bookings; --")); T::eq($s, 200, 'recherche : saisie piégée sans effet');
+[$s, , $b] = $m->get('/admin/recherche?q=Khady'); T::ok($s === 200 && str_contains($b, 'Prospects'), 'gestionnaire : recherche prospects autorisée (droit CRM)');
+
+// Confirmation en un clic depuis une liste
+\App\Core\Database::reset();
+$pend = \App\Core\Database::val("SELECT id FROM bookings WHERE status = 'pending' LIMIT 1");
+if ($pend) {
+    [, , $b] = $admin->get('/admin/reservations'); T::ok(str_contains($b, 'value="confirmed"') && str_contains($b, 'wa.me/') && str_contains($b, 'tel:+'), 'liste des réservations : boutons Confirmer, Appeler, WhatsApp');
+    $tt = $admin->token('/admin/reservations');
+    [$s, $h] = $admin->req('POST', "/admin/reservations/$pend/statut", ['_csrf' => $tt, 'to' => 'confirmed', 'back' => '1'], ['Referer: http://127.0.0.1:' . $port . '/admin/reservations']);
+    \App\Core\Database::reset();
+    T::ok($s === 302 && str_ends_with($h['location'][0], '/admin/reservations') && \App\Core\Database::val('SELECT status FROM bookings WHERE id = ?', [$pend]) === 'confirmed', 'Confirmer en un clic : statut changé, retour sur la liste');
+} else T::ok(true, 'aucune réservation en attente à confirmer dans ce jeu d\'essai');
+
 // ------------------------------------------------------------------ Cron
 T::group('Tâches planifiées HTTP');
 [$s] = $cl->get('/cron/run'); T::eq($s, 403, 'cron sans jeton → 403');

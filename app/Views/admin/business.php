@@ -2,6 +2,7 @@
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
   <h1 class="mb-0 me-auto">Gestion et résultats</h1>
   <form method="get" class="d-flex flex-wrap gap-1 align-items-center"><input class="form-control form-control-sm w-auto" type="date" name="from" value="<?= e($from) ?>" aria-label="Du"><span>→</span><input class="form-control form-control-sm w-auto" type="date" name="to" value="<?= e($to) ?>" aria-label="Au"><button class="btn btn-sm btn-outline-secondary">Afficher</button></form>
+  <a class="btn btn-sm btn-outline-primary" href="/admin/crud/expenses">Toutes les dépenses</a>
   <a class="btn btn-sm btn-primary" href="/admin/crud/expenses/nouveau">Saisir une dépense</a>
 </div>
 <p class="text-muted small">Chiffre d'affaires = réservations terminées (montant saisi, à défaut montant estimé). Période : <?= e(date('d/m/Y', strtotime($from))) ?> au <?= e(date('d/m/Y', strtotime($to))) ?>.</p>

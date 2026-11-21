@@ -482,6 +482,28 @@ T::ok($adRow && $adRow['source'] === 'facebook' && $adRow['medium'] === 'paid_so
 T::eq($rep['total']['spend'], (int) DB::val('SELECT SUM(amount) FROM expenses WHERE channel_id IS NOT NULL AND deleted_at IS NULL AND expense_date >= ? AND expense_date <= ?', [date('Y-m-d', strtotime('-1 day')), date('Y-m-d', strtotime('+90 days'))]), 'total dépensé = toutes les dépenses rattachées à un canal sur la période');
 T::eq($mk->adReport('2000-01-01', '2000-01-31')['platforms'], [], 'période sans données : rien');
 
+// ------------------------------------------------------------------ Parcours simplifiés : lien de suivi, premiers pas
+T::group('Lien de suivi personnel, notifications, premiers pas');
+use App\Services\OnboardingService;
+$tk = DB::one('SELECT reference, track_token FROM bookings WHERE id = ?', [$bkAd['id']]);
+T::ok(preg_match('/^[a-f0-9]{32}$/', (string) $tk['track_token']) === 1, 'chaque réservation reçoit un jeton de suivi aléatoire');
+T::eq((int) DB::val('SELECT COUNT(DISTINCT track_token) FROM bookings'), (int) DB::val('SELECT COUNT(*) FROM bookings'), 'jetons tous différents');
+$link = DB::val("SELECT content FROM notification_logs WHERE booking_id = ? AND channel = 'sms' AND event = 'booking.created'", [$bkAd['id']]);
+T::ok($link !== null && str_contains((string) $link, '/suivi/' . $tk['reference'] . '/' . $tk['track_token']), 'le SMS « réservation enregistrée » contient le lien de suivi personnel');
+T::ok(str_contains((string) DB::val("SELECT body FROM notifications WHERE event = 'booking.confirmed' AND channel = 'email' AND audience = 'client'"), '{lien_suivi}'), 'modèle email « confirmée » : lien de suivi ajouté');
+$steps = OnboardingService::steps();
+T::eq(count($steps), 6, 'six étapes de « premiers pas »');
+$by = array_column($steps, 'done', 'label');
+T::eq($by["Renseigner les coordonnées de l'entreprise"], false, 'coordonnées par défaut : étape à faire');
+T::eq($by['Supprimer ou sécuriser les comptes de démonstration'], false, 'comptes de démonstration présents : étape à faire');
+T::eq($by["Brancher l'envoi des emails ou des SMS"], false, 'envois en mode test : étape à faire');
+setting_set('company_phone', '+221 77 123 45 67'); setting_set('company_email', 'contact@monentreprise.sn');
+DB::exec("UPDATE users SET email = REPLACE(email, '@cleanup.test', '@monentreprise.sn')");
+setting_set('mk_email_driver', 'smtp');
+$by = array_column(OnboardingService::steps(), 'done', 'label');
+T::ok($by["Renseigner les coordonnées de l'entreprise"] && $by['Supprimer ou sécuriser les comptes de démonstration'] && $by["Brancher l'envoi des emails ou des SMS"], 'étapes cochées une fois réglées');
+setting_set('mk_email_driver', '');
+
 DB::reset();
 foreach (['', '-wal', '-shm'] as $s) @unlink($dbFile . $s);
 exit(T::summary());

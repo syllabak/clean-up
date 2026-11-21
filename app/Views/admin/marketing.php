@@ -2,6 +2,7 @@
   <a class="btn btn-primary" href="/admin/marketing/campagnes/nouveau">Nouvelle campagne</a>
   <a class="btn btn-outline-primary" href="/admin/marketing/publicites">Résultats publicitaires</a>
   <a class="btn btn-outline-primary" href="/admin/marketing/liens">Liens suivis</a>
+  <a class="btn btn-outline-secondary" href="/admin/crud/acquisition_channels">Canaux d'acquisition</a>
   <?php if ($can_settings): ?><a class="btn btn-outline-secondary" href="/admin/marketing/canaux">Configurer les canaux</a><?php endif ?></div>
 
 <div class="row g-3 mb-3">

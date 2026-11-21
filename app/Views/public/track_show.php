@@ -13,6 +13,7 @@
   </div>
   <?php $wa = preg_replace('/\D/', '', (string) setting('company_whatsapp', '')); ?>
   <p class="d-flex flex-wrap gap-2"><?php if (!in_array($b['status'], ['cancelled', 'completed'], true)): ?><a class="btn btn-sm btn-outline-primary" href="/suivi/<?= e($b['reference']) ?>/calendrier">Ajouter à mon agenda</a><?php endif ?>
+    <?php if (!empty($rebook)): ?><a class="btn btn-sm btn-primary" href="<?= e($rebook) ?>">Réserver à nouveau</a><?php endif ?>
     <?php if ($wa): ?><a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="https://wa.me/<?= e($wa) ?>?text=<?= rawurlencode('Bonjour, ma réservation ' . $b['reference']) ?>">Écrire sur WhatsApp</a><?php endif ?></p>
   <h2 class="h5">Historique</h2>
   <ul class="timeline mb-4"><?php foreach ($history as $h): ?><li><?= status_badge($h['to_status']) ?> <span class="small text-muted"><?= e(date('d/m/Y H:i', strtotime($h['created_at'] . ' UTC'))) ?></span></li><?php endforeach ?></ul>
