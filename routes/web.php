@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 use App\Core\Router;
-use App\Controllers\{RecruitmentController, HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
-use App\Controllers\Admin\{RecruitmentAdminController, DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
+use App\Controllers\{SubscriptionController, RecruitmentController, HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
+use App\Controllers\Admin\{SubscriptionAdminController, RecruitmentAdminController, DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
 
 $r = new Router();
 
@@ -15,6 +15,13 @@ $r->get('/a-propos', [HomeController::class, 'page']);
 $r->get('/faq', [HomeController::class, 'faq']);
 $r->get('/contact', [HomeController::class, 'contact']);
 $r->post('/contact', [HomeController::class, 'contactSend'], ['throttle:contact,5,600']);
+$r->get('/abonnements', [SubscriptionController::class, 'index']);
+$r->get('/abonnements/{id}', [SubscriptionController::class, 'form']);
+$r->post('/abonnements/{id}', [SubscriptionController::class, 'store'], ['throttle:subscribe,6,3600']);
+$r->get('/abonnement/{token}', [SubscriptionController::class, 'manage'], ['throttle:track,60,600']);
+$r->post('/abonnement/{token}/pause', [SubscriptionController::class, 'pause'], ['throttle:track,30,600']);
+$r->post('/abonnement/{token}/reprendre', [SubscriptionController::class, 'resume'], ['throttle:track,30,600']);
+$r->post('/abonnement/{token}/resilier', [SubscriptionController::class, 'cancel'], ['throttle:track,30,600']);
 $r->get('/recrutement', [RecruitmentController::class, 'form']);
 $r->post('/recrutement', [RecruitmentController::class, 'send'], ['throttle:recruit,6,3600']);
 $r->get('/recrutement/merci', [RecruitmentController::class, 'thanks']);
@@ -79,6 +86,11 @@ $r->post('/admin/services/{id}/dupliquer', [ServiceAdminController::class, 'dupl
 $r->post('/admin/services/{id}/simuler', [ServiceAdminController::class, 'simulate'], ['perm:catalog.manage']);
 // CRM et gestion
 $r->get('/admin/crm', [CrmController::class, 'pipeline'], ['perm:crm.manage']);
+$r->get('/admin/abonnements', [SubscriptionAdminController::class, 'index'], ['perm:subscriptions.manage']);
+$r->get('/admin/abonnements/{id}', [SubscriptionAdminController::class, 'show'], ['perm:subscriptions.manage']);
+foreach (['activer' => 'activate', 'pause' => 'pause', 'reprendre' => 'resume', 'resilier' => 'cancel', 'generer' => 'generate', 'note' => 'note'] as $path => $method) {
+    $r->post('/admin/abonnements/{id}/' . $path, [SubscriptionAdminController::class, $method], ['perm:subscriptions.manage']);
+}
 $r->get('/admin/recrutement', [RecruitmentAdminController::class, 'index'], ['perm:recruitment.manage']);
 $r->post('/admin/recrutement/{id}/statut', [RecruitmentAdminController::class, 'status'], ['perm:recruitment.manage']);
 $r->post('/admin/recrutement/{id}/note', [RecruitmentAdminController::class, 'note'], ['perm:recruitment.manage']);

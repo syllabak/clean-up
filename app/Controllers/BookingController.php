@@ -89,6 +89,7 @@ final class BookingController extends Controller
         $in = Request::json();
         if (!empty($in['website'])) json_response(['error' => 'Requête refusée.'], 400);     // piège à robots
         $in['source'] = 'web';
+        unset($in['subscription_id'], $in['discount_percent'], $in['silent'], $in['status']);   // réservés au moteur d'abonnement : jamais acceptés depuis le navigateur
         $in['attr'] = \App\Services\TrackingService::attribution();
         if (empty($in['channel_id'])) $in['channel_id'] = \App\Services\TrackingService::channelId($in['attr']);   // canal déduit de la publicité
         try {
@@ -128,6 +129,7 @@ final class BookingController extends Controller
         $this->view('public/confirmation', ['title' => 'Réservation enregistrée', 'b' => $b, 'items' => (new BookingRepository())->items((int) $b['id']), 'noindex' => true,
             'mk_event' => ['name' => 'booking', 'id' => $b['reference'], 'value' => (int) $b['total'],],
             'track_link' => url('/suivi/' . $b['reference'] . '/' . $b['track_token']),
+            'notify_channel' => \App\Services\NotificationService::preferEmail() ? \App\Services\NotificationService::chooseClientChannel('booking.created', $b) : null,
             'photos' => array_values(array_filter((new \App\Services\PhotoService())->forBooking((int) $b['id']), fn($p) => $p['user_id'] === null)), 'page_js' => 'photos.js', 'csrf' => \App\Core\Csrf::token()]);
     }
 

@@ -17,6 +17,6 @@ return [
     ],
     'Notifications' => [
         'admin_notification_email' => ['Email qui reçoit les alertes', 'email'], 'admin_notification_phone' => ['Téléphone qui reçoit les SMS d\'alerte', 'text'],
-        'reminder_hours_before' => ['Rappel client (heures avant l\'intervention)', 'number'], 'notif_max_attempts' => ['Tentatives maximum par envoi', 'number'], 'notif_retry_minutes' => ['Délai entre tentatives (minutes, x n° de tentative)', 'number'],
+        'notif_prefer_email' => ['Écrire au client par email s\'il en a donné un (sinon par SMS, et par SMS si l\'email échoue)', 'bool'], 'reminder_hours_before' => ['Rappel client (heures avant l\'intervention)', 'number'], 'notif_max_attempts' => ['Tentatives maximum par envoi', 'number'], 'notif_retry_minutes' => ['Délai entre tentatives (minutes, x n° de tentative)', 'number'],
     ],
 ];

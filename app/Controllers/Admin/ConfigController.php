@@ -16,6 +16,7 @@ final class ConfigController extends Controller
             'Ce que vous vendez' => [
                 ['Services et tarifs', 'Prix, formules, options, photos. Un service est « prêt » quand rien ne manque.', '/admin/crud/services', 'catalog.manage'],
                 ['Catégories', 'Regrouper les services sur le site.', '/admin/crud/service_categories', 'catalog.manage'],
+                ["Offres d'abonnement", 'Fréquences et remises proposées aux clients et aux entreprises.', '/admin/crud/subscription_plans', 'subscriptions.manage'],
             ],
             'Où et avec qui' => [
                 ['Quartiers desservis', 'Zones, frais de déplacement et jours de passage.', '/admin/crud/neighborhoods', 'geo.manage'],

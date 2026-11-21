@@ -27,8 +27,12 @@ final class NotificationService
             if (!$b) return;
             $vars = $this->vars($b);
             $templates = Database::all('SELECT * FROM notifications WHERE company_id = ? AND event = ? AND active = 1', [Env::companyId(), $event]);
+            $prefer = self::preferEmail();
+            $chosen = $prefer ? self::chooseClientChannel($event, $b, $templates) : null;
             foreach ($templates as $t) {
                 if (!self::enabled($event, $t['channel'])) continue;
+                // Le client reçoit un seul message : par email s'il en a donné un, sinon par SMS (WhatsApp reste un canal à part, actif seulement avec l'API).
+                if ($prefer && $t['audience'] === 'client' && in_array($t['channel'], ['email', 'sms'], true) && $t['channel'] !== $chosen) continue;
                 if ($t['channel'] === 'whatsapp' && !WhatsAppGateway::isCloud()) continue;   // sans API, WhatsApp ne peut pas partir tout seul
                 $to = $this->recipient($t['audience'], $t['channel'], $b);
                 if (!$to) continue;
@@ -42,6 +46,22 @@ final class NotificationService
         } catch (\Throwable $e) {
             error_log('Notification (' . $event . '): ' . $e->getMessage());
         }
+    }
+
+    /** Priorité à l'email pour écrire au client (réglage, activé par défaut). Désactivé : email et SMS partent tous les deux, comme avant. */
+    public static function preferEmail(): bool { return setting('notif_prefer_email', '1') === '1'; }
+
+    /**
+     * Canal retenu pour écrire au client au sujet d'un événement : « email » s'il a donné une adresse valide et que ce canal est actif,
+     * sinon « sms » s'il a un numéro, sinon null. @param ?array $templates modèles déjà chargés (sinon relus)
+     */
+    public static function chooseClientChannel(string $event, array $b, ?array $templates = null): ?string
+    {
+        $templates ??= Database::all('SELECT * FROM notifications WHERE company_id = ? AND event = ? AND active = 1', [Env::companyId(), $event]);
+        $has = fn(string $ch) => (bool) array_filter($templates, fn($t) => $t['audience'] === 'client' && $t['channel'] === $ch) && self::enabled($event, $ch);
+        if ($has('email') && filter_var($b['customer_email'] ?? '', FILTER_VALIDATE_EMAIL)) return 'email';
+        if ($has('sms') && !empty($b['customer_phone'])) return 'sms';
+        return null;
     }
 
     /** Tente l'envoi d'une ligne du journal. Ne lève jamais d'exception. */
@@ -62,8 +82,29 @@ final class NotificationService
             $max = (int) setting('notif_max_attempts', '4');
             $next = $attempts < $max ? gmdate('Y-m-d H:i:s', time() + (int) setting('notif_retry_minutes', '10') * 60 * $attempts) : null;
             Database::update('notification_logs', $logId, ['status' => 'failed', 'attempts' => $attempts, 'error' => mb_substr($e->getMessage(), 0, 500), 'next_attempt_at' => $next]);
+            if ($log['channel'] === 'email' && $log['audience'] === 'client' && self::preferEmail() && $this->fallbackToSms($log, $e->getMessage())) {
+                Database::update('notification_logs', $logId, ['next_attempt_at' => null, 'error' => mb_substr('Email impossible, SMS envoyé à la place : ' . $e->getMessage(), 0, 500)]);
+            }
             return false;
         }
+    }
+
+    /** L'email n'a pas pu partir : le client est prévenu par SMS (une seule fois par événement), pour qu'il ne reste jamais sans nouvelle. */
+    private function fallbackToSms(array $log, string $reason): bool
+    {
+        try {
+            if (empty($log['booking_id'])) return false;
+            $b = (new \App\Repositories\BookingRepository())->find((int) $log['booking_id']);
+            if (!$b || empty($b['customer_phone']) || !self::enabled($log['event'], 'sms')) return false;
+            $t = Database::one("SELECT * FROM notifications WHERE company_id = ? AND event = ? AND audience = 'client' AND channel = 'sms' AND active = 1", [Env::companyId(), $log['event']]);
+            if (!$t) return false;
+            if (Database::val("SELECT id FROM notification_logs WHERE booking_id = ? AND event = ? AND audience = 'client' AND channel = 'sms' AND created_at >= ?", [(int) $log['booking_id'], $log['event'], $log['created_at']])) return true;   // déjà fait
+            $vars = $this->vars($b);
+            $id = Database::insert('notification_logs', ['company_id' => Env::companyId(), 'event' => $log['event'], 'audience' => 'client', 'channel' => 'sms', 'recipient' => $b['customer_phone'],
+                'subject' => null, 'content' => strtr($t['body'], $vars), 'template_id' => $t['id'], 'booking_id' => (int) $log['booking_id'], 'status' => 'pending', 'attempts' => 0, 'created_at' => now()]);
+            $this->attempt($id);
+            return true;
+        } catch (\Throwable $e) { error_log('Repli SMS: ' . $e->getMessage()); return false; }
     }
 
     /** Relance les envois échoués dont l'heure est venue. */

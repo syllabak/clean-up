@@ -202,37 +202,54 @@ $svcB = new BookingService();
 $mon = next_dow(1);
 $svcB->create(wash_input($mon, '08:00', 'Unité 15', ['email' => 'client@example.com']));
 $logs = DB::all('SELECT channel, audience, status FROM notification_logs ORDER BY id');
-T::eq(count($logs), 3, 'réservation créée : SMS client + email client + email admin');
+T::eq(array_map(fn($l) => $l['audience'] . ':' . $l['channel'], $logs), ['client:email', 'admin:email'], 'client avec email : un seul message, par email (pas de SMS en double) + alerte admin');
 T::ok(!array_filter($logs, fn($l) => $l['status'] !== 'sent'), 'tous envoyés (pilote « log »)');
-T::ok(str_contains((string) @file_get_contents(BASE_PATH . '/storage/logs/sms.log'), '221771234567'), 'SMS écrit pour le bon numéro');
+$n0 = (int) DB::val('SELECT COUNT(*) FROM notification_logs');
+$svcB->create(wash_input($mon, '09:00', 'Unité 15', ['phone' => '77 333 33 33', 'email' => '']));
+$new = DB::all('SELECT channel, audience, recipient FROM notification_logs WHERE id > ? ORDER BY id', [$n0]);
+T::eq(array_map(fn($l) => $l['audience'] . ':' . $l['channel'], $new), ['client:sms', 'admin:email'], 'client sans email : le SMS prend le relais');
+T::ok(str_contains((string) @file_get_contents(BASE_PATH . '/storage/logs/sms.log'), '221773333333'), 'SMS écrit pour le bon numéro');
+T::eq(NotificationService::chooseClientChannel('booking.created', ['customer_email' => 'client@example.com', 'customer_phone' => '221771234567']), 'email', 'canal choisi : email si le client en a donné un');
+T::eq(NotificationService::chooseClientChannel('booking.created', ['customer_email' => 'pas-un-email', 'customer_phone' => '221771234567']), 'sms', 'canal choisi : email invalide → SMS');
+T::eq(NotificationService::chooseClientChannel('booking.created', ['customer_email' => '', 'customer_phone' => '']), null, 'canal choisi : ni email ni téléphone → aucun');
+// Email désactivé dans les paramètres : le SMS reprend, même si le client a un email
+setting_set(NotificationService::toggleKey('booking.created', 'email'), '0');
+T::eq(NotificationService::chooseClientChannel('booking.created', ['customer_email' => 'client@example.com', 'customer_phone' => '221771234567']), 'sms', 'email désactivé pour cet événement : SMS');
+setting_set(NotificationService::toggleKey('booking.created', 'email'), '1');
+// Ancien comportement, si on le souhaite : email et SMS tous les deux
+setting_set('notif_prefer_email', '0');
+$n0 = (int) DB::val('SELECT COUNT(*) FROM notification_logs');
+$svcB->create(wash_input($mon, '10:00', 'Unité 15', ['phone' => '77 111 11 11', 'email' => 'x@example.com']));
+T::eq((int) DB::val('SELECT COUNT(*) FROM notification_logs') - $n0, 3, 'priorité à l\'email désactivée : email et SMS partent tous les deux (comportement d\'avant)');
+setting_set('notif_prefer_email', '1');
 // Désactivation d'un type de notification
 setting_set(NotificationService::toggleKey('booking.created', 'sms'), '0');
 $n0 = (int) DB::val('SELECT COUNT(*) FROM notification_logs');
-$svcB->create(wash_input($mon, '10:00', 'Unité 15', ['phone' => '77 111 11 11', 'email' => 'x@example.com']));
-T::eq((int) DB::val('SELECT COUNT(*) FROM notification_logs') - $n0, 2, 'SMS désactivé dans les paramètres : seulement 2 envois');
+$svcB->create(wash_input($mon, '11:00', 'Unité 15', ['phone' => '77 111 11 12', 'email' => '']));
+T::eq((int) DB::val('SELECT COUNT(*) FROM notification_logs') - $n0, 1, 'SMS désactivé et pas d\'email : seule l\'alerte admin part');
 setting_set(NotificationService::toggleKey('booking.created', 'sms'), '1');
-// Panne SMTP
+// Panne SMTP : le client est prévenu par SMS à la place
 putenv('MAIL_DRIVER=smtp'); putenv('MAIL_HOST=127.0.0.1'); putenv('MAIL_PORT=1');
 $b = $svcB->create(wash_input($mon, '15:00', 'Unité 15', ['phone' => '77 222 22 22', 'email' => 'panne@example.com']));
 T::ok($b && $b['id'] > 0, 'panne email : la réservation est quand même enregistrée');
 $failed = DB::one("SELECT * FROM notification_logs WHERE booking_id = ? AND channel = 'email' AND audience = 'client'", [$b['id']]);
 T::eq([$failed['status'], (int) $failed['attempts']], ['failed', 1], 'envoi échoué journalisé avec 1 tentative');
-T::ok(!empty($failed['error']) && $failed['next_attempt_at'] !== null, 'erreur conservée et nouvelle tentative planifiée : ' . $failed['error']);
-$sms = DB::one("SELECT status FROM notification_logs WHERE booking_id = ? AND channel = 'sms'", [$b['id']]);
-T::eq($sms['status'], 'sent', 'le SMS part malgré la panne email (canaux indépendants)');
+T::ok(str_contains((string) $failed['error'], 'SMS envoyé à la place') && $failed['next_attempt_at'] === null, 'erreur conservée, SMS de secours signalé, plus de reprise inutile : ' . $failed['error']);
+$sms = DB::one("SELECT status, recipient FROM notification_logs WHERE booking_id = ? AND channel = 'sms' AND audience = 'client'", [$b['id']]);
+T::ok($sms && $sms['status'] === 'sent' && $sms['recipient'] === '221772222222', 'email impossible : le client reçoit le SMS à la place');
 $ns = new NotificationService();
-for ($k = 2; $k <= 4; $k++) {
-    DB::exec('UPDATE notification_logs SET next_attempt_at = ? WHERE id = ?', [gmdate('Y-m-d H:i:s', time() - 5), $failed['id']]);
-    $ns->retryDue();
-}
-$after = DB::one('SELECT status, attempts, next_attempt_at FROM notification_logs WHERE id = ?', [$failed['id']]);
-T::eq([(int) $after['attempts'], $after['next_attempt_at']], [4, null], 'après 4 tentatives : plus aucune reprise planifiée');
-DB::exec('UPDATE notification_logs SET next_attempt_at = ? WHERE id = ?', [gmdate('Y-m-d H:i:s', time() - 5), $failed['id']]);
 $ns->retryDue();
-T::eq((int) DB::val('SELECT attempts FROM notification_logs WHERE id = ?', [$failed['id']]), 4, 'la file automatique ne dépasse jamais le plafond de tentatives');
+T::eq((int) DB::val("SELECT COUNT(*) FROM notification_logs WHERE booking_id = ? AND channel = 'sms' AND audience = 'client'", [$b['id']]), 1, 'une seule fois : pas de second SMS sur les reprises');
 putenv('MAIL_DRIVER=log');
-T::eq($ns->retryNow((int) $failed['id'], true), true, 'relance manuelle forcée réussie une fois le service rétabli');
+T::eq($ns->retryNow((int) $failed['id'], true), true, 'relance manuelle de l\'email réussie une fois le service rétabli');
 T::eq(DB::val('SELECT status FROM notification_logs WHERE id = ?', [$failed['id']]), 'sent', 'statut passé à « envoyé »');
+// Sans SMS disponible (désactivé), l'email échoué reste relancé automatiquement
+setting_set(NotificationService::toggleKey('booking.created', 'sms'), '0');
+putenv('MAIL_DRIVER=smtp');
+$b2 = $svcB->create(wash_input(next_dow(3), '09:00', 'Unité 15', ['phone' => '77 444 44 44', 'email' => 'panne2@example.com']));
+$f2 = DB::one("SELECT * FROM notification_logs WHERE booking_id = ? AND channel = 'email' AND audience = 'client'", [$b2['id']]);
+T::ok($f2['status'] === 'failed' && $f2['next_attempt_at'] !== null, 'pas de SMS de secours possible : l\'email échoué est relancé plus tard');
+putenv('MAIL_DRIVER=log'); setting_set(NotificationService::toggleKey('booking.created', 'sms'), '1');
 // Rappels
 $soon = time() + 20 * 3600;   // dans 20 h : dans la fenêtre de rappel de 24 h
 $tomorrow = date('Y-m-d', $soon);
@@ -540,7 +557,7 @@ putenv('DB_DRIVER=sqlite'); putenv('DB_SQLITE_PATH=' . $dkFile); $GLOBALS['__set
 require_once BASE_PATH . '/database/seeders/DakarCatalogSeeder.php';
 use Database\Seeders\DakarCatalogSeeder as Dk;
 T::eq(Dk::alreadyLoaded(), false, 'base vide : le catalogue peut se charger');
-T::eq(Dk::run(), ['services' => 9, 'neighborhoods' => 33, 'teams' => 4], '9 services, 33 quartiers, 4 équipes');
+T::eq(Dk::run(), ['services' => 9, 'neighborhoods' => 33, 'teams' => 4, 'plans' => 10], '9 services, 33 quartiers, 4 équipes, 10 offres d\'abonnement');
 T::eq(Dk::alreadyLoaded(), true, 'catalogue chargé : un second chargement est refusé (pas de doublons)');
 $cat = new \App\Services\CatalogService();
 foreach (DB::all('SELECT id, name FROM services') as $sv) T::eq(array_column(array_filter($cat->readiness((int) $sv['id']), fn($c) => $c[0] === 'bad'), 1), [], $sv['name'] . ' : prêt à être réservé');
@@ -564,6 +581,91 @@ T::eq($pq->quote($rp, ['formula_id' => formula($rp, 'Panier de linge'), 'fields'
 $bk = (new BookingService())->create(['first_name' => 'Awa', 'last_name' => 'Diop', 'phone' => '77 612 34 56', 'neighborhood_id' => $plateau, 'address_text' => 'Rue 10, près de la poste', 'date' => next_dow(2, 3), 'start' => '09:00',
     'service_id' => $a, 'formula_id' => formula($a, 'Complet'), 'fields' => ['vehicle' => choice($a, 'vehicle', 'Citadine'), 'count' => 1]]);
 T::ok($bk['status'] === 'pending' && (int) $bk['total'] === 9000, 'une réservation de lavage dans le catalogue de Dakar passe : ' . $bk['reference']);
+// ------------------------------------------------------------------ Abonnements
+T::group('Abonnements : rythme, demande, activation, passages, pause et résiliation');
+use App\Services\SubscriptionService as Sub;
+$sb = new Sub();
+$planM = (int) DB::val("SELECT id FROM subscription_plans WHERE name = 'Ménage à domicile, chaque semaine'");
+$planB = (int) DB::val("SELECT id FROM subscription_plans WHERE audience = 'business' ORDER BY id LIMIT 1");
+T::eq((int) DB::val('SELECT discount_percent FROM subscription_plans WHERE id = ?', [$planM]), 10, 'offre de départ : ménage hebdomadaire à −10 %');
+$svM = (int) DB::val('SELECT service_id FROM subscription_plans WHERE id = ?', [$planM]);
+$fM = (int) DB::val('SELECT id FROM service_prices WHERE service_id = ? ORDER BY sort LIMIT 1', [$svM]);
+$fieldsM = []; foreach (DB::all('SELECT id, field_key FROM service_fields WHERE service_id = ?', [$svM]) as $ff) $fieldsM[$ff['field_key']] = (string) DB::val('SELECT id FROM service_field_choices WHERE field_id = ? ORDER BY sort LIMIT 1', [$ff['id']]);
+$subIn = ['plan_id' => $planM, 'kind' => 'person', 'first_name' => 'Awa', 'last_name' => 'Diop', 'phone' => '77 612 34 56', 'neighborhood_id' => $plateau, 'address_text' => 'Rue Carnot, 2e étage',
+    'weekday' => 2, 'start_time' => '09:00', 'start_date' => date('Y-m-d', strtotime('+2 day')), 'formula_id' => $fM, 'fields' => $fieldsM];
+
+// Rythme : un jour fixe de la semaine, un intervalle constant
+$probe = ['start_date' => '2026-12-01', 'weekday' => 4, 'frequency' => 'weekly'];   // le 1er décembre 2026 est un mardi
+T::eq(Sub::anchor($probe), '2026-12-03', 'premier passage : le premier jeudi à partir de la date de début');
+T::eq(Sub::dates($probe, '2026-12-01', '2026-12-24'), ['2026-12-03', '2026-12-10', '2026-12-17', '2026-12-24'], 'chaque semaine : tous les 7 jours');
+T::eq(Sub::dates(['frequency' => 'biweekly'] + $probe, '2026-12-01', '2027-01-10'), ['2026-12-03', '2026-12-17', '2026-12-31'], 'toutes les 2 semaines : tous les 14 jours');
+T::eq(Sub::dates(['frequency' => 'quarterly'] + $probe, '2026-12-01', '2027-04-30'), ['2026-12-03', '2027-03-04'], 'tous les 3 mois : 13 semaines');
+T::eq(Sub::dates($probe, '2026-12-11', '2026-12-18'), ['2026-12-17'], 'seules les dates de la période demandée sont renvoyées, le rythme reste calé sur le début');
+
+// Demande : validations
+T::throws(fn() => $sb->request(['kind' => 'business', 'business_name' => ''] + $subIn), ValidationException::class, 'entreprise sans nom : refusé');
+T::throws(fn() => $sb->request(['weekday' => 7] + $subIn), ValidationException::class, 'dimanche : refusé');
+T::throws(fn() => $sb->request(['start_date' => date('Y-m-d')] + $subIn), ValidationException::class, 'début aujourd\'hui : refusé (au plus tôt demain)');
+T::throws(fn() => $sb->request(['formula_id' => 0] + $subIn), ValidationException::class, 'formule manquante : refusée par le calcul du prix');
+T::throws(fn() => $sb->request(['plan_id' => $planB] + $subIn), ValidationException::class, 'offre entreprises demandée par un particulier : refusé');
+T::throws(fn() => $sb->request(['plan_id' => 99999] + $subIn), ValidationException::class, 'offre inconnue : refusée');
+T::eq((int) DB::val('SELECT COUNT(*) FROM subscriptions'), 0, 'demandes refusées : rien enregistré');
+$sub = $sb->request($subIn);
+T::ok($sub['status'] === 'requested' && (int) $sub['discount_percent'] === 10 && preg_match('/^[a-f0-9]{32}$/', $sub['track_token']), 'demande enregistrée : statut « demande », remise de l\'offre, lien personnel');
+T::eq((int) $sb->request($subIn)['id'], (int) $sub['id'], 'même demande envoyée deux fois : une seule');
+T::eq(Sub::dates($sub + ['frequency' => 'weekly'], date('Y-m-d'), date('Y-m-d', strtotime('+1 day'))), [], 'avant activation, aucun passage n\'existe');
+T::eq((int) DB::val('SELECT COUNT(*) FROM bookings WHERE subscription_id IS NOT NULL'), 0, 'une simple demande ne crée aucune réservation');
+$est = $sb->estimate($sub);
+T::eq($est['discount'], (int) round($est['subtotal'] * 0.10), 'estimation : remise de 10 % sur le sous-total');
+T::eq($est['total'], $est['subtotal'] - $est['discount'] + $est['travel_fee'], 'estimation : total = sous-total − remise + déplacement');
+
+// Activation et génération
+$logsBefore = (int) DB::val('SELECT COUNT(*) FROM notification_logs');
+$g = $sb->activate((int) $sub['id'], [], null);
+T::ok($g['booked'] >= 2 && $g['unavailable'] === 0, 'activation : ' . $g['booked'] . ' passages planifiés sur 21 jours');
+$vis = DB::all('SELECT b.* FROM bookings b WHERE b.subscription_id = ? ORDER BY b.scheduled_date', [(int) $sub['id']]);
+T::ok(count($vis) === $g['booked'] && !array_filter($vis, fn($b) => $b['status'] !== 'confirmed'), 'les passages sont des réservations confirmées dans le planning');
+T::ok(!array_filter($vis, fn($b) => (int) date('N', strtotime($b['scheduled_date'])) !== 2 || $b['start_time'] !== '09:00'), 'tous le mardi à 09:00');
+T::ok(!array_filter($vis, fn($b) => (int) $b['discount'] !== (int) round($b['subtotal'] * 0.10) || (int) $b['total'] !== (int) $b['subtotal'] - (int) $b['discount'] + (int) $b['travel_fee']), 'chaque passage : remise de 10 % appliquée au total');
+T::eq((int) DB::val('SELECT COUNT(*) FROM notification_logs'), $logsBefore, 'passages générés : aucun message envoyé au client (pas de « réservation enregistrée » en rafale)');
+T::eq($sb->generate((int) $sub['id'])['booked'], 0, 'générer deux fois : aucun doublon (idempotent)');
+T::eq((int) DB::val('SELECT COUNT(*) FROM subscription_visits WHERE subscription_id = ?', [(int) $sub['id']]), count($vis), 'un passage suivi par date');
+T::throws(fn() => $sb->activate((int) $sub['id'], [], null), \RuntimeException::class, 'activer deux fois : refusé');
+// Un passage annulé à la main n'est pas recréé : le client saute cette date seulement.
+(new BookingService())->changeStatus((int) $vis[0]['id'], 'cancelled', null, 'Je suis absent', true);
+T::eq($sb->generate((int) $sub['id'])['booked'], 0, 'passage annulé à la main : la date n\'est pas recréée, l\'abonnement continue');
+
+// Créneau habituel impossible : décalage à l'heure libre la plus proche le même jour
+DB::exec('UPDATE subscriptions SET start_time = ? WHERE id = ?', ['17:50', (int) $sub['id']]);
+DB::exec('DELETE FROM subscription_visits WHERE subscription_id = ? AND visit_date = ?', [(int) $sub['id'], $vis[1]['scheduled_date']]);
+DB::exec('UPDATE bookings SET status = ? WHERE id = ?', ['cancelled', (int) $vis[1]['id']]);
+$sb->generate((int) $sub['id']);
+$moved = DB::one('SELECT b.start_time, v.note FROM subscription_visits v JOIN bookings b ON b.id = v.booking_id WHERE v.subscription_id = ? AND v.visit_date = ?', [(int) $sub['id'], $vis[1]['scheduled_date']]);
+T::ok($moved && $moved['start_time'] !== '17:50' && str_contains((string) $moved['note'], 'décalée'), 'heure habituelle impossible : passage décalé à l\'heure libre la plus proche (' . ($moved['start_time'] ?? '?') . ')');
+DB::exec('UPDATE subscriptions SET start_time = ? WHERE id = ?', ['09:00', (int) $sub['id']]);
+
+// Pause, reprise, résiliation
+$open = fn() => (int) DB::val("SELECT COUNT(*) FROM bookings WHERE subscription_id = ? AND status IN ('pending','confirmed') AND scheduled_date >= ?", [(int) $sub['id'], date('Y-m-d', strtotime('+1 day'))]);
+T::ok($open() >= 2, 'avant la pause : des passages à venir');
+$logsBefore = (int) DB::val('SELECT COUNT(*) FROM notification_logs');
+$sb->pause((int) $sub['id'], null, 'client', null);
+T::eq([$open(), DB::val('SELECT status FROM subscriptions WHERE id = ?', [(int) $sub['id']])], [0, 'paused'], 'pause : les passages à venir sont annulés');
+T::eq((int) DB::val('SELECT COUNT(*) FROM notification_logs'), $logsBefore, 'pause : aucun message d\'annulation envoyé');
+T::eq($sb->generate((int) $sub['id']), ['booked' => 0, 'unavailable' => 0], 'en pause : rien n\'est généré');
+T::throws(fn() => $sb->pause((int) $sub['id'], null, 'client', null), \RuntimeException::class, 'pause d\'un abonnement déjà en pause : refusée');
+$r = $sb->resume((int) $sub['id'], null);
+T::ok($r['booked'] >= 2 && $open() >= 2, 'reprise : les passages sont de nouveau planifiés');
+DB::exec('UPDATE subscriptions SET status = ?, paused_until = ? WHERE id = ?', ['paused', date('Y-m-d'), (int) $sub['id']]);
+$auto = $sb->generateAll();
+T::ok(DB::val('SELECT status FROM subscriptions WHERE id = ?', [(int) $sub['id']]) === 'active' && $auto['subscriptions'] >= 1, 'tâche planifiée : une pause arrivée à échéance reprend toute seule');
+$sb->cancel((int) $sub['id'], 'Déménagement', null);
+T::eq([$open(), DB::val('SELECT status FROM subscriptions WHERE id = ?', [(int) $sub['id']])], [0, 'cancelled'], 'résiliation : passages à venir annulés');
+T::eq($sb->generate((int) $sub['id']), ['booked' => 0, 'unavailable' => 0], 'abonnement résilié : plus aucun passage');
+// Une réservation en ligne ne peut pas s'attribuer une remise d'abonnement
+$hack = (new BookingService())->create(['first_name' => 'Test', 'last_name' => 'Remise', 'phone' => '77 500 00 01', 'neighborhood_id' => $plateau, 'address_text' => 'Rue 1, Plateau', 'date' => date('Y-m-d', strtotime('+9 day')), 'start' => '10:00',
+    'service_id' => $svM, 'formula_id' => $fM, 'fields' => $fieldsM, 'subscription_id' => 0, 'discount_percent' => 50]);
+T::eq([(int) $hack['discount'], $hack['subscription_id']], [0, null], 'réservation ordinaire : aucune remise ni abonnement, même si on les demande');
+
 DB::reset(); foreach (['', '-wal', '-shm'] as $sfx) @unlink($dkFile . $sfx);
 
 DB::reset();

@@ -152,3 +152,15 @@ Deux guides illustrés, avec captures d'écran de l'application réelle (donnée
 - `docs/guides/guide-administrateur.pdf` : recevoir une commande, consulter la position et les photos, changer le statut en un clic.
 
 Pour les régénérer après une évolution de l'interface : `node docs/guides/make-photos.cjs`, puis migrer et charger une base d'exemple (`php bin/migrate.php`, `php bin/seed-dakar.php`, `php docs/guides/seed-demo.php`), lancer le serveur dessus, `node docs/guides/capture.cjs` et enfin `node docs/guides/make-guides.cjs`.
+
+## Abonnements (clients et entreprises)
+
+Un client ou une entreprise peut s'abonner à un passage régulier, avec une remise à chaque visite.
+
+- **Côté public** : page `/abonnements` (offres, remises, questions), formulaire de demande avec estimation du prix par passage, puis espace personnel `/abonnement/<lien secret>` pour suivre les prochains passages, mettre en pause ou résilier.
+- **Côté équipe** : menu « Abonnements ». Une demande se confirme avec le client, puis « Activer et planifier » : jour, heure, début et remise restent modifiables.
+- **Passages** : chaque passage est une vraie réservation confirmée, créée 21 jours à l'avance (à l'activation, puis à chaque exécution de `/cron/run`). Aucun message automatique par passage ; le rappel habituel part avant l'intervention. Si l'heure habituelle est prise, l'heure libre la plus proche (à moins de 3 heures) est choisie, sinon le passage est signalé « à replanifier ».
+- **Rythmes** : chaque semaine, toutes les 2 semaines, toutes les 4 semaines, tous les 3 mois (13 semaines), toujours le même jour de la semaine.
+- **Offres et remises** : Configuration → Offres d'abonnement. `php bin/seed-dakar.php` charge 10 offres de départ (remises de 5 à 10 %, à ajuster selon vos marges).
+- **Règlement** : inchangé, après chaque intervention. L'abonnement ne prélève rien.
+- **Pause / résiliation** : les passages à venir concernés sont annulés sans message au client ; une pause avec date reprend toute seule.

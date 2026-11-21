@@ -32,6 +32,7 @@ $wa = setting('company_whatsapp', '');
     <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
         <li class="nav-item"><a class="nav-link" href="/services">Services</a></li>
+        <li class="nav-item"><a class="nav-link" href="/abonnements">Abonnements</a></li>
         <li class="nav-item"><a class="nav-link" href="/faq">Questions</a></li>
         <li class="nav-item"><a class="nav-link" href="/contact">Contact</a></li>
         <li class="nav-item"><a class="nav-link" href="/suivi">Suivre ma réservation</a></li>
@@ -60,6 +61,7 @@ $wa = setting('company_whatsapp', '');
       </div>
       <div class="col-6 col-md-4">
         <p class="fw-semibold mb-2">Informations</p>
+        <p class="mb-1"><a href="/abonnements">Abonnements</a></p>
         <p class="mb-1"><a href="/a-propos">À propos</a></p>
         <p class="mb-1"><a href="/conditions-generales">Conditions générales</a></p>
         <p class="mb-1"><a href="/confidentialite">Confidentialité</a></p>

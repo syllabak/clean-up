@@ -12,7 +12,7 @@
   <h2 class="h5 mt-4">Et maintenant ?</h2>
   <ol class="steps mb-4">
     <li><strong>Nous confirmons</strong><br>Nous vous contactons très vite au <?= e(phone_fmt($b['customer_phone'])) ?> pour confirmer votre créneau.</li>
-    <li><strong>Nous vous prévenons</strong><br>Vous recevez l'équipe affectée, puis un rappel avant l'intervention.</li>
+    <li><strong>Nous vous prévenons</strong><br>Vous recevez l'équipe affectée, puis un rappel avant l'intervention<?php if (($notify_channel ?? null) === 'email'): ?>, par <strong>email</strong> à <?= e($b['customer_email']) ?><?php elseif (($notify_channel ?? null) === 'sms'): ?>, par <strong>SMS</strong> au <?= e(phone_fmt($b['customer_phone'])) ?><?php endif ?>.</li>
     <li><strong>Nous venons chez vous</strong><br>Merci de prévoir l'accès<?= $b['instructions'] ? ' (' . e(mb_strimwidth((string) $b['instructions'], 0, 60, '…')) . ')' : '' ?>. Vous réglez directement à l'équipe.</li>
   </ol>
   <?php $wa = preg_replace('/\D/', '', (string) setting('company_whatsapp', '')); ?>

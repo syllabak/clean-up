@@ -20,7 +20,7 @@ final class CronController extends Controller
     {
         $this->checkToken();
         $n = new NotificationService();
-        json_response(['reminders' => $n->sendReminders(), 'retried_ok' => $n->retryDue(), 'campaign_messages' => (new \App\Services\MarketingService())->processQueue()]);
+        json_response(['reminders' => $n->sendReminders(), 'retried_ok' => $n->retryDue(), 'campaign_messages' => (new \App\Services\MarketingService())->processQueue(), 'subscriptions' => (new \App\Services\SubscriptionService())->generateAll()]);
     }
 
     /**

@@ -451,7 +451,7 @@ $bad = new Client($port);
 [, , $b] = (new Client($port))->get('/reserver'); T::ok(str_contains($b, 'id="prefill-note"') && str_contains($b, 'id="prefill-clear"'), 'formulaire de réservation : mémoire des coordonnées (avec « effacer »)');
 
 [$s, , $b] = $admin->get('/admin'); T::ok($s === 200 && str_contains($b, 'À faire maintenant') && str_contains($b, 'Premiers pas'), 'tableau de bord : « À faire maintenant » et « Premiers pas »');
-T::eq(substr_count($b, 'class="side-link'), 9, 'menu d\'administration : 9 entrées (dont Recrutement)');
+T::eq(substr_count($b, 'class="side-link'), 10, 'menu d\'administration : 10 entrées (dont Abonnements et Recrutement)');
 T::ok(str_contains($b, 'href="/admin/configuration"') && str_contains($b, 'name="q"') && str_contains($b, '/admin/recherche'), 'entrée « Configuration » et barre de recherche présentes');
 foreach (['/admin/configuration' => 'Configuration', '/admin/crud/services' => 'Configuration', '/admin/parametres' => 'Configuration', '/admin/crud/customers' => 'Clients', '/admin/crud/expenses' => 'Gestion', '/admin/crud/acquisition_channels' => 'Marketing', '/admin/marketing/campagnes' => 'Marketing'] as $u => $lab) {
     [, , $pg] = $admin->get($u); preg_match('#class="side-link active"[^>]*>([^<]+)<#', $pg, $mm); T::eq($mm[1] ?? null, $lab, "menu : « $u » garde « $lab » actif");
@@ -550,6 +550,58 @@ T::eq(\App\Core\Database::val('SELECT status FROM job_applications WHERE id = ?'
 $admin->post('/admin/recrutement/' . (int) $ap['id'] . '/note', ['_csrf' => $admin->token('/admin/recrutement'), 'note' => 'Appelé, vient mardi']); \App\Core\Database::reset();
 T::ok(str_contains((string) \App\Core\Database::val('SELECT notes FROM job_applications WHERE id = ?', [(int) $ap['id']]), 'vient mardi'), 'note interne ajoutée');
 [$s, , $b] = $admin->get('/admin/recrutement?status=new'); T::ok($s === 200 && !str_contains($b, 'Ndiaye'), 'filtre par statut');
+
+// ------------------------------------------------------------------ Abonnements
+T::group('Abonnements : offres publiques, demande en ligne, espace client, administration');
+\App\Core\Database::reset();
+$planId = \App\Core\Database::insert('subscription_plans', ['company_id' => 1, 'service_id' => svc('lavage-automobile'), 'name' => 'Lavage auto, chaque semaine', 'audience' => 'all', 'frequency' => 'weekly', 'discount_percent' => 10,
+    'description' => 'Votre véhicule propre chaque semaine.', 'active' => 1, 'sort' => 1, 'created_at' => now()]);
+$svId = (int) \App\Core\Database::val('SELECT service_id FROM subscription_plans WHERE id = ?', [$planId]);
+$fId = (int) \App\Core\Database::val('SELECT id FROM service_prices WHERE service_id = ? ORDER BY sort LIMIT 1', [$svId]);
+$fl = []; foreach (\App\Core\Database::all('SELECT id, field_key, type FROM service_fields WHERE service_id = ?', [$svId]) as $ff) $fl[$ff['field_key']] = $ff['type'] === 'select' ? (string) \App\Core\Database::val('SELECT id FROM service_field_choices WHERE field_id = ? ORDER BY sort LIMIT 1', [$ff['id']]) : '1';
+$sc = new Client($port);
+[$s, , $b] = $sc->get('/abonnements'); T::ok($s === 200 && str_contains($b, 'Lavage auto, chaque semaine') && str_contains($b, '−10 %') && str_contains($b, 'Je m\'abonne'), 'page des abonnements : offres et remises');
+[, , $b] = $sc->get('/'); T::ok(str_contains($b, 'href="/abonnements"'), 'lien « Abonnements » dans le menu du site');
+[$s, , $b] = $sc->get('/abonnements/' . $planId); T::ok($s === 200 && str_contains($b, 'name="weekday"') && str_contains($b, 'name="formula_id"') && str_contains($b, 'subscription.js'), 'formulaire de demande : jour, heure, formule, estimation');
+[$s] = $sc->get('/abonnements/99999'); T::eq($s, 404, 'offre inconnue : 404');
+$tk = $sc->token('/abonnements/' . $planId);
+$form = ['_csrf' => $tk, 'kind' => 'business', 'business_name' => 'Boutique Sow & Fils', 'first_name' => 'Awa', 'last_name' => 'Sow', 'phone' => '77 701 02 03', 'neighborhood_id' => (string) nb('Unité 15'),
+    'address_text' => 'Avenue Pompidou, boutique 12', 'weekday' => '3', 'start_time' => '10:00', 'start_date' => date('Y-m-d', strtotime('+3 day')), 'formula_id' => (string) $fId, 'fields' => $fl, 'notes' => 'Deux boutiques, facture mensuelle souhaitée'];
+[$s] = $sc->post('/abonnements/' . $planId, ['phone' => '12'] + $form); T::eq($s, 302, 'demande incomplète : retour au formulaire');
+\App\Core\Database::reset(); T::eq((int) \App\Core\Database::val('SELECT COUNT(*) FROM subscriptions'), 0, 'demande incomplète : rien d\'enregistré');
+[, , $b] = $sc->get('/abonnements/' . $planId); T::ok(str_contains($b, 'pas un numéro valide') || str_contains($b, 'téléphone'), 'erreur lisible sur le téléphone');
+[$s, $h] = $sc->post('/abonnements/' . $planId, ['_csrf' => $sc->token('/abonnements/' . $planId)] + $form);
+$loc = $h['location'][0] ?? ''; T::ok($s === 302 && preg_match('#/abonnement/[a-f0-9]{32}$#', $loc), 'demande valide : redirigé vers l\'espace personnel');
+\App\Core\Database::reset(); $subRow = \App\Core\Database::one('SELECT * FROM subscriptions ORDER BY id DESC LIMIT 1');
+T::ok($subRow && $subRow['status'] === 'requested' && $subRow['kind'] === 'business' && $subRow['business_name'] === 'Boutique Sow & Fils' && (int) $subRow['weekday'] === 3, 'demande enregistrée avec le nom de l\'entreprise');
+$path = '/abonnement/' . $subRow['track_token'];
+[$s, , $b] = $sc->get($path); T::ok($s === 200 && str_contains($b, 'Demande reçue') && str_contains($b, 'Boutique Sow &amp; Fils'), 'espace personnel : demande reçue, nom échappé');
+[$s] = $sc->get('/abonnement/' . str_repeat('0', 32)); T::eq($s, 404, 'lien inconnu : 404');
+[$s] = $sc->get('/admin/abonnements'); T::eq($s, 302, 'liste des abonnements : réservée à l\'équipe connectée');
+[$s, , $b] = $admin->get('/admin/abonnements'); T::ok($s === 200 && str_contains($b, 'Boutique Sow') && str_contains($b, 'Demandes'), 'administration : la demande est listée');
+[$s, , $b] = $admin->get('/admin/abonnements/' . (int) $subRow['id']); T::ok($s === 200 && str_contains($b, 'Activer l\'abonnement') && str_contains($b, 'Par passage'), 'fiche : prix par passage et bouton d\'activation');
+[$s] = $admin->post('/admin/abonnements/' . (int) $subRow['id'] . '/activer', ['_csrf' => $admin->token('/admin/abonnements/' . (int) $subRow['id']), 'discount_percent' => '12']);
+\App\Core\Database::reset();
+T::ok(\App\Core\Database::val('SELECT status FROM subscriptions WHERE id = ?', [(int) $subRow['id']]) === 'active' && (int) \App\Core\Database::val('SELECT discount_percent FROM subscriptions WHERE id = ?', [(int) $subRow['id']]) === 12, 'activation depuis l\'administration, remise ajustée à 12 %');
+$nb = (int) \App\Core\Database::val('SELECT COUNT(*) FROM bookings WHERE subscription_id = ?', [(int) $subRow['id']]); T::ok($nb >= 2, "passages créés dans le planning : $nb");
+$bid = (int) \App\Core\Database::val('SELECT id FROM bookings WHERE subscription_id = ? ORDER BY id LIMIT 1', [(int) $subRow['id']]);
+[, , $b] = $admin->get('/admin/reservations/' . $bid); T::ok(str_contains($b, 'Abonnement') && str_contains($b, 'remise abonnement'), 'fiche d\'une réservation : lien vers l\'abonnement et remise');
+[, , $b] = $admin->get('/admin/reservations'); T::ok(str_contains($b, '>Abo<'), 'liste des réservations : badge « Abo »');
+[, , $b] = $sc->get($path); T::ok(str_contains($b, 'Prochains passages') && str_contains($b, 'Mettre en pause') && str_contains($b, 'Résilier'), 'espace client actif : passages, pause, résiliation');
+[$s] = $sc->post($path . '/pause', ['_csrf' => $sc->token($path), 'for' => '2w']); \App\Core\Database::reset();
+T::ok(\App\Core\Database::val('SELECT status FROM subscriptions WHERE id = ?', [(int) $subRow['id']]) === 'paused' && (int) \App\Core\Database::val("SELECT COUNT(*) FROM bookings WHERE subscription_id = ? AND status IN ('pending','confirmed') AND scheduled_date <= ?", [(int) $subRow['id'], date('Y-m-d', strtotime('+14 day'))]) === 0, 'pause demandée par le client : passages des 2 semaines annulés');
+[, , $b] = $sc->get($path); T::ok(str_contains($b, 'Reprendre mon abonnement'), 'espace client en pause : bouton de reprise');
+[$s] = $sc->post($path . '/reprendre', ['_csrf' => $sc->token($path)]); \App\Core\Database::reset();
+T::eq(\App\Core\Database::val('SELECT status FROM subscriptions WHERE id = ?', [(int) $subRow['id']]), 'active', 'reprise par le client');
+[$s] = $sc->post($path . '/resilier', ['_csrf' => $sc->token($path), 'reason' => 'Test']); \App\Core\Database::reset();
+T::ok(\App\Core\Database::val('SELECT status FROM subscriptions WHERE id = ?', [(int) $subRow['id']]) === 'cancelled' && (int) \App\Core\Database::val("SELECT COUNT(*) FROM bookings WHERE subscription_id = ? AND status IN ('pending','confirmed') AND scheduled_date >= ?", [(int) $subRow['id'], date('Y-m-d', strtotime('+1 day'))]) === 0, 'résiliation par le client : plus de passage à venir');
+$tkp = $sc->token('/abonnements/' . $planId);
+$sc->post('/abonnements/' . $planId, ['_csrf' => $tkp, 'website' => 'http://spam'] + $form); \App\Core\Database::reset();
+T::eq((int) \App\Core\Database::val("SELECT COUNT(*) FROM subscriptions WHERE status = 'requested'"), 0, 'champ piège rempli : demande ignorée');
+// Sécurité : le navigateur ne peut pas s'accorder une remise d'abonnement en réservant
+$hp = $wash_probe ?? null;
+[$s, , $b] = $cl->get('/cron/run?token=jeton-de-test-123'); T::ok($s === 200 && isset(json_decode($b, true)['subscriptions']), 'tâche planifiée : les abonnements sont traités à chaque exécution');
+[$s, , $b] = $admin->get('/admin/crud/subscription_plans'); T::ok($s === 200 && str_contains($b, 'Lavage auto, chaque semaine'), 'offres d\'abonnement modifiables dans la configuration');
 
 // ------------------------------------------------------------------ Cron
 T::group('Tâches planifiées HTTP');

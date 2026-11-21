@@ -178,6 +178,17 @@ return [
             'address_text' => ['label' => 'Adresse', 'type' => 'textarea', 'required' => true], 'instructions' => ['label' => "Instructions d'accès", 'type' => 'textarea']],
     ],
 
+    'subscription_plans' => [
+        'title' => "Offres d'abonnement", 'table' => 'subscription_plans', 'permission' => 'subscriptions.manage', 'company' => true, 'soft_delete' => true, 'order' => 'sort, id', 'search' => ['name'],
+        'list' => ['name' => 'Offre', 'service_id' => ['Service', 'ref', 'services', 'name'], 'frequency' => ['Rythme', 'option'], 'discount_percent' => 'Remise %', 'audience' => ['Pour', 'option'], 'active' => ['Visible', 'bool']],
+        'fields' => ['name' => ['label' => "Nom de l'offre", 'type' => 'text', 'required' => true],
+            'service_id' => ['label' => 'Service concerné', 'type' => 'select', 'ref' => ['services', 'name', 'deleted_at IS NULL'], 'required' => true],
+            'frequency' => ['label' => 'Rythme des passages', 'type' => 'select', 'options' => ['weekly' => 'Chaque semaine', 'biweekly' => 'Toutes les 2 semaines', 'monthly' => 'Toutes les 4 semaines', 'quarterly' => 'Tous les 3 mois (13 semaines)'], 'required' => true, 'default' => 'weekly'],
+            'discount_percent' => ['label' => 'Remise à chaque passage (en %, de 0 à 50)', 'type' => 'number', 'default' => 5, 'min' => 0, 'max' => 50],
+            'audience' => ['label' => 'Réservée à', 'type' => 'select', 'options' => ['all' => 'Particuliers et entreprises', 'person' => 'Particuliers', 'business' => 'Entreprises'], 'required' => true, 'default' => 'all'],
+            'description' => ['label' => 'Description affichée au client', 'type' => 'textarea'], 'active' => $active, 'sort' => $sort],
+    ],
+
     // ------------------------------------------------------------------ CRM et gestion
     'acquisition_channels' => [
         'title' => "Canaux d'acquisition", 'table' => 'acquisition_channels', 'permission' => 'crm.manage', 'company' => true, 'soft_delete' => true, 'order' => 'sort, name', 'search' => ['name'],
