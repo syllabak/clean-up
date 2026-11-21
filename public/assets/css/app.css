@@ -135,7 +135,7 @@ body.agent { background: #F3F6F9; padding-bottom: env(safe-area-inset-bottom); }
 @media (max-width: 991px) { .is-booking .wa-float, .is-booking .summary { display: none; } .is-booking .wiz { padding-top: .75rem; }
   .is-booking .wiz-progress { margin-bottom: .9rem; gap: .25rem; } .is-booking .wiz-progress li { min-width: 0; padding: .3rem .1rem; font-size: .72rem; border-bottom-width: 3px; }
   .is-booking .wiz h2.h4 { font-size: 1.2rem; } }
-.is-booking .wiz { padding-top: 1.5rem; } .geo-map { height: 220px; }
+.is-booking .wiz { padding-top: 1.5rem; } .geo-map { height: 240px; }
 
 /* Bandeau de consentement aux cookies publicitaires */
 .mk-banner { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 1080; max-width: 640px; margin-inline: auto; background: var(--ink); color: #fff; border-radius: 14px; padding: 14px 16px; box-shadow: 0 8px 30px rgba(0,0,0,.35); font-size: .92rem }

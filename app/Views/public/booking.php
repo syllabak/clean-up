@@ -24,8 +24,8 @@
       <section class="wiz-step" data-step="2" aria-labelledby="t2">
         <h2 class="h4" id="t2">Où intervenons-nous ?</h2>
         <div class="geo-bar"><button type="button" id="geo-btn" class="btn btn-outline-primary btn-sm"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg> Utiliser ma position</button><span id="geo-status" class="small text-muted" role="status"></span></div>
-        <details class="more mb-3" id="map-box"><summary class="small text-primary">Corriger sur la carte (facultatif)</summary>
-          <div id="map" class="geo-map mt-2" role="application" aria-label="Carte : touchez pour placer votre adresse"></div></details>
+        <div id="map" class="geo-map" role="application" aria-label="Carte : touchez pour placer votre adresse"></div>
+        <p class="small text-muted mt-1 mb-3">Touchez la carte à l'endroit exact : le quartier se remplit tout seul.</p>
         <div class="row g-3">
           <div class="col-md-6"><label class="form-label" for="hood">Votre quartier</label><select id="hood" class="form-select"><option value="">Chargement…</option></select></div>
           <div class="col-md-6"><label class="form-label" for="address">Adresse ou repère</label><input id="address" class="form-control" maxlength="500" autocomplete="street-address" placeholder="Rue, villa, près de la pharmacie…"></div>

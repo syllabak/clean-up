@@ -181,7 +181,6 @@
     G.map = L.map('map', { scrollWheelZoom: false }).setView(DAKAR, 11);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { subdomains: 'abc', maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(G.map);
     G.map.on('click', function (e) { place(e.latlng.lat, e.latlng.lng, 'map', false); });
-    var mb = $('map-box'); if (mb) mb.addEventListener('toggle', function () { if (mb.open) setTimeout(function () { G.map.invalidateSize(); if (G.marker) G.map.panTo(G.marker.getLatLng()); }, 60); });
   }
   function place(lat, lng, src, zoom) {
     initMap(); if (!G.map) return;
