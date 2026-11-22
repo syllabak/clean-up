@@ -44,7 +44,7 @@ final class PhotoService
     {
         $file = self::dir() . '/' . basename((string) $photo['path']);
         if (!is_file($file)) abort(404);
-        if ($width !== null && in_array($width, self::THUMBS, true) && function_exists('imagecreatefromstring')) {
+        if ($width !== null && in_array($width, self::THUMBS, true) && self::canThumb()) {
             $thumb = BASE_PATH . '/storage/cache/thumbs/' . (int) $photo['id'] . '_' . $width . '.jpg';
             if (!is_file($thumb) && !self::makeThumb($file, $thumb, $width)) $thumb = null;
             if ($thumb) { self::out($thumb, 'image/jpeg'); }
@@ -60,6 +60,13 @@ final class PhotoService
         header('X-Content-Type-Options: nosniff');
         readfile($file);
         exit;
+    }
+
+    /** Vignettes possibles seulement si GD est chargé avec le JPEG complet (sur Windows/XAMPP : extension=gd dans php.ini). Sinon on sert l'original, sans erreur. */
+    public static function canThumb(): bool
+    {
+        foreach (['imagecreatefromstring', 'imagesx', 'imagesy', 'imagecreatetruecolor', 'imagecopyresampled', 'imagejpeg', 'imagedestroy'] as $fn) if (!function_exists($fn)) return false;
+        return true;
     }
 
     private static function makeThumb(string $src, string $dest, int $w): bool
