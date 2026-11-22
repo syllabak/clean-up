@@ -1,7 +1,7 @@
 <?php use App\Services\CrmService; ?>
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
   <h1 class="mb-0 me-auto">Prospects</h1>
-  <form method="get" class="d-flex gap-1"><select class="form-select form-select-sm" name="channel_id" aria-label="Canal" onchange="this.form.submit()"><option value="">Tous les canaux</option>
+  <form method="get" class="d-flex gap-1"><select class="form-select form-select-sm" name="channel_id" aria-label="Canal" data-autosubmit><option value="">Tous les canaux</option>
     <?php foreach ($channels as $ch): ?><option value="<?= (int) $ch['id'] ?>" <?= $channel === (int) $ch['id'] ? 'selected' : '' ?>><?= e($ch['name']) ?></option><?php endforeach ?></select></form>
   <a class="btn btn-primary btn-sm" href="/admin/crud/leads/nouveau">Nouveau prospect</a>
 </div>

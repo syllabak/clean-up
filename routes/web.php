@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 use App\Core\Router;
-use App\Controllers\{ChatbotController, PaymentController, SubscriptionController, RecruitmentController, HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
+use App\Controllers\{SeoController, ChatbotController, PaymentController, SubscriptionController, RecruitmentController, HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
 use App\Controllers\Admin\{DatabaseUpdateController, AppearanceController, IntegrationsController, SubscriptionAdminController, RecruitmentAdminController, DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
 
 $r = new Router();
@@ -64,6 +64,8 @@ $r->post('/webhooks/whatsapp', [WebhookController::class, 'whatsappReceive'], ['
 $r->post('/webhooks/sms', [WebhookController::class, 'smsReceive'], ['throttle:hook,300,60']);
 
 // ---- Tâches planifiées (cron HTTP protégé par jeton)
+$r->get('/robots.txt', [SeoController::class, 'robots']);
+$r->get('/sitemap.xml', [SeoController::class, 'sitemap']);
 $r->get('/cron/run', [CronController::class, 'run'], ['throttle:cron,30,300']);
 $r->get('/cron/install', [CronController::class, 'install']);   // usage unique, à retirer après l'installation
 

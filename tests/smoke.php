@@ -669,6 +669,11 @@ $admin->post($ap, ['_csrf' => $atk(), 'reset' => '1']); \App\Core\Database::rese
 [, , $b] = (new Client($port))->get('/'); T::ok(!str_contains($b, '--water:#') && str_contains($b, 'data-label="Prendre rendez-vous"'), 'rétablir : apparence d\'origine');
 [, , $b] = $admin->get($ap); T::ok(str_contains($b, 'Diagnostic des téléversements') && str_contains($b, 'accessible en écriture') && str_contains($b, 'upload_max_filesize') === false || str_contains($b, 'PHP accepte'), 'diagnostic des téléversements affiché dans l\'administration');
 T::ok(str_contains(\App\Core\Upload::explain(UPLOAD_ERR_INI_SIZE), 'limite') && str_contains(\App\Core\Upload::explain(UPLOAD_ERR_CANT_WRITE), 'écrire') && str_contains(\App\Core\Upload::explain(UPLOAD_ERR_NO_TMP_DIR), 'temporaire'), 'échec de téléversement : la vraie cause est expliquée');
+T::group('Diagnostic : robots.txt, sitemap, HEAD, en-têtes');
+$pub = new Client($port);
+[$s, , $b] = $pub->get('/robots.txt'); T::ok($s === 200 && str_contains($b, 'Disallow: /admin') && str_contains($b, 'Sitemap:'), 'robots.txt : espace privé exclu, plan du site indiqué');
+[$s, , $b] = $pub->get('/sitemap.xml'); T::ok($s === 200 && str_contains($b, '<urlset') && str_contains($b, '/services') && !str_contains($b, '/admin'), 'sitemap.xml : pages publiques uniquement');
+[$s] = $pub->req('HEAD', '/'); T::eq($s, 200, 'requête HEAD (sondes de disponibilité) : 200 et non 404');
 T::group('Mise à jour de la base sans terminal');
 [, , $b] = $admin->get('/admin'); T::ok(!str_contains($b, 'La base de données n\'est pas à jour'), 'base à jour : aucun bandeau d\'alerte');
 $last = \App\Core\Database::val('SELECT name FROM migrations ORDER BY id DESC LIMIT 1'); \App\Core\Database::exec('DELETE FROM migrations WHERE name = ?', [$last]);

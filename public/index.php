@@ -22,6 +22,13 @@ use App\Core\{Request, Session, ValidationException};
 
 Session::start();
 \App\Services\TrackingService::capture();
+header_remove('X-Powered-By');
+// Site déclaré en https (APP_URL) mais visité en http : redirection permanente. Jamais en local, ni pour les rappels des prestataires (POST).
+if (PHP_SAPI !== 'cli-server' && in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true) && !Request::isHttps() && ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') !== 'https') {   // jamais de boucle derrière un proxy qui annonce déjà https
+    $appUrl = (string) \App\Core\Env::get('APP_URL', '');
+    $host = (string) parse_url($appUrl, PHP_URL_HOST);
+    if (str_starts_with($appUrl, 'https://') && $host !== '' && strcasecmp($host, (string) preg_replace('/:\d+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? ''))) === 0) { header('Location: https://' . $host . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301); exit; }
+}
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');
 header('Referrer-Policy: strict-origin-when-cross-origin');
