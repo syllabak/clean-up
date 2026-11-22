@@ -667,6 +667,8 @@ T::eq(mb_strlen(\App\Services\ThemeService::chatLabel()), 30, 'texte du bouton l
 $aud = \App\Core\Database::val("SELECT COUNT(*) FROM audit_logs WHERE action = 'appearance.save'"); T::ok((int) $aud >= 1, 'journal d\'audit : modification d\'apparence tracée');
 $admin->post($ap, ['_csrf' => $atk(), 'reset' => '1']); \App\Core\Database::reset();
 [, , $b] = (new Client($port))->get('/'); T::ok(!str_contains($b, '--water:#') && str_contains($b, 'data-label="Prendre rendez-vous"'), 'rétablir : apparence d\'origine');
+[, , $b] = $admin->get($ap); T::ok(str_contains($b, 'Diagnostic des téléversements') && str_contains($b, 'accessible en écriture') && str_contains($b, 'upload_max_filesize') === false || str_contains($b, 'PHP accepte'), 'diagnostic des téléversements affiché dans l\'administration');
+T::ok(str_contains(\App\Core\Upload::explain(UPLOAD_ERR_INI_SIZE), 'limite') && str_contains(\App\Core\Upload::explain(UPLOAD_ERR_CANT_WRITE), 'écrire') && str_contains(\App\Core\Upload::explain(UPLOAD_ERR_NO_TMP_DIR), 'temporaire'), 'échec de téléversement : la vraie cause est expliquée');
 T::eq(\App\Services\ThemeService::textOn('#FFD23F'), '#0B2545', 'texte foncé sur un fond clair');
 T::eq(\App\Services\ThemeService::textOn('#0B2545'), '#FFFFFF', 'texte clair sur un fond foncé');
 
