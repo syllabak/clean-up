@@ -52,6 +52,9 @@
     <p class="mb-0"><span class="ap-chat" id="ap-chat"><i class="ap-dot" id="ap-dot"></i><span id="ap-chat-t"><?= e($cb_label !== '' ? $cb_label : \App\Services\ThemeService::CB_DEFAULT_LABEL) ?></span></span></p>
   </div></div>
 </form>
+<div class="panel mt-4"><h2 class="h6">Diagnostic des téléversements</h2>
+  <p class="small text-muted">Si une image (logo, photo) ne s'enregistre pas, la cause est affichée ici.</p>
+  <ul class="list-unstyled small mb-0"><?php foreach ($diag as [$lab, $ok, $msg]): ?><li class="mb-1"><span class="<?= $ok ? 'text-success' : 'text-danger' ?> fw-bold"><?= $ok ? '✓' : '✗' ?></span> <strong><?= e($lab) ?></strong> : <?= e($msg) ?></li><?php endforeach ?></ul></div>
 <style>.ap-sw{display:inline-block;width:.9rem;height:.9rem;border-radius:50%;vertical-align:-2px;margin-right:2px;border:1px solid rgba(0,0,0,.15)}
 .ap-preview{position:sticky;top:90px}.ap-title{font-weight:800;font-size:1.2rem;margin:0 0 .3rem}.ap-btn{display:inline-block;padding:.5rem 1rem;border-radius:10px;font-weight:650}
 .ap-chat{display:inline-flex;align-items:center;gap:.5rem;padding:.65rem 1rem;border-radius:999px;font-weight:700}.ap-dot{width:.6rem;height:.6rem;border-radius:50%;display:inline-block}</style>

@@ -8,3 +8,5 @@ public/uploads/services/*
 storage/cache/*
 !.gitkeep
 motion/out/stills/
+public/uploads/site/*
+!public/uploads/site/.gitkeep

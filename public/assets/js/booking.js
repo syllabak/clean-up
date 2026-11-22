@@ -328,7 +328,7 @@
         saveProfile();
         if (!PH || !PH.count()) { location.href = r.data.redirect; return; }
         $('next').textContent = 'Envoi des photos…';   // la commande est créée ; une panne d'envoi ne l'annule pas (réessai possible sur la confirmation)
-        PH.uploadAll(r.data.reference, CSRF, function (d, t) { $('next').textContent = 'Envoi des photos ' + d + '/' + t + '…'; }).then(function () { location.href = r.data.redirect; });
+        PH.uploadAll(r.data.reference, CSRF, function (d, t) { $('next').textContent = 'Envoi des photos ' + d + '/' + t + '…'; }).then(function (up) { location.href = r.data.redirect + (up && up.failed ? (r.data.redirect.indexOf('?') < 0 ? '?' : '&') + 'photos=echec&n=' + up.failed : ''); });
         return;
       }
       if (r.status === 409) { S.slot = null; showError(r.data.error); go(1); return; }

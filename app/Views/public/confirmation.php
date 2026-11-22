@@ -30,6 +30,7 @@
   <?php endif ?>
   <div class="panel"><h2 class="h6">Photos avant l'intervention</h2>
     <p class="small text-muted mb-2"><?= $photos ? 'Merci, nous les avons bien reçues.' : 'Montrez-nous ce qui sera nettoyé : le prix est plus juste et l\'équipe arrive préparée.' ?><?= $b['lat'] !== null ? ' Position de l\'intervention enregistrée.' : '' ?></p>
+    <?php if (\App\Core\Request::str('photos') === 'echec'): ?><div class="alert alert-warning small" role="alert"><?= (int) \App\Core\Request::int('n') > 1 ? 'Certaines photos' : 'Une photo' ?> n'a pas pu être envoyée. Votre réservation est bien enregistrée : ajoutez-les à nouveau ci-dessous.</div><?php endif ?>
     <?= \App\Core\View::partial('partials/photos_widget', ['id' => 'photos', 'ref' => $b['reference'], 'csrf' => $csrf, 'photos' => $photos, 'editable' => in_array($b['status'], ['pending', 'confirmed'], true)]) ?></div>
   <?php if (!empty($track_link)): ?>
   <div class="panel small"><strong>Votre lien de suivi personnel</strong> : vous le recevez aussi par message. Gardez-le : il vous évite de retaper la référence et le téléphone.
