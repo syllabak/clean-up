@@ -6,9 +6,10 @@
   </ol>
   <div class="row g-4">
     <div class="col-lg-8">
+      <div class="picked" id="picked" aria-label="Vos choix" hidden></div>
       <div id="msg" class="alert alert-danger d-none" role="alert"></div>
 
-      <section class="wiz-step" data-step="0" aria-labelledby="t0">
+      <section class="wiz-step" data-step="0" id="sec-service" aria-labelledby="t0">
         <h2 class="h4" id="t0">Quel service souhaitez-vous ?</h2>
         <div class="row g-2 mt-1" id="service-list"></div>
       </section>

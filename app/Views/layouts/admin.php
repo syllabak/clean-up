@@ -40,7 +40,7 @@ $u = Auth::user();
 <body class="admin">
 <div class="admin-shell">
   <aside class="admin-side" id="side">
-    <a class="brand brand-admin" href="/admin"><span class="brand-drop" aria-hidden="true"></span><?= e(setting('company_name')) ?></a>
+    <a class="brand brand-admin" href="/admin"><?php if ($lg = \App\Services\ThemeService::logo()): ?><img class="brand-logo" src="<?= e($lg) ?>" alt=""><?php else: ?><span class="brand-drop" aria-hidden="true"></span><?php endif ?><?= e(setting('company_name')) ?></a>
     <nav aria-label="Navigation principale">
       <?php foreach ($nav as [$label, $href, $perms, $also]): if (!array_filter($perms, fn($pm) => Auth::can($pm))) continue; $active = $isActive($href, $also); ?>
         <a class="side-link <?= $active ? 'active' : '' ?>" href="<?= e($href) ?>" <?= $active ? 'aria-current="page"' : '' ?>><?= e($label) ?></a>

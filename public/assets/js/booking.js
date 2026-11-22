@@ -48,6 +48,7 @@
     if (p === 1) { initMap(); setTimeout(function () { if (G.map) G.map.invalidateSize(); }, 60); if (!G.asked) { G.asked = true; locate(); } }
     if (p === 1 && S.hood) loadDays();
     if (p === 2) renderRecap();
+    renderPicked();
     window.scrollTo({ top: root.offsetTop - 80, behavior: 'smooth' });
   }
   $('prev').addEventListener('click', function () { if (S.step > 0) go(S.step - 1); });
@@ -86,7 +87,7 @@
   }
   function selectService(s) {
     if (S.svc && S.svc.id === s.id) return;
-    S.svc = s; S.formula = null; S.fields = {}; S.options = []; S.quote = null; S.date = S.slot = null;
+    $('sec-service').classList.add('picked-done'); S.svc = s; S.formula = null; S.fields = {}; S.options = []; S.quote = null; S.date = S.slot = null;
     api('/api/services/' + s.id + '/form').then(function (r) { if (!r.ok) return showError('Service indisponible.'); S.def = r.data;
       if (PREFORMULA && r.data.formulas.some(function (f) { return f.id === PREFORMULA; })) { S.formula = PREFORMULA; }
       PREFORMULA = 0; renderDetails(); $('sec-needs').classList.remove('d-none'); refreshQuote(false); });
@@ -153,6 +154,17 @@
       }, strict ? 0 : 250);
     });
   }
+  /** Choix déjà faits, épinglés en haut sur une ligne : un toucher rouvre la partie concernée. */
+  function renderPicked() {
+    var box = $('picked'); if (!box) return; box.innerHTML = '';
+    var hh = document.querySelector('.site-header'); if (hh) document.documentElement.style.setProperty('--hh', hh.offsetHeight + 'px');
+    var chip = function (t, fn) { var b = el('button', { type: 'button', class: 'pk', text: t }); b.addEventListener('click', fn); box.appendChild(b); };
+    if (S.svc) chip(S.svc.name, function () { $('sec-service').classList.remove('picked-done'); go(0); $('sec-service').scrollIntoView({ block: 'start' }); });
+    if (S.svc && S.step >= 1 && S.quote && S.quote.details && S.quote.details.length) chip(S.quote.details.map(function (d) { return d[1]; }).join(' · '), function () { go(0); });
+    if (S.hood && S.step >= 1) chip(S.hood.name, function () { go(1); });
+    if (S.date && S.slot && S.step >= 2) chip(fmtDay(S.date) + ' · ' + S.slot, function () { go(1); });
+    box.hidden = !box.children.length;
+  }
   function updateSide() {
     var dl = $('side-summary'); dl.innerHTML = '';
     var add = function (t, v) { if (!v) return; dl.appendChild(el('dt', { text: t })); dl.appendChild(el('dd', { text: v })); };
@@ -164,6 +176,7 @@
     }
     if (S.hood) add('Quartier', S.hood.name);
     if (S.date && S.slot) add('Rendez-vous', fmtDay(S.date) + ' à ' + S.slot);
+    renderPicked();
     $('side-total').textContent = S.quote ? money(S.quote.total) : '—';
     if ($('mobile-total')) $('mobile-total').textContent = S.quote ? money(S.quote.total) : '—';
   }

@@ -195,3 +195,7 @@ Tout se règle depuis l'administration, sans toucher au serveur : email (SMTP), 
 ## Assistant de réservation (chatbot)
 
 Un bouton « Prendre rendez-vous » sur le site ouvre une conversation qui réserve à la place du formulaire : service et détails, quartier (les fautes de frappe sont corrigées), adresse, jour et heure (premier créneau possible en un geste), coordonnées, récapitulatif puis confirmation. Il répond aussi aux questions de la FAQ et affiche les prix. Il utilise les mêmes routes que le formulaire (prix, disponibilités, limitation de débit) : aucun service externe, aucune IA. Lien direct : `/?assistant=1`. Désactivation : Paramètres → « Assistant de réservation ».
+
+## Apparence
+
+Administration → Configuration → Apparence : thème (5 palettes prêtes ou couleurs libres), logo, couleur des boutons, texte, couleurs et position du bouton du chatbot. Aperçu en direct, application immédiate sur le site public, bouton « Rétablir l apparence d origine ». Les couleurs sont validées (#RRGGBB) avant d être écrites dans la page ; le texte des boutons passe automatiquement en noir ou blanc selon le fond.

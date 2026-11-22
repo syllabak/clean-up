@@ -647,6 +647,29 @@ T::ok($s === 302 && str_contains($h['location'][0] ?? '', '/suivi/'), 'moyen de 
 foreach (['pay_mode', 'paytech_enabled', 'paytech_api_key', 'paytech_api_secret', 'paytech_methods', 'paytech_env'] as $k) setting_set('mk_' . $k, '');
 \App\Core\Database::reset();
 
+// ------------------------------------------------------------------ Apparence
+T::group('Apparence : thème, logo, boutons, bouton du chatbot');
+setting_set('chatbot_enabled', '1'); \App\Core\Database::reset();
+$ap = '/admin/apparence';
+[$s] = (new Client($port))->get($ap); T::eq($s, 302, 'page Apparence : réservée à l\'administrateur connecté');
+[$s, , $b] = $admin->get($ap); T::ok($s === 200 && str_contains($b, 'name="theme_primary"') && str_contains($b, 'name="cb_label"') && str_contains($b, 'name="logo"'), 'page Apparence : couleurs, logo et bouton du chatbot');
+[, , $b] = $admin->get('/admin/configuration'); T::ok(str_contains($b, '/admin/apparence'), 'carte « Apparence » dans la configuration');
+[, , $b] = (new Client($port))->get('/'); T::ok(!str_contains($b, '--water:#') , 'sans personnalisation : aucun style ajouté');
+$atk = fn() => $admin->token($ap);
+$base = ['theme_dark' => '#14142B', 'theme_primary' => '#6c5ce7', 'theme_accent' => '#FFD93D', 'cb_bg' => '#6C5CE7', 'cb_color' => '#FFFFFF', 'cb_dot' => '#FFD93D', 'cb_position' => 'right', 'brand_show_name' => '1'];
+$admin->post($ap, ['_csrf' => $atk(), 'cb_label' => 'Réserver en 1 minute'] + $base); \App\Core\Database::reset();
+[, , $b] = (new Client($port))->get('/'); T::ok(str_contains($b, '--water:#6C5CE7') && str_contains($b, '--ink:#14142B') && str_contains($b, 'data-label="Réserver en 1 minute"') && str_contains($b, '.cb-launch{left:auto;right:16px;}'), 'thème, texte et position du bouton du chatbot appliqués au site');
+T::ok(str_contains($b, 'content="#14142B"'), 'couleur de la barre du navigateur suivie');
+$admin->post($ap, ['_csrf' => $atk(), 'theme_primary' => 'red;}</style><script>x</script>'] + $base + ['cb_label' => '']); \App\Core\Database::reset();
+[, , $b] = (new Client($port))->get('/'); T::ok(!str_contains($b, '<script>x</script>') && str_contains($b, '--water:#6C5CE7'), 'couleur invalide refusée : rien d\'injecté dans la page, valeur précédente gardée');
+$admin->post($ap, ['_csrf' => $atk(), 'cb_label' => str_repeat('é', 80)] + $base); \App\Core\Database::reset();
+T::eq(mb_strlen(\App\Services\ThemeService::chatLabel()), 30, 'texte du bouton limité à 30 caractères');
+$aud = \App\Core\Database::val("SELECT COUNT(*) FROM audit_logs WHERE action = 'appearance.save'"); T::ok((int) $aud >= 1, 'journal d\'audit : modification d\'apparence tracée');
+$admin->post($ap, ['_csrf' => $atk(), 'reset' => '1']); \App\Core\Database::reset();
+[, , $b] = (new Client($port))->get('/'); T::ok(!str_contains($b, '--water:#') && str_contains($b, 'data-label="Prendre rendez-vous"'), 'rétablir : apparence d\'origine');
+T::eq(\App\Services\ThemeService::textOn('#FFD23F'), '#0B2545', 'texte foncé sur un fond clair');
+T::eq(\App\Services\ThemeService::textOn('#0B2545'), '#FFFFFF', 'texte clair sur un fond foncé');
+
 // ------------------------------------------------------------------ Assistant de réservation (chatbot)
 T::group('Assistant de réservation : bouton, données publiques, désactivation');
 $cb = new Client($port); setting_set('chatbot_enabled', '1'); \App\Core\Database::reset();   // un test précédent a enregistré les paramètres sans cette case

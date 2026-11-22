@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 use App\Core\Router;
 use App\Controllers\{ChatbotController, PaymentController, SubscriptionController, RecruitmentController, HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
-use App\Controllers\Admin\{IntegrationsController, SubscriptionAdminController, RecruitmentAdminController, DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
+use App\Controllers\Admin\{AppearanceController, IntegrationsController, SubscriptionAdminController, RecruitmentAdminController, DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
 
 $r = new Router();
 
@@ -92,6 +92,8 @@ $r->post('/admin/services/{id}/dupliquer', [ServiceAdminController::class, 'dupl
 $r->post('/admin/services/{id}/simuler', [ServiceAdminController::class, 'simulate'], ['perm:catalog.manage']);
 // CRM et gestion
 $r->get('/admin/crm', [CrmController::class, 'pipeline'], ['perm:crm.manage']);
+$r->get('/admin/apparence', [AppearanceController::class, 'index'], ['perm:settings.manage']);
+$r->post('/admin/apparence', [AppearanceController::class, 'save'], ['perm:settings.manage']);
 $r->get('/admin/messagerie-paiement', [IntegrationsController::class, 'index'], ['perm:settings.manage']);
 $r->post('/admin/messagerie-paiement/{section}', [IntegrationsController::class, 'save'], ['perm:settings.manage']);
 $r->post('/admin/messagerie-paiement/{section}/tester', [IntegrationsController::class, 'test'], ['perm:settings.manage']);

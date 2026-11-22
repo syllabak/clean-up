@@ -214,3 +214,12 @@ button.seg:hover { border-color: var(--water); background: var(--foam); } button
 .cb-ph-act { display: flex; flex-wrap: wrap; gap: 8px; }
 .cb-ph-btn { display: inline-block; border: 2px solid var(--water); color: var(--water); background: #fff; border-radius: 999px; padding: .35rem .8rem; font-weight: 600; font-size: .9rem; cursor: pointer; }
 .cb-ph-btn:hover { background: var(--foam); }
+
+/* Parcours : les choix déjà faits restent épinglés en haut, sur une seule ligne, et ne prennent presque pas de place */
+.picked { position: sticky; top: var(--hh, 64px); z-index: 25; display: flex; gap: .4rem; overflow-x: auto; white-space: nowrap; padding: .4rem 0; margin: 0 0 .6rem; background: #fff; border-bottom: 1px solid var(--line); scrollbar-width: none; }
+.picked::-webkit-scrollbar { display: none; } .picked[hidden] { display: none; }
+.picked .pk { flex: none; display: inline-flex; align-items: center; gap: .35rem; border: 1px solid var(--foam-2); background: var(--foam); color: var(--ink); border-radius: 999px; padding: .25rem .7rem; font-size: .85rem; font-weight: 600; cursor: pointer; }
+.picked .pk::after { content: "✎"; color: var(--water); font-size: .8rem; } .picked .pk:hover { border-color: var(--water); }
+#sec-service.picked-done #service-list, #sec-service.picked-done #t0 { display: none; }
+
+.brand-logo { height: 2.2rem; width: auto; max-width: 160px; object-fit: contain; display: block; } .brand-admin .brand-logo { height: 1.8rem; background: #fff; border-radius: 6px; padding: 2px 4px; }
