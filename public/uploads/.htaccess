@@ -1,6 +1,17 @@
-php_flag engine off
-Options -ExecCGI
-RemoveHandler .php .phtml .phar
-<FilesMatch "\.(php|phtml|phar)$">
-  Require all denied
-</FilesMatch>
+# Aucun script exécutable dans les téléversements.
+# Chaque directive est protégée par IfModule : sur un hébergement où PHP tourne en CGI/FastCGI (cas fréquent, y compris XAMPP),
+# une directive php_flag non protégée provoquerait une erreur 500 et toutes les images téléversées seraient cassées.
+<IfModule mod_php.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_authz_core.c>
+  <FilesMatch "\.(php|phtml|phar|pl|py|cgi)$">
+    Require all denied
+  </FilesMatch>
+</IfModule>
