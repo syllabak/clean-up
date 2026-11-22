@@ -28,7 +28,7 @@
       : { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': CSRF }, body: JSON.stringify(body) };
     return fetch(BASE + url, opt).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, status: r.status, data: d }; }); });
   }
-  function showError(msg) { var m = $('msg'); m.textContent = msg; m.classList.toggle('d-none', !msg); if (msg) m.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  function showError(msg) { var m = $('msg'); m.textContent = msg; m.classList.toggle('d-none', !msg); if (msg) m.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   function errText(d) { if (d && d.errors) return Object.keys(d.errors).map(function (k) { return d.errors[k]; }).join(' '); return (d && d.error) || 'Une erreur est survenue. Réessayez.'; }
 
   function payload(extra) {
@@ -42,7 +42,7 @@
     document.querySelectorAll('.wiz-step').forEach(function (sec) { sec.classList.toggle('active', PAGES[p].indexOf(+sec.dataset.step) !== -1); });
     var pr = $('progress'); pr.innerHTML = '';
     TITLES.forEach(function (t, i) { pr.appendChild(el('li', { class: i < p ? 'done' : i === p ? 'cur' : '', text: (i + 1) + '. ' + t })); });
-    $('prev').style.visibility = p === 0 ? 'hidden' : 'visible';
+    $('prev').style.display = p === 0 ? 'none' : '';
     $('next').textContent = p === 2 ? 'Confirmer la réservation' : 'Continuer';
     $('next').disabled = false;
     if (p === 1) { initMap(); setTimeout(function () { if (G.map) G.map.invalidateSize(); }, 60); if (!G.asked) { G.asked = true; locate(); } }
