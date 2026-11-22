@@ -6,7 +6,7 @@ $tab = fn(string $s, string $l, int $n) => '<a class="btn btn-sm ' . ($status ==
 <div class="panel">
   <p class="mb-2"><strong>Lien du formulaire à partager</strong> (WhatsApp, affiche, réseaux) :</p>
   <div class="d-flex flex-wrap gap-2 align-items-center">
-    <input class="form-control" style="max-width:420px" readonly value="<?= e($link) ?>" onclick="this.select()" aria-label="Lien du formulaire de recrutement">
+    <input class="form-control" style="max-width:420px" readonly value="<?= e($link) ?>" data-select-on-click aria-label="Lien du formulaire de recrutement">
     <a class="btn btn-sm btn-outline-secondary" href="/recrutement" target="_blank" rel="noopener">Voir le formulaire</a>
     <a class="btn btn-sm btn-outline-success" target="_blank" rel="noopener" href="<?= e(wa_link('', 'Rejoignez l\'équipe ' . setting('company_name') . ' : ' . $link)) ?>">Partager sur WhatsApp</a>
   </div>

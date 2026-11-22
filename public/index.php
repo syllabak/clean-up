@@ -22,6 +22,13 @@ use App\Core\{Request, Session, ValidationException};
 
 Session::start();
 \App\Services\TrackingService::capture();
+header_remove('X-Powered-By');
+// Site déclaré en https (APP_URL) mais visité en http : redirection permanente. Jamais en local, ni pour les rappels des prestataires (POST).
+if (PHP_SAPI !== 'cli-server' && in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true) && !Request::isHttps() && ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') !== 'https') {   // jamais de boucle derrière un proxy qui annonce déjà https
+    $appUrl = (string) \App\Core\Env::get('APP_URL', '');
+    $host = (string) parse_url($appUrl, PHP_URL_HOST);
+    if (str_starts_with($appUrl, 'https://') && $host !== '' && strcasecmp($host, (string) preg_replace('/:\d+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? ''))) === 0) { header('Location: https://' . $host . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301); exit; }
+}
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');
 header('Referrer-Policy: strict-origin-when-cross-origin');
@@ -43,7 +50,7 @@ try {
     error_log(sprintf("[%s] %s in %s:%d\n%s", date('c'), $e->getMessage(), $e->getFile(), $e->getLine(), $e->getTraceAsString()));
     @file_put_contents(BASE_PATH . '/storage/logs/app.log', sprintf("[%s] %s in %s:%d\n", date('c'), $e->getMessage(), $e->getFile(), $e->getLine()), FILE_APPEND | LOCK_EX);
     // Base absente ou non migrée : le diagnostic est connu, on le dit au lieu d'un 500 opaque.
-    if ($e instanceof PDOException && (str_contains($e->getMessage(), 'no such table') || $e->getCode() === '42S02')) abort(503, "La base de données n'est pas initialisée. Lancez « php bin/migrate.php » sur le serveur.");
+    if ($e instanceof PDOException && (str_contains($e->getMessage(), 'no such table') || str_contains($e->getMessage(), 'no such column') || in_array($e->getCode(), ['42S02', '42S22'], true))) abort(503, "La base de données n'est pas à jour. Lancez « php bin/migrate.php » sur le serveur.");
     if (filter_var(\App\Core\Env::get('APP_DEBUG', 'false'), FILTER_VALIDATE_BOOLEAN)) {
         http_response_code(500); echo '<pre>' . e($e) . '</pre>'; exit;
     }

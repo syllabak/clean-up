@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 use App\Core\Router;
-use App\Controllers\{ChatbotController, PaymentController, SubscriptionController, RecruitmentController, HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
-use App\Controllers\Admin\{AppearanceController, IntegrationsController, SubscriptionAdminController, RecruitmentAdminController, DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
+use App\Controllers\{SeoController, ChatbotController, PaymentController, SubscriptionController, RecruitmentController, HomeController, ServiceController, BookingController, AuthController, AgentController, CronController, WebhookController};
+use App\Controllers\Admin\{DatabaseUpdateController, AppearanceController, IntegrationsController, SubscriptionAdminController, RecruitmentAdminController, DashboardController, BookingAdminController, PlanningController, CrudController, SettingsController, NotificationAdminController, AuditController, CrmController, BusinessController, ServiceAdminController, MarketingController, SearchController, ConfigController};
 
 $r = new Router();
 
@@ -64,6 +64,8 @@ $r->post('/webhooks/whatsapp', [WebhookController::class, 'whatsappReceive'], ['
 $r->post('/webhooks/sms', [WebhookController::class, 'smsReceive'], ['throttle:hook,300,60']);
 
 // ---- Tâches planifiées (cron HTTP protégé par jeton)
+$r->get('/robots.txt', [SeoController::class, 'robots']);
+$r->get('/sitemap.xml', [SeoController::class, 'sitemap']);
 $r->get('/cron/run', [CronController::class, 'run'], ['throttle:cron,30,300']);
 $r->get('/cron/install', [CronController::class, 'install']);   // usage unique, à retirer après l'installation
 
@@ -92,6 +94,7 @@ $r->post('/admin/services/{id}/dupliquer', [ServiceAdminController::class, 'dupl
 $r->post('/admin/services/{id}/simuler', [ServiceAdminController::class, 'simulate'], ['perm:catalog.manage']);
 // CRM et gestion
 $r->get('/admin/crm', [CrmController::class, 'pipeline'], ['perm:crm.manage']);
+$r->post('/admin/mise-a-jour-base', [DatabaseUpdateController::class, 'run'], ['perm:settings.manage']);
 $r->get('/admin/apparence', [AppearanceController::class, 'index'], ['perm:settings.manage']);
 $r->post('/admin/apparence', [AppearanceController::class, 'save'], ['perm:settings.manage']);
 $r->get('/admin/messagerie-paiement', [IntegrationsController::class, 'index'], ['perm:settings.manage']);

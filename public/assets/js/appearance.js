@@ -25,5 +25,13 @@
   });
   document.querySelectorAll('#appearance input').forEach(function (i) { i.addEventListener('input', refresh); });
   document.querySelectorAll('[data-confirm]').forEach(function (b) { b.addEventListener('click', function (e) { if (!window.confirm(b.dataset.confirm)) e.preventDefault(); }); });
+  (function () {   // les images du dossier uploads sont-elles servies par le serveur web ?
+    var li = $('probe'); if (!li) return;
+    var base = (document.querySelector('meta[name="base-path"]') || {}).content || '', im = new Image();
+    var show = function (ok, t) { li.hidden = false; $('probe-i').textContent = ok ? '✓' : '✗'; li.className = 'mb-1 ' + (ok ? 'text-success' : 'text-danger'); $('probe-t').textContent = t; };
+    im.onload = function () { show(true, 'le serveur sert correctement les fichiers du dossier uploads.'); };
+    im.onerror = function () { show(false, 'le serveur refuse ou ne trouve pas les fichiers du dossier uploads (erreur 403, 404 ou 500). Cause probable : un fichier .htaccess non supporté ou un dossier uploads non publié. Vérifiez le journal d\'erreurs du serveur web.'); };
+    im.src = base + '/uploads/probe.gif?t=' + Date.now();
+  })();
   refresh();
 })();

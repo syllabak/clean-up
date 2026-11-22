@@ -412,8 +412,15 @@
   function restart() { if (pending) { var p = pending; pending = null; choicesBox.innerHTML = ''; p.reject(RESTART); } }
 
   // ---------------------------------------------------------------- ouverture et fermeture
+  /** Clavier ouvert sur téléphone : le panneau prend la hauteur réellement visible, pour que les choix et la zone de saisie restent au-dessus du clavier. */
+  function fit() {
+    var vv = window.visualViewport; if (!vv || panel.hidden) return;
+    panel.style.setProperty('--vvh', Math.round(vv.height) + 'px'); panel.style.setProperty('--vvt', Math.round(vv.offsetTop) + 'px'); scroll();
+  }
+  if (window.visualViewport) { window.visualViewport.addEventListener('resize', fit); window.visualViewport.addEventListener('scroll', fit); }
+  input.addEventListener('focus', function () { setTimeout(fit, 250); });
   async function open() {
-    panel.hidden = false; launch.setAttribute('aria-expanded', 'true'); launch.classList.add('open');
+    panel.hidden = false; launch.setAttribute('aria-expanded', 'true'); launch.classList.add('open'); fit();
     if (!started) {
       started = true;
       try { var r = await api('/api/chatbot'); if (!r.ok) throw new Error('cfg'); CFG = r.data; }

@@ -56,6 +56,10 @@ $u = Auth::user();
       <form method="post" action="/deconnexion" class="d-inline"><?= csrf_field() ?><button class="btn btn-sm btn-outline-danger">Déconnexion</button></form>
     </header>
     <div class="admin-content">
+      <?php $pendingDb = []; try { $pendingDb = \App\Core\Migrator::pending(); } catch (\Throwable $e) {} if ($pendingDb && Auth::can('settings.manage')): ?>
+      <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2" role="alert"><div class="flex-grow-1"><strong>La base de données n'est pas à jour</strong> (<?= count($pendingDb) ?> évolution<?= count($pendingDb) > 1 ? 's' : '' ?> en attente). Tant que ce n'est pas fait, certaines fonctions, dont la réservation, peuvent afficher une erreur.</div>
+        <form method="post" action="/admin/mise-a-jour-base"><?= csrf_field() ?><button class="btn btn-sm btn-dark">Mettre à jour maintenant</button></form></div>
+      <?php endif ?>
       <?php if (!empty($flash_ok)): ?><div class="alert alert-success" role="status"><?= e($flash_ok) ?></div><?php endif ?>
       <?php if (!empty($flash_err)): ?><div class="alert alert-danger" role="alert"><?= e($flash_err) ?></div><?php endif ?>
       <?= $content ?>

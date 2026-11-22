@@ -67,11 +67,6 @@
         <div class="panel" id="recap"></div>
         <p class="small text-muted">En validant, vous acceptez les <a href="/conditions-generales" target="_blank">conditions générales</a>. Aucun paiement en ligne : vous réglez directement avec notre équipe.</p>
       </section>
-
-      <div class="d-flex justify-content-between mt-4">
-        <button type="button" class="btn btn-outline-secondary" id="prev">Retour</button>
-        <button type="button" class="btn btn-primary btn-lg" id="next">Continuer</button>
-      </div>
     </div>
     <aside class="col-lg-4"><div class="summary" aria-live="polite">
       <p class="fw-bold mb-1">Votre réservation</p>
@@ -79,5 +74,13 @@
       <hr><p class="mb-0 text-muted small">Total estimé</p><p class="total mb-0" id="side-total">—</p>
     </div></aside>
   </div>
-  <div class="mobile-total" aria-hidden="true"><span>Total estimé</span><strong id="mobile-total">—</strong></div>
+  <div class="wiz-dock" role="group" aria-label="Navigation de la réservation">
+    <div class="wiz-dock-in">
+      <div class="wiz-dock-total" aria-live="polite"><span>Total estimé</span><strong id="mobile-total">—</strong></div>
+      <div class="wiz-dock-btns">
+        <button type="button" class="btn btn-outline-light" id="prev">Retour</button>
+        <button type="button" class="btn btn-lemon" id="next">Continuer</button>
+      </div>
+    </div>
+  </div>
 </div>

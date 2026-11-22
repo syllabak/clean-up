@@ -21,6 +21,7 @@ final class Router
 
     public function dispatch(string $method, string $path): void
     {
+        if ($method === 'HEAD') $method = 'GET';   // sondes de disponibilité : même réponse que GET, le serveur retire le corps
         foreach ($this->routes as [$m, $regex, $handler, $mw]) {
             if ($m !== $method || !preg_match($regex, $path, $match)) continue;
             array_shift($match);

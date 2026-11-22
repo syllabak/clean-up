@@ -8,7 +8,7 @@ $brandMark = ($logo ? '<img class="brand-logo" src="' . e($logo) . '" alt="' . (
 <head>
 <meta charset="utf-8">
 <meta name="base-path" content="<?= e(base_path()) ?>">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title><?= e($title ?? $company) ?></title>
 <meta name="description" content="<?= e($meta ?? 'Nettoyage à domicile et au bureau : lavage auto, canapés, matelas, tapis, maison, bureaux. Réservation en ligne, équipes mobiles.') ?>">
 <?php if (!empty($noindex)): ?><meta name="robots" content="noindex"><?php endif ?>
