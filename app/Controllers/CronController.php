@@ -23,6 +23,21 @@ final class CronController extends Controller
         json_response(['reminders' => $n->sendReminders(), 'retried_ok' => $n->retryDue(), 'campaign_messages' => (new \App\Services\MarketingService())->processQueue(), 'subscriptions' => (new \App\Services\SubscriptionService())->generateAll()]);
     }
 
+    /** Aide au dépannage (réponse protégée par le jeton) : tables attendues par les migrations mais absentes, et fin du journal d'erreurs. */
+    private static function diagnostic(): array
+    {
+        $files = glob(BASE_PATH . '/database/migrations/*.php') ?: []; sort($files);
+        $missing = [];
+        foreach ($files as $f) {
+            if (preg_match_all('/CREATE TABLE (?:IF NOT EXISTS )?[`"]?([a-z_0-9]+)[`"]?/i', (string) file_get_contents($f), $m)) {
+                foreach ($m[1] as $t) if ($t !== 'migrations' && !DB::tableExists($t)) $missing[$t] = basename($f);
+            }
+        }
+        $log = BASE_PATH . '/storage/logs/app.log'; $tail = [];
+        if (is_file($log)) $tail = array_map(fn($l) => mb_substr($l, 0, 300), array_slice(file($log, FILE_IGNORE_NEW_LINES) ?: [], -8));
+        return ['fichiers_de_migration' => count($files), 'derniere_migration_presente' => basename((string) end($files)), 'tables_manquantes' => $missing, 'moteur' => DB::driver(), 'fin_du_journal_erreurs' => $tail];
+    }
+
     /**
      * Installation à usage unique, sans terminal : /cron/install?token=CRON_TOKEN&email=...&name=...
      * Applique les migrations puis crée l'administrateur (mot de passe généré, affiché une seule fois).
@@ -33,7 +48,7 @@ final class CronController extends Controller
         $this->checkToken();
         $log = [];
         $n = Migrator::run(function ($m) use (&$log) { $log[] = $m; });
-        if ((int) DB::val('SELECT COUNT(*) FROM users') > 0) json_response(['error' => 'Installation déjà effectuée : route désactivée.', 'migrations_appliquees' => $n, 'journal' => $log, 'en_attente' => array_map('basename', \App\Core\Migrator::pending())], 410);
+        if ((int) DB::val('SELECT COUNT(*) FROM users') > 0) json_response(['error' => 'Installation déjà effectuée : route désactivée.', 'migrations_appliquees' => $n, 'journal' => $log, 'en_attente' => array_map('basename', \App\Core\Migrator::pending())] + self::diagnostic(), 410);
         $out = ['migrations' => $n, 'log' => $log];
         $email = mb_strtolower(Request::str('email'));
         $name = Request::str('name');
