@@ -33,7 +33,7 @@ final class CronController extends Controller
         $this->checkToken();
         $log = [];
         $n = Migrator::run(function ($m) use (&$log) { $log[] = $m; });
-        if ((int) DB::val('SELECT COUNT(*) FROM users') > 0) json_response(['error' => 'Installation déjà effectuée : route désactivée.'], 410);
+        if ((int) DB::val('SELECT COUNT(*) FROM users') > 0) json_response(['error' => 'Installation déjà effectuée : route désactivée.', 'migrations_appliquees' => $n, 'journal' => $log, 'en_attente' => array_map('basename', \App\Core\Migrator::pending())], 410);
         $out = ['migrations' => $n, 'log' => $log];
         $email = mb_strtolower(Request::str('email'));
         $name = Request::str('name');
