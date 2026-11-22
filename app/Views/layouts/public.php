@@ -1,6 +1,8 @@
 <?php
 $company = setting('company_name', "Clean Up");
 $wa = setting('company_whatsapp', '');
+$logo = \App\Services\ThemeService::logo();
+$brandMark = ($logo ? '<img class="brand-logo" src="' . e($logo) . '" alt="' . ($logo && setting('brand_show_name', '1') !== '0' ? '' : e($company)) . '">' : '<span class="brand-drop" aria-hidden="true"></span>') . (!$logo || setting('brand_show_name', '1') !== '0' ? e($company) : '');
 ?><!doctype html>
 <html lang="fr">
 <head>
@@ -10,13 +12,14 @@ $wa = setting('company_whatsapp', '');
 <title><?= e($title ?? $company) ?></title>
 <meta name="description" content="<?= e($meta ?? 'Nettoyage à domicile et au bureau : lavage auto, canapés, matelas, tapis, maison, bureaux. Réservation en ligne, équipes mobiles.') ?>">
 <?php if (!empty($noindex)): ?><meta name="robots" content="noindex"><?php endif ?>
-<meta name="theme-color" content="#0B2545">
+<meta name="theme-color" content="<?= e(\App\Services\ThemeService::get('theme_dark')) ?>">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" href="/assets/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
 <link rel="stylesheet" href="<?= asset('vendor/bootstrap.min.css') ?>">
 <link rel="stylesheet" href="<?= asset('css/app.css') ?>">
 <?php foreach ((array) ($page_css ?? []) as $css): ?><link rel="stylesheet" href="<?= asset($css) ?>"><?php endforeach ?>
+<?php if (\App\Services\ThemeService::isCustom()): ?><style><?= \App\Services\ThemeService::css() ?></style><?php endif ?>
 <?php $mkOn = \App\Services\TrackingService::enabled(); if ($mkOn): ?>
 <meta name="mk-config" content="<?= e(json_encode(\App\Services\TrackingService::publicConfig())) ?>">
 <?php if (!empty($mk_event)): ?><meta name="mk-event" content="<?= e(json_encode($mk_event)) ?>"><?php endif ?>
@@ -27,7 +30,7 @@ $wa = setting('company_whatsapp', '');
 <a class="skip" href="#main">Aller au contenu</a>
 <header class="site-header">
   <nav class="navbar navbar-expand-lg container">
-    <a class="brand" href="/"><span class="brand-drop" aria-hidden="true"></span><?= e($company) ?></a>
+    <a class="brand" href="/"><?= $brandMark ?></a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-controls="nav" aria-expanded="false" aria-label="Menu"><span class="navbar-toggler-icon"></span></button>
     <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
@@ -49,7 +52,7 @@ $wa = setting('company_whatsapp', '');
   <div class="container">
     <div class="row g-4">
       <div class="col-md-5">
-        <p class="brand mb-2"><span class="brand-drop" aria-hidden="true"></span><?= e($company) ?></p>
+        <p class="brand mb-2"><?= $brandMark ?></p>
         <p class="mb-1">Nettoyage mobile à Dakar et environs.</p>
         <p class="mb-0 small opacity-75"><?= e(setting('company_address')) ?></p>
       </div>
@@ -75,7 +78,7 @@ $wa = setting('company_whatsapp', '');
 <?php if ($wa !== ''): ?>
 <a class="wa-float" href="https://wa.me/<?= e(preg_replace('/\D/', '', $wa)) ?>" target="_blank" rel="noopener" aria-label="Écrire sur WhatsApp">WhatsApp</a>
 <?php endif ?>
-<?php if (setting('chatbot_enabled', '1') === '1' && !in_array('booking.js', (array) ($page_js ?? []), true)): ?><div id="cb-root"></div><script src="<?= asset('js/photos.js') ?>" defer></script><script src="<?= asset('js/chatbot.js') ?>" defer></script><?php endif ?>
+<?php if (setting('chatbot_enabled', '1') === '1' && !in_array('booking.js', (array) ($page_js ?? []), true)): ?><div id="cb-root" data-label="<?= e(\App\Services\ThemeService::chatLabel()) ?>"></div><script src="<?= asset('js/photos.js') ?>" defer></script><script src="<?= asset('js/chatbot.js') ?>" defer></script><?php endif ?>
 <script src="<?= asset('vendor/bootstrap.bundle.min.js') ?>"></script>
 <script src="<?= asset('js/app.js') ?>"></script>
 <?php foreach ((array) ($page_js ?? []) as $js): ?><script src="<?= asset(str_contains($js, '/') ? $js : 'js/' . $js) ?>"></script><?php endforeach ?>

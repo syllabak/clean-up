@@ -35,7 +35,7 @@
   var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
 
   // ---------------------------------------------------------------- interface
-  var launch = el('button', { type: 'button', class: 'cb-launch', 'aria-expanded': 'false', 'aria-controls': 'cb-panel' }, [el('span', { class: 'cb-dot', 'aria-hidden': 'true' }), 'Prendre rendez-vous']);
+  var launch = el('button', { type: 'button', class: 'cb-launch', 'aria-expanded': 'false', 'aria-controls': 'cb-panel' }, [el('span', { class: 'cb-dot', 'aria-hidden': 'true' }), root.dataset.label || 'Prendre rendez-vous']);
   var log = el('div', { class: 'cb-log', role: 'log', 'aria-live': 'polite' });
   var choicesBox = el('div', { class: 'cb-choices' });
   var input = el('input', { class: 'cb-input', type: 'text', maxlength: '300', autocomplete: 'off', 'aria-label': 'Votre message', placeholder: 'Écrivez ici…' });

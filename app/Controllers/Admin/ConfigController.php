@@ -38,6 +38,7 @@ final class ConfigController extends Controller
                 ['Témoignages', 'Les avis affichés sur l\'accueil.', '/admin/crud/testimonials', 'cms.manage'],
             ],
             'Entreprise et accès' => [
+                ['Apparence', 'Thème, logo, couleurs des boutons et bouton du chatbot.', '/admin/apparence', 'settings.manage'],
                 ['Messagerie et paiement', 'SMS, email, paiement en ligne PayTech et PayDunya : clés et tests.', '/admin/messagerie-paiement', 'settings.manage'],
                 ['Paramètres', 'Nom, téléphone, horaires, règles de réservation, notifications.', '/admin/parametres', 'settings.manage'],
                 ['Utilisateurs', 'Qui peut se connecter, avec quel rôle.', '/admin/crud/users', 'users.manage'],
