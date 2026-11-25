@@ -10,3 +10,6 @@ storage/cache/*
 motion/out/stills/
 public/uploads/site/*
 !public/uploads/site/.gitkeep
+marketing/affiches/maquette/
+marketing/affiches/html-social/99-*
+marketing/affiches/out/social-99-*
